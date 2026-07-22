@@ -352,49 +352,6 @@
             });
         }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('login-btn');
-            const errorEl = document.getElementById('login-error');
-            
-            btn.textContent = 'Loading...';
-            errorEl.classList.add('hidden');
-
-            try {
-                let { data, error } = await sbClient.auth.signInWithPassword({ email, password });
-                
-                if (error) {
-                    if (error.message.includes('Invalid login credentials') || error.message.includes('Invalid grant')) {
-                        const { data: regData, error: regError } = await sbClient.auth.signUp({ email, password });
-                        if (regError) {
-                            showError(regError.message);
-                        } else {
-                            errorEl.textContent = 'Registrasi berhasil! Silakan login.';
-                            errorEl.classList.remove('hidden', 'text-rosewood');
-                            errorEl.classList.add('text-sage');
-                        }
-                    } else {
-                        showError(error.message);
-                    }
-                } else {
-                    currentUser = data.user;
-                    showMainApp();
-                }
-            } catch (err) {
-                showError("Terjadi kesalahan jaringan.");
-                console.error(err);
-            }
-            
-            function showError(msg) {
-                errorEl.textContent = msg;
-                errorEl.classList.remove('hidden', 'text-sage');
-                errorEl.classList.add('text-rosewood');
-            }
-            btn.textContent = 'Login / Register';
-        }
-
         async function logout() {
             await sbClient.auth.signOut();
             currentUser = null;
@@ -410,6 +367,7 @@
             const btn = document.getElementById('login-btn');
             const errorEl = document.getElementById('login-error');
             
+            const originalBtnText = btn.textContent;
             btn.textContent = 'Loading...';
             errorEl.classList.add('hidden');
 
@@ -417,9 +375,13 @@
                 if (isRegisterMode) {
                     const { data, error } = await sbClient.auth.signUp({ email, password });
                     if (error) {
-                        showError(error.message);
+                        if (error.message.includes('Signups not allowed') || error.message.includes('Email signups are disabled')) {
+                            showError('Pendaftaran akun baru dinonaktifkan di Supabase. Silakan buka Supabase Dashboard > Authentication > Providers > Email, lalu aktifkan "Enable Signups".');
+                        } else {
+                            showError(error.message);
+                        }
                     } else {
-                        errorEl.textContent = 'Registrasi berhasil! Silakan cek email atau langsung login.';
+                        errorEl.textContent = 'Registrasi berhasil! Silakan cek email Anda untuk konfirmasi atau langsung login.';
                         errorEl.classList.remove('hidden', 'text-rosewood');
                         errorEl.classList.add('text-sage');
                         toggleAuthMode('login');
@@ -443,7 +405,7 @@
                 errorEl.classList.remove('hidden', 'text-sage');
                 errorEl.classList.add('text-rosewood');
             }
-            btn.textContent = isRegisterMode ? 'Register' : 'Login';
+            btn.textContent = originalBtnText;
         }
 
         function selectFeeling(btnElement, feeling) {
