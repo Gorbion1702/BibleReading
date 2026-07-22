@@ -33,10 +33,27 @@
 </head>
 <body class="bg-vanilla text-midnight min-h-screen flex flex-col justify-between font-sans">
 
+    <!-- Toast Notification Banner -->
+    <div id="toast-banner" class="fixed top-5 right-5 z-50 hidden transition-all duration-300 transform translate-y-[-20px] opacity-0 bg-midnight text-blush px-4 py-3 rounded-xl shadow-lg border border-misty text-sm flex items-center gap-2">
+        <i class="ph ph-info text-lg text-rosewood"></i>
+        <span id="toast-message">Notifikasi</span>
+    </div>
+
     <script>
-        // Bersihkan tanda tanya /? di URL secara otomatis saat halaman dimuat
+        // Bersihkan tanda tanya /? di URL secara otomatis dan pastikan tidak tersisa
         if (window.location.search === '?' || window.location.search.startsWith('?')) {
             window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-banner');
+            const msg = document.getElementById('toast-message');
+            msg.innerText = message;
+            toast.classList.remove('hidden', 'translate-y-[-20px]', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
         }
 
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
@@ -121,7 +138,7 @@
             } catch (error) {
                 console.error("Auth Error:", error.message);
                 if (error.message.includes("Signups not allowed") || error.message.includes("disabled")) {
-                    errorMsg.innerHTML = "<strong>Pendaftaran dinonaktifkan.</strong><br>Aktifkan 'Allow new users to sign up' di Supabase Dashboard > Authentication > Providers > Email.";
+                    errorMsg.innerHTML = "<strong>Pendaftaran dinonaktifkan.</strong><br>Aktifkan 'Allow new users to sign up' di Supabase.";
                 } else if (error.message.includes("Invalid login credentials")) {
                     errorMsg.innerText = "Email atau password salah.";
                 } else {
@@ -136,6 +153,9 @@
         }
 
         function showMainApp() {
+            if (window.location.search) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
             const loginView = document.getElementById('login-view');
             const mainView = document.getElementById('main-view');
             if(loginView) {
@@ -193,9 +213,9 @@
             msgEl.classList.remove('hidden');
             
             const messages = {
-                'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini. Bagikan kebahagiaanmu dengan orang lain!',
-                'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu. Nikmati ketenangan ini.',
-                'Sad': 'Tuhan dekat dengan mereka yang patah hati. Tak apa bersedih, mari datang kepada-Nya dalam doa.',
+                'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini.',
+                'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu.',
+                'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya dalam doa.',
                 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
                 'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
                 'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).'
@@ -255,6 +275,7 @@
                 msgEl.innerText = "Profile berhasil diperbarui!";
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
                 updateAvatarUI(data.user.email, newName);
+                showToast("Profil berhasil diperbarui!");
             } catch (error) {
                 msgEl.innerText = error.message;
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
@@ -285,6 +306,7 @@
                 msgEl.innerText = "Password berhasil diubah!";
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
                 document.getElementById('profile-new-password').value = '';
+                showToast("Password berhasil diubah!");
             } catch (error) {
                 msgEl.innerText = error.message;
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
@@ -351,9 +373,10 @@
 
                 inputEl.value = '';
                 loadSharings();
+                showToast("Sharing berhasil diposting!");
             } catch (error) {
                 console.error("Gagal memposting sharing:", error);
-                alert("Gagal memposting. Pastikan tabel 'sharings' sudah dibuat di Supabase.");
+                showToast("Gagal memposting. Pastikan tabel 'sharings' sudah dibuat di Supabase.");
             }
             return false;
         }
@@ -374,7 +397,7 @@
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
                                 <span class="font-bold text-sm text-rosewood">Budi (Contoh)</span>
-                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Anda telah berdoa untuk ini.')">
+                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="showToast('Anda telah mendukung dalam doa.')">
                                     <i class="ph ph-hands-praying"></i> Berdoa
                                 </button>
                             </div>
@@ -389,7 +412,7 @@
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
                                 <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
-                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Terima kasih, Anda telah mendukung dalam doa.')">
+                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="showToast('Terima kasih, Anda telah mendukung dalam doa.')">
                                     <i class="ph ph-hands-praying"></i> Berdoa
                                 </button>
                             </div>
@@ -417,9 +440,10 @@
 
                 inputEl.value = '';
                 loadPrayers();
+                showToast("Pokok doa berhasil dikirim!");
             } catch (error) {
                 console.error("Gagal mengirim doa:", error);
-                alert("Gagal mengirim pokok doa. Pastikan tabel 'prayers' sudah dibuat di Supabase.");
+                showToast("Gagal mengirim pokok doa. Pastikan tabel 'prayers' sudah dibuat di Supabase.");
             }
             return false;
         }
@@ -445,7 +469,7 @@
             <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
             <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
 
-            <form onsubmit="return handleAuth(event)">
+            <form method="POST" onsubmit="return handleAuth(event)">
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-1">Email</label>
                     <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
@@ -522,7 +546,7 @@
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Sharing Firman Tuhan</h2>
-                    <form onsubmit="return postSharing(event)" class="mb-6">
+                    <form method="POST" onsubmit="return postSharing(event)" class="mb-6">
                         <textarea id="sharing-input" rows="3" required placeholder="Bagikan apa yang Tuhan taruh di hatimu hari ini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
                         <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Posting Sharing</button>
                     </form>
@@ -534,7 +558,7 @@
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <form onsubmit="return postPrayer(event)" class="mb-6">
+                    <form method="POST" onsubmit="return postPrayer(event)" class="mb-6">
                         <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa atau pergumulan Anda di sini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
                         <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Kirim Pokok Doa</button>
                     </form>
@@ -555,7 +579,7 @@
                     <div class="space-y-6">
                         <div>
                             <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Edit Profile</h3>
-                            <form onsubmit="return handleProfileUpdate(event)">
+                            <form method="POST" onsubmit="return handleProfileUpdate(event)">
                                 <div class="mb-3">
                                     <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
                                     <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
@@ -573,7 +597,7 @@
 
                         <div>
                             <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Ubah Password</h3>
-                            <form onsubmit="return handlePasswordChange(event)">
+                            <form method="POST" onsubmit="return handlePasswordChange(event)">
                                 <div class="mb-3">
                                     <label class="block text-xs font-semibold mb-1">Password Baru</label>
                                     <input type="password" id="profile-new-password" required minlength="6" placeholder="Minimal 6 karakter" class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
