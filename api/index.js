@@ -29,10 +29,10 @@ app.get('/api/sharing', async (req, res) => {
 // Route POST: Menyimpan sharing baru ke Supabase
 app.post('/api/sharing', async (req, res) => {
     try {
-        const { text, user_name } = req.body;
+        const { text, user_name, user_id } = req.body;
         const { data, error } = await supabase
             .from('sharings')
-            .insert([{ text, user_name }])
+            .insert([{ text, user_name, user_id }])
             .select();
             
         if (error) {
@@ -44,6 +44,83 @@ app.post('/api/sharing', async (req, res) => {
             return res.status(500).json({ error: error.message });
         }
         res.status(201).json(data[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route PUT: Memperbarui sharing (hanya oleh penulisnya)
+app.put('/api/sharing/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { text, user_name, user_id } = req.body;
+        
+        const { data: existing, error: fetchErr } = await supabase
+            .from('sharings')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !existing) {
+            return res.status(404).json({ error: "Sharing tidak ditemukan." });
+        }
+
+        // Validasi kepenulisan (writer check)
+        if (user_id && existing.user_id && existing.user_id !== user_id) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
+        }
+        if (!user_id && existing.user_name !== user_name) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
+        }
+
+        const { data, error } = await supabase
+            .from('sharings')
+            .update({ text })
+            .eq('id', id)
+            .select();
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        res.status(200).json(data[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route DELETE: Menghapus sharing (hanya oleh penulisnya)
+app.delete('/api/sharing/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { user_name, user_id } = req.body;
+        
+        const { data: existing, error: fetchErr } = await supabase
+            .from('sharings')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !existing) {
+            return res.status(404).json({ error: "Sharing tidak ditemukan." });
+        }
+
+        // Validasi kepenulisan (writer check)
+        if (user_id && existing.user_id && existing.user_id !== user_id) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus sharing ini." });
+        }
+        if (!user_id && existing.user_name !== user_name) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus sharing ini." });
+        }
+
+        const { error } = await supabase
+            .from('sharings')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
