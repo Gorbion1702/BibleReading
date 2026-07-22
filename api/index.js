@@ -30,11 +30,24 @@ app.get('/api/sharing', async (req, res) => {
 app.post('/api/sharing', async (req, res) => {
     try {
         const { text, user_name, user_id } = req.body;
-        const { data, error } = await supabase
+        let insertData = { text, user_name };
+        if (user_id) insertData.user_id = user_id;
+
+        let { data, error } = await supabase
             .from('sharings')
-            .insert([{ text, user_name, user_id }])
+            .insert([insertData])
             .select();
             
+        if (error && error.message.includes('user_id')) {
+            // Fallback jika kolom user_id belum ada di tabel Supabase
+            const fallbackRes = await supabase
+                .from('sharings')
+                .insert([{ text, user_name }])
+                .select();
+            data = fallbackRes.data;
+            error = fallbackRes.error;
+        }
+
         if (error) {
             if (error.message.includes('row-level security policy')) {
                 return res.status(403).json({ 
@@ -65,11 +78,11 @@ app.put('/api/sharing/:id', async (req, res) => {
             return res.status(404).json({ error: "Sharing tidak ditemukan." });
         }
 
-        // Validasi kepenulisan (writer check)
-        if (user_id && existing.user_id && existing.user_id !== user_id) {
+        // Validasi kepenulisan (writer check) fleksibel
+        if (existing.user_id && user_id && existing.user_id !== user_id) {
             return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
         }
-        if (!user_id && existing.user_name !== user_name) {
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
             return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
         }
 
@@ -104,11 +117,11 @@ app.delete('/api/sharing/:id', async (req, res) => {
             return res.status(404).json({ error: "Sharing tidak ditemukan." });
         }
 
-        // Validasi kepenulisan (writer check)
-        if (user_id && existing.user_id && existing.user_id !== user_id) {
+        // Validasi kepenulisan (writer check) fleksibel
+        if (existing.user_id && user_id && existing.user_id !== user_id) {
             return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus sharing ini." });
         }
-        if (!user_id && existing.user_name !== user_name) {
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
             return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus sharing ini." });
         }
 
