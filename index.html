@@ -45,7 +45,7 @@
             <h1 id="auth-title" class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
             <p id="auth-subtitle" class="text-center text-misty mb-6">Login to your Bible Community</p>
             
-            <p class="text-sm text-center text-rosewood mb-4 bg-vanilla p-2 rounded hidden" id="login-error"></p>
+            <div id="login-error" class="hidden text-sm text-center mb-4 p-3 rounded bg-red-100 text-red-700 border border-red-200"></div>
             
             <form id="login-form" class="space-y-4" onsubmit="handleAuth(event)">
                 <div>
@@ -57,7 +57,7 @@
                     <input type="password" id="password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage" placeholder="Enter your password" required>
                 </div>
                 
-                <button id="login-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
+                <button id="submit-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
                     Login
                 </button>
             </form>
@@ -70,7 +70,7 @@
     </div>
 
     <!-- MAIN APPLICATION VIEW -->
-    <div id="main-view" class="page-section flex-col h-screen">
+    <div id="main-view" class="page-section hidden flex-col h-screen">
         
         <!-- Top Navigation Menu -->
         <header class="bg-midnight text-vanilla shadow-md sticky top-0 z-10">
@@ -248,7 +248,7 @@
 
                         <div>
                             <h3 class="text-lg font-bold text-rosewood border-b border-misty pb-2 mb-4">Ubah Password</h3>
-                            <form onsubmitt="handlePasswordChange(event)" class="space-y-4">
+                            <form onsubmit="handlePasswordChange(event)" class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-midnight mb-1">Password Lama</label>
                                     <input type="password" class="w-full p-2 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" required>
@@ -271,6 +271,7 @@
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co'; 
         const SUPABASE_ANON_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt'; 
         
+        // Deklarasi aman agar tidak bentrok dengan variabel global
         const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUser = null;
         let isRegisterMode = false;
@@ -279,7 +280,7 @@
             isRegisterMode = (mode === 'register');
             const titleEl = document.getElementById('auth-title');
             const subtitleEl = document.getElementById('auth-subtitle');
-            const btnEl = document.getElementById('login-btn');
+            const btnEl = document.getElementById('submit-btn');
             const toggleTextEl = document.getElementById('toggle-text');
             const errorEl = document.getElementById('login-error');
             
@@ -304,15 +305,23 @@
                 if (session) {
                     currentUser = session.user;
                     showMainApp();
+                } else {
+                    document.getElementById('login-view').classList.add('active');
                 }
             } catch (err) {
                 console.error("Session check error:", err);
+                document.getElementById('login-view').classList.add('active');
             }
         }
+        
+        // Panggil checkSession saat halaman dimuat
         checkSession();
 
         function showMainApp() {
+            // Sembunyikan form login dan tampilkan app utama
             document.getElementById('login-view').classList.remove('active');
+            document.getElementById('login-view').classList.add('hidden');
+            
             document.getElementById('main-view').classList.add('flex');
             document.getElementById('main-view').classList.remove('hidden');
             
@@ -328,6 +337,8 @@
         function hideMainApp() {
             document.getElementById('main-view').classList.remove('flex');
             document.getElementById('main-view').classList.add('hidden');
+            
+            document.getElementById('login-view').classList.remove('hidden');
             document.getElementById('login-view').classList.add('active');
         }
 
@@ -364,7 +375,7 @@
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const btn = document.getElementById('login-btn');
+            const btn = document.getElementById('submit-btn');
             const errorEl = document.getElementById('login-error');
             
             const originalBtnText = btn.textContent;
@@ -373,20 +384,22 @@
 
             try {
                 if (isRegisterMode) {
+                    // Logika Pendaftaran (Sign Up)
                     const { data, error } = await sbClient.auth.signUp({ email, password });
                     if (error) {
-                        if (error.message.includes('Signups not allowed') || error.message.includes('Email signups are disabled')) {
-                            showError('Pendaftaran akun baru dinonaktifkan di Supabase. Silakan buka Supabase Dashboard > Authentication > Providers > Email, lalu aktifkan "Enable Signups".');
+                         if (error.message.includes('Signups not allowed') || error.message.includes('Email signups are disabled')) {
+                            showError('Email signups dinonaktifkan di Supabase. Silakan buka Supabase Dashboard > Authentication > Providers > Email, pastikan "Enable Signups" diaktifkan dan "Confirm email" dimatikan sementara.');
                         } else {
                             showError(error.message);
                         }
                     } else {
-                        errorEl.textContent = 'Registrasi berhasil! Silakan cek email Anda untuk konfirmasi atau langsung login.';
-                        errorEl.classList.remove('hidden', 'text-rosewood');
-                        errorEl.classList.add('text-sage');
+                        errorEl.innerHTML = '<strong>Registrasi berhasil!</strong> Silakan login.';
+                        errorEl.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'border-red-200');
+                        errorEl.classList.add('bg-green-100', 'text-green-700', 'border-green-200');
                         toggleAuthMode('login');
                     }
                 } else {
+                    // Logika Masuk (Sign In)
                     const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
                     if (error) {
                         showError(error.message);
@@ -402,9 +415,10 @@
             
             function showError(msg) {
                 errorEl.textContent = msg;
-                errorEl.classList.remove('hidden', 'text-sage');
-                errorEl.classList.add('text-rosewood');
+                errorEl.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'border-green-200');
+                errorEl.classList.add('bg-red-100', 'text-red-700', 'border-red-200');
             }
+            
             btn.textContent = originalBtnText;
         }
 
@@ -524,8 +538,6 @@
                 btn.classList.replace('bg-green-600', 'bg-rosewood');
             }, 2000);
         }
-
-        document.getElementById('main-view').classList.add('hidden');
     </script>
 </body>
 </html>
