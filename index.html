@@ -5,9 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bible Reading Community</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blush: '#f5e6d3',
+                        rosewood: '#964f4c',
+                        vanilla: '#fdfbf7',
+                        misty: '#d4c5b9',
+                        midnight: '#2b2d42',
+                        sage: '#8a9a86'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .emoji-btn.selected {
+            background-color: #f5e6d3;
+            border-color: #964f4c;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-vanilla text-midnight min-h-screen flex flex-col justify-between font-sans">
+
     <script>
         // Bersihkan tanda tanya /? di URL secara otomatis saat halaman dimuat
-        if (window.location.search === '?') {
+        if (window.location.search === '?' || window.location.search.startsWith('?')) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
@@ -32,8 +60,8 @@
 
             const errorMsg = document.getElementById('auth-error-message');
             const successMsg = document.getElementById('auth-success-message');
-            errorMsg.classList.add('hidden');
-            successMsg.classList.add('hidden');
+            if(errorMsg) errorMsg.classList.add('hidden');
+            if(successMsg) successMsg.classList.add('hidden');
 
             if (isLoginMode) {
                 title.innerText = "Welcome Back";
@@ -80,16 +108,12 @@
                     throw result.error;
                 }
 
-                if (!isLoginMode && result.data.user && result.data.user.identities && result.data.user.identities.length === 0) {
-                    throw new Error("Email ini sudah terdaftar. Silakan login.");
-                }
-
                 if (!isLoginMode) {
                     successMsg.innerText = "Pendaftaran berhasil! Anda akan segera masuk...";
                     successMsg.classList.remove('hidden');
                     setTimeout(() => {
                         showMainApp();
-                    }, 1500);
+                    }, 1200);
                 } else {
                     showMainApp();
                 }
@@ -112,10 +136,16 @@
         }
 
         function showMainApp() {
-            document.getElementById('login-view').classList.remove('active');
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('main-view').classList.remove('hidden');
-            document.getElementById('main-view').classList.add('flex');
+            const loginView = document.getElementById('login-view');
+            const mainView = document.getElementById('main-view');
+            if(loginView) {
+                loginView.classList.remove('active');
+                loginView.classList.add('hidden');
+            }
+            if(mainView) {
+                mainView.classList.remove('hidden');
+                mainView.classList.add('flex');
+            }
             navigate('home');
             loadUserProfile();
             loadSharings();
@@ -126,10 +156,16 @@
             if (supabaseClient) {
                 await supabaseClient.auth.signOut();
             }
-            document.getElementById('main-view').classList.remove('flex');
-            document.getElementById('main-view').classList.add('hidden');
-            document.getElementById('login-view').classList.remove('hidden');
-            document.getElementById('login-view').classList.add('active');
+            const loginView = document.getElementById('login-view');
+            const mainView = document.getElementById('main-view');
+            if(mainView) {
+                mainView.classList.remove('flex');
+                mainView.classList.add('hidden');
+            }
+            if(loginView) {
+                loginView.classList.remove('hidden');
+                loginView.classList.add('active');
+            }
             document.getElementById('auth-email').value = '';
             document.getElementById('auth-password').value = '';
             isLoginMode = true;
@@ -139,7 +175,8 @@
 
         function navigate(sectionId) {
             document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
-            document.getElementById('sec-' + sectionId).classList.remove('hidden');
+            const targetSec = document.getElementById('sec-' + sectionId);
+            if(targetSec) targetSec.classList.remove('hidden');
             
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('text-blush', 'font-bold');
@@ -179,10 +216,12 @@
 
         function updateAvatarUI(email, fullName) {
             const displayName = fullName || email.split('@')[0];
-            document.getElementById('display-name-title').innerText = displayName;
+            const nameTitle = document.getElementById('display-name-title');
+            if(nameTitle) nameTitle.innerText = displayName;
             
             const initial = displayName.charAt(0).toUpperCase();
-            document.getElementById('profile-avatar-text').innerText = initial;
+            const avatarText = document.getElementById('profile-avatar-text');
+            if(avatarText) avatarText.innerText = initial;
         }
 
         async function getUserDisplayName() {
@@ -248,7 +287,7 @@
                 document.getElementById('profile-new-password').value = '';
             } catch (error) {
                 msgEl.innerText = error.message;
-                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-green-200 block";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
             } finally {
                 btn.innerText = 'Ubah Password';
                 btn.disabled = false;
@@ -265,6 +304,7 @@
                     .order('created_at', { ascending: false });
 
                 const listEl = document.getElementById('sharing-list');
+                if(!listEl) return;
                 listEl.innerHTML = '';
                 
                 if (error || !data || data.length === 0) {
@@ -326,6 +366,7 @@
                     .order('created_at', { ascending: false });
 
                 const listEl = document.getElementById('prayer-list');
+                if(!listEl) return;
                 listEl.innerHTML = '';
                 
                 if (error || !data || data.length === 0) {
@@ -384,7 +425,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (window.location.search === '?') {
+            if (window.location.search === '?' || window.location.search.startsWith('?')) {
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
             if (supabaseClient) {
@@ -394,7 +435,161 @@
                 }
             }
         });
-
     </script>
+
+    <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty">
+            <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
+            <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
+            
+            <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
+            <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
+
+            <form onsubmit="return handleAuth(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-1">Email</label>
+                    <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold mb-1">Password</label>
+                    <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition">Login</button>
+            </form>
+
+            <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">
+                Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>
+            </p>
+        </div>
+    </div>
+
+    <div id="main-view" class="hidden flex-col min-h-screen">
+        <header class="bg-midnight text-white px-6 py-4 flex justify-between items-center shadow-md">
+            <div class="font-bold text-lg tracking-wider text-blush">BibleCom</div>
+            <nav class="flex gap-6 text-sm">
+                <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold transition hover:text-blush">Home</button>
+                <button type="button" data-target="devotion" onclick="navigate('devotion')" class="nav-btn text-misty transition hover:text-blush">Devotion</button>
+                <button type="button" data-target="prayer" onclick="navigate('prayer')" class="nav-btn text-misty transition hover:text-blush">Prayer</button>
+                <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty transition hover:text-blush">Profile</button>
+            </nav>
+            <button type="button" onclick="logout()" class="text-misty hover:text-white transition" title="Logout">
+                <i class="ph ph-sign-out text-xl"></i>
+            </button>
+        </header>
+
+        <main class="flex-grow p-6 max-w-4xl mx-auto w-full">
+            <!-- Home Section -->
+            <section id="sec-home" class="content-section space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h2 class="text-xl font-bold text-rosewood mb-3">How was your feeling today?</h2>
+                    <div class="flex flex-wrap gap-4 justify-center sm:justify-start my-4">
+                        <button type="button" onclick="selectFeeling(this, 'Happy')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😁</span>
+                            <span class="text-xs mt-1">Happy</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Peaceful')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😌</span>
+                            <span class="text-xs mt-1">Peaceful</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Sad')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😢</span>
+                            <span class="text-xs mt-1">Sad</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Anxious')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😟</span>
+                            <span class="text-xs mt-1">Anxious</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Angry')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😠</span>
+                            <span class="text-xs mt-1">Angry</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Tired')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😩</span>
+                            <span class="text-xs mt-1">Tired</span>
+                        </button>
+                    </div>
+                    <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty"></div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3>
+                    <p class="text-sm italic mb-2">"Sebab Allah begitu mengasihi dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal."</p>
+                    <span class="text-xs font-semibold text-sage">— Yohanes 3:16</span>
+                </div>
+            </section>
+
+            <!-- Devotion / Sharing Section -->
+            <section id="sec-devotion" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h2 class="text-xl font-bold text-rosewood mb-4">Sharing Firman Tuhan</h2>
+                    <form onsubmit="return postSharing(event)" class="mb-6">
+                        <textarea id="sharing-input" rows="3" required placeholder="Bagikan apa yang Tuhan taruh di hatimu hari ini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Posting Sharing</button>
+                    </form>
+                    <div id="sharing-list" class="space-y-4"></div>
+                </div>
+            </section>
+
+            <!-- Prayer Section -->
+            <section id="sec-prayer" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
+                    <form onsubmit="return postPrayer(event)" class="mb-6">
+                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa atau pergumulan Anda di sini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Kirim Pokok Doa</button>
+                    </form>
+                    <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="sec-profile" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
+                    <div class="flex flex-col items-center mb-6">
+                        <div id="profile-avatar-text" class="w-20 h-20 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-3xl mb-3 shadow-inner">U</div>
+                        <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
+                    </div>
+
+                    <div id="profile-msg" class="hidden mb-4 p-3 rounded text-sm text-center"></div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Edit Profile</h3>
+                            <form onsubmit="return handleProfileUpdate(event)">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
+                                    <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-xs font-semibold mb-1">Email</label>
+                                    <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm text-sage cursor-not-allowed">
+                                    <span class="text-[11px] text-sage mt-1 block">Email tidak dapat diubah.</span>
+                                </div>
+                                <button type="submit" id="update-profile-btn" class="bg-rosewood text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Simpan Profile</button>
+                            </form>
+                        </div>
+
+                        <hr class="border-misty opacity-50">
+
+                        <div>
+                            <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Ubah Password</h3>
+                            <form onsubmit="return handlePasswordChange(event)">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-semibold mb-1">Password Baru</label>
+                                    <input type="password" id="profile-new-password" required minlength="6" placeholder="Minimal 6 karakter" class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
+                                </div>
+                                <button type="submit" id="update-password-btn" class="bg-midnight text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Ubah Password</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">
+            &copy; 2026 Bible Community. All rights reserved.
+        </footer>
+    </div>
+
 </body>
 </html>
