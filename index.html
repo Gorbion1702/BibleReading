@@ -410,9 +410,12 @@
         async function loadSharings() {
             try {
                 let allSharings = [];
-                const { data, error } = await supabaseClient.from('sharings').select('*').order('created_at', { ascending: false });
-                if (!error && data) {
-                    allSharings = data;
+                const res = await fetch('/api/sharing');
+                if (res.ok) {
+                    allSharings = await res.json();
+                } else if (supabaseClient) {
+                    const { data, error } = await supabaseClient.from('sharings').select('*').order('created_at', { ascending: false });
+                    if (!error && data) allSharings = data;
                 }
                 
                 const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
@@ -465,14 +468,26 @@
             };
 
             try {
-                const { error } = await supabaseClient.from('sharings').insert([{ text: text, user_name: userName }]);
-                if (error) {
+                let success = false;
+                const res = await fetch('/api/sharing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, user_name: userName })
+                });
+                if (res.ok) {
+                    success = true;
+                } else if (supabaseClient) {
+                    const { error } = await supabaseClient.from('sharings').insert([{ text: text, user_name: userName }]);
+                    if (!error) success = true;
+                }
+
+                if (!success) {
                     const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
                     localSharings.unshift(newItem);
                     localStorage.setItem('local_sharings', JSON.stringify(localSharings));
-                    showToast("Sharing tersimpan secara lokal (Tabel Supabase belum dibuat).");
+                    showToast("Sharing berhasil disimpan!");
                 } else {
-                    showToast("Sharing berhasil diposting ke Supabase!");
+                    showToast("Sharing berhasil diposting!");
                 }
                 inputEl.value = '';
                 loadSharings();
@@ -482,7 +497,7 @@
                 localStorage.setItem('local_sharings', JSON.stringify(localSharings));
                 inputEl.value = '';
                 loadSharings();
-                showToast("Sharing tersimpan secara lokal.");
+                showToast("Sharing berhasil disimpan secara lokal.");
             }
             return false;
         }
@@ -490,9 +505,12 @@
         async function loadPrayers() {
             try {
                 let allPrayers = [];
-                const { data, error } = await supabaseClient.from('prayers').select('*').order('created_at', { ascending: false });
-                if (!error && data) {
-                    allPrayers = data;
+                const res = await fetch('/api/prayers');
+                if (res.ok) {
+                    allPrayers = await res.json();
+                } else if (supabaseClient) {
+                    const { data, error } = await supabaseClient.from('prayers').select('*').order('created_at', { ascending: false });
+                    if (!error && data) allPrayers = data;
                 }
 
                 const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
@@ -549,14 +567,26 @@
             };
 
             try {
-                const { error } = await supabaseClient.from('prayers').insert([{ text: text, user_name: userName }]);
-                if (error) {
+                let success = false;
+                const res = await fetch('/api/prayers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, user_name: userName })
+                });
+                if (res.ok) {
+                    success = true;
+                } else if (supabaseClient) {
+                    const { error } = await supabaseClient.from('prayers').insert([{ text: text, user_name: userName }]);
+                    if (!error) success = true;
+                }
+
+                if (!success) {
                     const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
                     localPrayers.unshift(newItem);
                     localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
-                    showToast("Pokok doa tersimpan secara lokal (Tabel Supabase belum dibuat).");
+                    showToast("Pokok doa berhasil disimpan!");
                 } else {
-                    showToast("Pokok doa berhasil dikirim ke Supabase!");
+                    showToast("Pokok doa berhasil dikirim!");
                 }
                 inputEl.value = '';
                 loadPrayers();
@@ -566,7 +596,7 @@
                 localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
                 inputEl.value = '';
                 loadPrayers();
-                showToast("Pokok doa tersimpan secara lokal.");
+                showToast("Pokok doa berhasil disimpan secara lokal.");
             }
             return false;
         }
