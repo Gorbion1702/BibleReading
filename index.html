@@ -59,6 +59,7 @@
             }, true);
 
             loadDailyVerse();
+            loadDailyDevotion();
         });
 
         function showToast(message) {
@@ -239,12 +240,36 @@
             { text: "Ujilah aku, ya TUHAN, dan cobailah aku; selidikilah batinku dan hatiku.", reference: "Mazmur 26:2" },
             { text: "TUHAN itu baik bagi orang yang berharap kepada-Nya, bagi jiwa yang mencari Diri-Nya.", reference: "Ratapan 3:25" },
             { text: "Sebab Engkaulah harapanku, ya Tuhan, kepercayaanku sejak masa muda, ya Allah.", reference: "Mazmur 71:5" },
-            { text: "Kเยี่ยมlah kiranya kasih setia-Mu ya TUHAN kepada kami, seperti kami berharap kepada-Mu.", reference: "Mazmur 33:22" },
+            { text: "Kiranya kasih setia-Mu ya TUHAN kepada kami, seperti kami berharap kepada-Mu.", reference: "Mazmur 33:22" },
             { text: "Jikalau Allah di pihak kita, siapakah yang akan melawan kita?", reference: "Roma 8:31" }
         ];
 
+        const dailyDevotionsList = [
+            {
+                title: "Menghidupkan Kasih yang Tulus",
+                reference: "Kolose 3:12-14",
+                theme: "Kasih & Persaudaraan",
+                content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan, kemurahan, kerendahan hati, kelemahlembutan dan kesabaran. Sabarlah kamu seorang akan yang lain, dan ampunilah seorang akan yang lain apabila yang seorang menaruh dendam terhadap yang lain... Dan di atas semuanya itu: kenakanlah kasih, sebagai pengikat yang mempersatukan.",
+                application: "Adakah seseorang yang hari ini perlu Anda ampuni atau perlakukan dengan lebih sabar di dalam keluarga atau pelayanan?"
+            },
+            {
+                title: "Kekuatan di Tengah Badai",
+                reference: "Markus 4:39-40",
+                theme: "Ketenangan di Dalam Tuhan",
+                content: "Ia bangun, menghardik angin itu dan berkata kepada danau: 'Diam! Tenanglah!' Lalu angin itu reda and danau itu menjadi amat tenang. Ia berkata kepada mereka: 'Mengapa kamu begitu takut? Mengapa kamu tidak percaya?' Seringkali badai kehidupan membuat kita panik, padahal Yesus ada bersama kita di dalam perahu.",
+                application: "Serahkan kekuatiran Anda kepada Yesus hari ini dan percayai pemeliharaan-Nya."
+            },
+            {
+                title: "Berakar dan Bertumbuh",
+                reference: "Kolose 2:6-7",
+                theme: "Pertumbuhan Rohani",
+                content: "Kamu telah menerima Kristus Yesus, Tuhan kita. Karena itu hendaklah hidupmu tetap di dalam Dia. Hendaklah kamu berakar di dalam Dia dan dibangun di atas Dia, bertambah teguh dalam iman yang telah diajarkan kepadamu, dan hatimu melimpah dengan syukur.",
+                application: "Luangkan 10 menit hari ini untuk membaca Firman dan bersyukur atas kebaikan-Nya."
+            }
+        ];
+
         function loadDailyVerse() {
-            const todayStr = new Date().toISOString().slice(0, 10); // Format YYYY-MM-DD
+            const todayStr = new Date().toISOString().slice(0, 10);
             let hash = 0;
             for (let i = 0; i < todayStr.length; i++) {
                 hash = (hash << 5) - hash + todayStr.charCodeAt(i);
@@ -259,6 +284,36 @@
                     <h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3>
                     <p class="text-sm italic mb-2">"${v.text}"</p>
                     <span class="text-xs font-semibold text-sage">— ${v.reference} (Terjemahan Baru)</span>
+                `;
+            }
+        }
+
+        function loadDailyDevotion() {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            let hash = 0;
+            for (let i = 0; i < todayStr.length; i++) {
+                hash = (hash << 5) - hash + todayStr.charCodeAt(i);
+                hash |= 0;
+            }
+            const index = Math.abs(hash) % dailyDevotionsList.length;
+            const d = dailyDevotionsList[index];
+
+            const container = document.getElementById('daily-devotion-card');
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span>
+                        <span class="text-xs text-sage">${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3>
+                    <p class="text-xs font-semibold text-sage mb-4"><i class="ph ph-book-open mr-1"></i> ${d.reference}</p>
+                    <div class="prose text-sm leading-relaxed text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty">
+                        <p>${d.content}</p>
+                    </div>
+                    <div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty">
+                        <h4 class="text-xs font-bold text-rosewood uppercase tracking-wider mb-1"><i class="ph ph-lightbulb mr-1"></i> Aplikasi / Refleksi Hari Ini</h4>
+                        <p class="text-sm italic text-midnight">${d.application}</p>
+                    </div>
                 `;
             }
         }
@@ -354,11 +409,19 @@
 
         async function loadSharings() {
             try {
+                let allSharings = [];
                 const { data, error } = await supabaseClient.from('sharings').select('*').order('created_at', { ascending: false });
+                if (!error && data) {
+                    allSharings = data;
+                }
+                
+                const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
+                const combined = [...localSharings, ...allSharings].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
                 const listEl = document.getElementById('sharing-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
-                if (error || !data || data.length === 0) {
+                if (combined.length === 0) {
                     listEl.innerHTML = `
                         <div class="border-b border-misty border-opacity-30 pb-4">
                             <div class="flex items-center gap-2 mb-1">
@@ -370,7 +433,7 @@
                     `;
                     return;
                 }
-                data.forEach(item => {
+                combined.forEach(item => {
                     listEl.innerHTML += `
                         <div class="border-b border-misty border-opacity-30 pb-4">
                             <div class="flex items-center gap-2 mb-1">
@@ -394,26 +457,51 @@
             const inputEl = document.getElementById('sharing-input');
             const text = inputEl.value;
             const userName = await getUserDisplayName();
+            const newItem = {
+                id: Date.now(),
+                text: text,
+                user_name: userName,
+                created_at: new Date().toISOString()
+            };
 
             try {
                 const { error } = await supabaseClient.from('sharings').insert([{ text: text, user_name: userName }]);
-                if (error) throw error;
+                if (error) {
+                    const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
+                    localSharings.unshift(newItem);
+                    localStorage.setItem('local_sharings', JSON.stringify(localSharings));
+                    showToast("Sharing tersimpan secara lokal (Tabel Supabase belum dibuat).");
+                } else {
+                    showToast("Sharing berhasil diposting ke Supabase!");
+                }
                 inputEl.value = '';
                 loadSharings();
-                showToast("Sharing berhasil diposting!");
             } catch (error) {
-                showToast("Gagal memposting. Pastikan tabel 'sharings' sudah dibuat di Supabase.");
+                const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
+                localSharings.unshift(newItem);
+                localStorage.setItem('local_sharings', JSON.stringify(localSharings));
+                inputEl.value = '';
+                loadSharings();
+                showToast("Sharing tersimpan secara lokal.");
             }
             return false;
         }
 
         async function loadPrayers() {
             try {
+                let allPrayers = [];
                 const { data, error } = await supabaseClient.from('prayers').select('*').order('created_at', { ascending: false });
+                if (!error && data) {
+                    allPrayers = data;
+                }
+
+                const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
+                const combined = [...localPrayers, ...allPrayers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
                 const listEl = document.getElementById('prayer-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
-                if (error || !data || data.length === 0) {
+                if (combined.length === 0) {
                     listEl.innerHTML = `
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
@@ -427,7 +515,7 @@
                     `;
                     return;
                 }
-                data.forEach(item => {
+                combined.forEach(item => {
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
@@ -453,15 +541,32 @@
             const inputEl = document.getElementById('prayer-input');
             const text = inputEl.value;
             const userName = await getUserDisplayName();
+            const newItem = {
+                id: Date.now(),
+                text: text,
+                user_name: userName,
+                created_at: new Date().toISOString()
+            };
 
             try {
                 const { error } = await supabaseClient.from('prayers').insert([{ text: text, user_name: userName }]);
-                if (error) throw error;
+                if (error) {
+                    const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
+                    localPrayers.unshift(newItem);
+                    localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
+                    showToast("Pokok doa tersimpan secara lokal (Tabel Supabase belum dibuat).");
+                } else {
+                    showToast("Pokok doa berhasil dikirim ke Supabase!");
+                }
                 inputEl.value = '';
                 loadPrayers();
-                showToast("Pokok doa berhasil dikirim!");
             } catch (error) {
-                showToast("Gagal mengirim pokok doa. Pastikan tabel 'prayers' sudah dibuat.");
+                const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
+                localPrayers.unshift(newItem);
+                localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
+                inputEl.value = '';
+                loadPrayers();
+                showToast("Pokok doa tersimpan secara lokal.");
             }
             return false;
         }
@@ -758,14 +863,30 @@
                 </div>
             </section>
 
-            <!-- Devotion / Sharing Section -->
+            <!-- Devotion / Sharing Section (Updated) -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
+                <!-- Renungan Harian Card -->
+                <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <!-- Populated dynamically by loadDailyDevotion() -->
+                </div>
+
+                <!-- Community Sharing & Journal Section -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h2 class="text-xl font-bold text-rosewood mb-4">Sharing Firman Tuhan</h2>
-                    <form method="POST" onsubmit="return postSharing(event)" class="mb-6">
-                        <textarea id="sharing-input" rows="3" required placeholder="Bagikan apa yang Tuhan taruh di hatimu hari ini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
-                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Posting Sharing</button>
+                    <h3 class="text-lg font-bold text-rosewood mb-2 flex items-center gap-2">
+                        <i class="ph ph-chats-teardrop text-xl"></i> Jurnal & Sharing Komunitas
+                    </h3>
+                    <p class="text-xs text-sage mb-4">Bagikan refleksi, wawasan firman, atau apa yang Tuhan nyatakan melalui saat teduh Anda hari ini.</p>
+                    
+                    <form method="POST" onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
+                        <div class="mb-3">
+                            <label class="block text-xs font-semibold text-sage mb-1">Refleksi / Sharing Firman</label>
+                            <textarea id="sharing-input" rows="3" required placeholder="Tuliskan wawasan atau berkat yang Anda dapatkan saat teduh..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-white"></textarea>
+                        </div>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition flex items-center gap-1.5">
+                            <i class="ph ph-paper-plane-tilt"></i> Bagikan ke Komunitas
+                        </button>
                     </form>
+
                     <div id="sharing-list" class="space-y-4"></div>
                 </div>
             </section>
