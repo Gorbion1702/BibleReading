@@ -617,16 +617,16 @@
                     const intercessors = item.intercessors || [];
                     const count = intercessors.length;
                     
-                    // Cek apakah user saat ini sudah pernah klik berdoa
                     const hasPrayed = intercessors.some(i => 
                         (currentUserId && i.user_id === currentUserId) || 
                         (!i.user_id && i.user_name === currentUserName)
                     );
 
                     const intercessorsNames = intercessors.map(i => i.user_name || 'User').join(', ');
+                    const isWriter = (item.user_id && item.user_id === currentUserId) || (!item.user_id && item.user_name === currentUserName);
 
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between">
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between" id="prayer-card-${item.id}">
                             <div>
                                 <div class="flex items-center justify-between mb-2">
                                     <div class="flex items-center gap-2">
@@ -637,7 +637,29 @@
                                     </div>
                                     <span class="text-[10px] text-sage">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                                 </div>
-                                <p class="text-sm text-midnight mb-3 pl-9">${item.text}</p>
+                                <div class="pl-9">
+                                    <p class="text-sm text-midnight mb-2" id="prayer-text-${item.id}">${item.text}</p>
+                                    <div id="prayer-edit-area-${item.id}" class="hidden mb-2">
+                                        <textarea id="prayer-edit-input-${item.id}" rows="2" class="w-full p-2.5 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-white mb-2">${item.text}</textarea>
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="saveEditPrayer('${item.id}')" class="bg-rosewood text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Simpan</button>
+                                            <button type="button" onclick="cancelEditPrayer('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
+                                        </div>
+                                    </div>
+                                    <div id="prayer-delete-confirm-${item.id}" class="hidden mb-2 p-3 bg-red-50 rounded-xl border border-red-200">
+                                        <p class="text-xs font-semibold text-red-700 mb-2">Yakin ingin menghapus pokok doa ini?</p>
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="confirmDeletePrayer('${item.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Ya, Hapus</button>
+                                            <button type="button" onclick="cancelDeletePrayer('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
+                                        </div>
+                                    </div>
+                                    ${isWriter ? `
+                                        <div class="flex gap-3 text-xs text-sage mt-1 mb-2" id="prayer-actions-${item.id}">
+                                            <button type="button" onclick="startEditPrayer('${item.id}')" class="hover:text-rosewood font-semibold flex items-center gap-1 transition"><i class="ph ph-pencil-simple"></i> Edit</button>
+                                            <button type="button" onclick="promptDeletePrayer('${item.id}')" class="hover:text-red-600 font-semibold flex items-center gap-1 transition"><i class="ph ph-trash"></i> Hapus</button>
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </div>
 
                             <div class="pl-9 pt-2 border-t border-misty border-opacity-50 flex flex-col gap-1.5">
@@ -664,7 +686,20 @@
             }
         }
 
-        async function togglePray(prayerId) {
+        function startEditPrayer(id) {
+            document.getElementById(`prayer-text-${id}`).classList.add('hidden');
+            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
+            document.getElementById(`prayer-edit-area-${id}`).classList.remove('hidden');
+        }
+
+        function cancelEditPrayer(id) {
+            document.getElementById(`prayer-text-${id}`).classList.remove('hidden');
+            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.remove('hidden');
+            document.getElementById(`prayer-edit-area-${id}`).classList.add('hidden');
+        }
+
+        async function saveEditPrayer(id) {
+            const newText = document.getElementById(`prayer-edit-input-${id}`).value;
             const userName = await getUserDisplayName();
             let userId = null;
             if (supabaseClient) {
@@ -673,19 +708,53 @@
             }
 
             try {
-                const res = await fetch(`/api/prayers/${prayerId}/pray`, {
-                    method: 'POST',
+                const res = await fetch(`/api/prayers/${id}`, {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, user_name: userName })
+                    body: JSON.stringify({ text: newText, user_name: userName, user_id: userId })
                 });
-
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal memperbarui status doa.");
+                if (!res.ok) throw new Error(result.error || "Gagal memperbarui pokok doa.");
 
-                showToast(result.message);
+                showToast("Pokok doa berhasil diperbarui!");
                 loadPrayers();
             } catch (error) {
-                console.error("Pray Error:", error);
+                console.error("Edit Error:", error);
+                showToast("Gagal: " + error.message);
+            }
+        }
+
+        function promptDeletePrayer(id) {
+            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
+            document.getElementById(`prayer-delete-confirm-${id}`).classList.remove('hidden');
+        }
+
+        function cancelDeletePrayer(id) {
+            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
+            document.getElementById(`prayer-delete-confirm-${id}`).classList.add('hidden');
+        }
+
+        async function confirmDeletePrayer(id) {
+            const userName = await getUserDisplayName();
+            let userId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
+
+            try {
+                const res = await fetch(`/api/prayers/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: userName, user_id: userId })
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || "Gagal menghapus pokok doa.");
+
+                showToast("Pokok doa berhasil dihapus!");
+                loadPrayers();
+            } catch (error) {
+                console.error("Delete Error:", error);
                 showToast("Gagal: " + error.message);
             }
         }

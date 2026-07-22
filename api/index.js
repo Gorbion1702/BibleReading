@@ -205,6 +205,81 @@ app.post('/api/prayers', async (req, res) => {
     }
 });
 
+// Route PUT: Memperbarui pokok doa (hanya oleh penulisnya)
+app.put('/api/prayers/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { text, user_name, user_id } = req.body;
+        
+        const { data: existing, error: fetchErr } = await supabase
+            .from('prayers')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !existing) {
+            return res.status(404).json({ error: "Pokok doa tidak ditemukan." });
+        }
+
+        if (existing.user_id && user_id && existing.user_id !== user_id) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit pokok doa ini." });
+        }
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit pokok doa ini." });
+        }
+
+        const { data, error } = await supabase
+            .from('prayers')
+            .update({ text })
+            .eq('id', id)
+            .select();
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        res.status(200).json(data[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route DELETE: Menghapus pokok doa (hanya oleh penulisnya)
+app.delete('/api/prayers/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { user_name, user_id } = req.body;
+        
+        const { data: existing, error: fetchErr } = await supabase
+            .from('prayers')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !existing) {
+            return res.status(404).json({ error: "Pokok doa tidak ditemukan." });
+        }
+
+        if (existing.user_id && user_id && existing.user_id !== user_id) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus pokok doa ini." });
+        }
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
+            return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus pokok doa ini." });
+        }
+
+        const { error } = await supabase
+            .from('prayers')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Route POST: Toggle klik Berdoa pada suatu pokok doa (1 akun hanya 1 kali)
 app.post('/api/prayers/:id/pray', async (req, res) => {
     try {
