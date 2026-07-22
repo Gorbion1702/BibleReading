@@ -242,7 +242,7 @@
 
                         <div>
                             <h3 class="text-lg font-bold text-rosewood border-b border-misty pb-2 mb-4">Ubah Password</h3>
-                            <form onsubmit="handlePasswordChange(event)" class="space-y-4">
+                            <form onsubmitt="handlePasswordChange(event)" class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-midnight mb-1">Password Lama</label>
                                     <input type="password" class="w-full p-2 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" required>
@@ -265,14 +265,18 @@
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co'; 
         const SUPABASE_ANON_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt'; 
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUser = null;
 
         async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                currentUser = session.user;
-                showMainApp();
+            try {
+                const { data: { session } } = await sbClient.auth.getSession();
+                if (session) {
+                    currentUser = session.user;
+                    showMainApp();
+                }
+            } catch (err) {
+                console.error("Session check error:", err);
             }
         }
         checkSession();
@@ -328,24 +332,29 @@
             btn.textContent = 'Loading...';
             errorEl.classList.add('hidden');
 
-            let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            
-            if (error) {
-                if (error.message.includes('Invalid login credentials')) {
-                    const { data: regData, error: regError } = await supabase.auth.signUp({ email, password });
-                    if (regError) {
-                        showError(regError.message);
+            try {
+                let { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    if (error.message.includes('Invalid login credentials') || error.message.includes('Invalid grant')) {
+                        const { data: regData, error: regError } = await sbClient.auth.signUp({ email, password });
+                        if (regError) {
+                            showError(regError.message);
+                        } else {
+                            errorEl.textContent = 'Registrasi berhasil! Silakan login.';
+                            errorEl.classList.remove('hidden', 'text-rosewood');
+                            errorEl.classList.add('text-sage');
+                        }
                     } else {
-                        errorEl.textContent = 'Registrasi berhasil! Silakan login (atau cek email konfirmasi).';
-                        errorEl.classList.remove('hidden', 'text-rosewood');
-                        errorEl.classList.add('text-sage');
+                        showError(error.message);
                     }
                 } else {
-                    showError(error.message);
+                    currentUser = data.user;
+                    showMainApp();
                 }
-            } else {
-                currentUser = data.user;
-                showMainApp();
+            } catch (err) {
+                showError("Terjadi kesalahan jaringan.");
+                console.error(err);
             }
             
             function showError(msg) {
@@ -357,7 +366,7 @@
         }
 
         async function logout() {
-            await supabase.auth.signOut();
+            await sbClient.auth.signOut();
             currentUser = null;
             hideMainApp();
             document.getElementById('email').value = '';
