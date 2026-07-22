@@ -42,12 +42,12 @@
     <!-- LOGIN VIEW -->
     <div id="login-view" class="flex-grow flex items-center justify-center page-section active p-4">
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty">
-            <h1 class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
-            <p class="text-center text-misty mb-6">Login to your Bible Community</p>
+            <h1 id="auth-title" class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
+            <p id="auth-subtitle" class="text-center text-misty mb-6">Login to your Bible Community</p>
             
             <p class="text-sm text-center text-rosewood mb-4 bg-vanilla p-2 rounded hidden" id="login-error"></p>
             
-            <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
+            <form id="login-form" class="space-y-4" onsubmit="handleAuth(event)">
                 <div>
                     <label class="block text-sm font-medium text-midnight mb-1" for="email">Email</label>
                     <input type="email" id="email" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage" placeholder="Enter your email" required>
@@ -56,10 +56,16 @@
                     <label class="block text-sm font-medium text-midnight mb-1" for="password">Password</label>
                     <input type="password" id="password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage" placeholder="Enter your password" required>
                 </div>
+                
                 <button id="login-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
-                    Login / Register
+                    Login
                 </button>
             </form>
+
+            <!-- Toggle between Login and Register -->
+            <div class="text-center mt-6 text-sm">
+                <p id="toggle-text" class="text-misty">Belum punya akun? <button onclick="toggleAuthMode('register')" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button></p>
+            </div>
         </div>
     </div>
 
@@ -267,6 +273,30 @@
         
         const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUser = null;
+        let isRegisterMode = false;
+
+        function toggleAuthMode(mode) {
+            isRegisterMode = (mode === 'register');
+            const titleEl = document.getElementById('auth-title');
+            const subtitleEl = document.getElementById('auth-subtitle');
+            const btnEl = document.getElementById('login-btn');
+            const toggleTextEl = document.getElementById('toggle-text');
+            const errorEl = document.getElementById('login-error');
+            
+            errorEl.classList.add('hidden');
+
+            if (isRegisterMode) {
+                titleEl.textContent = 'Buat Akun Baru';
+                subtitleEl.textContent = 'Bergabung dengan Komunitas Alkitab';
+                btnEl.textContent = 'Register';
+                toggleTextEl.innerHTML = `Sudah punya akun? <button onclick="toggleAuthMode('login')" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>`;
+            } else {
+                titleEl.textContent = 'Welcome Back';
+                subtitleEl.textContent = 'Login to your Bible Community';
+                btnEl.textContent = 'Login';
+                toggleTextEl.innerHTML = `Belum punya akun? <button onclick="toggleAuthMode('register')" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>`;
+            }
+        }
 
         async function checkSession() {
             try {
@@ -371,6 +401,49 @@
             hideMainApp();
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('login-btn');
+            const errorEl = document.getElementById('login-error');
+            
+            btn.textContent = 'Loading...';
+            errorEl.classList.add('hidden');
+
+            try {
+                if (isRegisterMode) {
+                    const { data, error } = await sbClient.auth.signUp({ email, password });
+                    if (error) {
+                        showError(error.message);
+                    } else {
+                        errorEl.textContent = 'Registrasi berhasil! Silakan cek email atau langsung login.';
+                        errorEl.classList.remove('hidden', 'text-rosewood');
+                        errorEl.classList.add('text-sage');
+                        toggleAuthMode('login');
+                    }
+                } else {
+                    const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        showError(error.message);
+                    } else {
+                        currentUser = data.user;
+                        showMainApp();
+                    }
+                }
+            } catch (err) {
+                showError("Terjadi kesalahan jaringan.");
+                console.error(err);
+            }
+            
+            function showError(msg) {
+                errorEl.textContent = msg;
+                errorEl.classList.remove('hidden', 'text-sage');
+                errorEl.classList.add('text-rosewood');
+            }
+            btn.textContent = isRegisterMode ? 'Register' : 'Login';
         }
 
         function selectFeeling(btnElement, feeling) {
