@@ -36,7 +36,12 @@ app.post('/api/sharing', async (req, res) => {
             .select();
             
         if (error) {
-            return res.status(500).json({ error: error.message + " (Pastikan tabel 'sharings' sudah dibuat di Supabase SQL Editor)" });
+            if (error.message.includes('row-level security policy')) {
+                return res.status(403).json({ 
+                    error: "Error RLS Supabase: Tabel 'sharings' memblokir insert. Buka Supabase Dashboard > SQL Editor, lalu jalankan: 'alter table sharings disable row level security;'" 
+                });
+            }
+            return res.status(500).json({ error: error.message });
         }
         res.status(201).json(data[0]);
     } catch (error) {
@@ -71,7 +76,12 @@ app.post('/api/prayers', async (req, res) => {
             .select();
             
         if (error) {
-            return res.status(500).json({ error: error.message + " (Pastikan tabel 'prayers' sudah dibuat di Supabase SQL Editor)" });
+            if (error.message.includes('row-level security policy')) {
+                return res.status(403).json({ 
+                    error: "Error RLS Supabase: Tabel 'prayers' memblokir insert. Buka Supabase Dashboard > SQL Editor, lalu jalankan: 'alter table prayers disable row level security;'" 
+                });
+            }
+            return res.status(500).json({ error: error.message });
         }
         res.status(201).json(data[0]);
     } catch (error) {
