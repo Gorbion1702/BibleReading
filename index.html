@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script>
-        // Aggressive URL sanitizer to prevent any trailing query parameters or /?
+        // Aggressive URL sanitizer to prevent any query parameters
         (function() {
             if (window.location.search || window.location.href.includes('?')) {
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
@@ -423,81 +423,129 @@
         }
 
         const bibleBooks = [
-            { id: 1, name: "Kejadian", chapters: 50 }, { id: 2, name: "Keluaran", chapters: 40 },
-            { id: 3, name: "Imamat", chapters: 27 }, { id: 4, name: "Bilangan", chapters: 36 },
-            { id: 5, name: "Ulangan", chapters: 34 }, { id: 6, name: "Yosua", chapters: 24 },
-            { id: 7, name: "Hakim-hakim", chapters: 21 }, { id: 8, name: "Rut", chapters: 4 },
-            { id: 9, name: "1 Samuel", chapters: 31 }, { id: 10, name: "2 Samuel", chapters: 24 },
-            { id: 11, name: "1 Raja-raja", chapters: 22 }, { id: 12, name: "2 Raja-raja", chapters: 25 },
-            { id: 13, name: "1 Tawarikh", chapters: 29 }, { id: 14, name: "2 Tawarikh", chapters: 36 },
-            { id: 15, name: "Ezra", chapters: 10 }, { id: 16, name: "Nehemia", chapters: 13 },
-            { id: 17, name: "Ester", chapters: 10 }, { id: 18, name: "Ayub", chapters: 42 },
-            { id: 19, name: "Mazmur", chapters: 150 }, { id: 20, name: "Amsal", chapters: 31 },
-            { id: 21, name: "Pengkhotbah", chapters: 12 }, { id: 22, name: "Kidung Agung", chapters: 8 },
-            { id: 23, name: "Yesaya", chapters: 66 }, { id: 24, name: "Yeremia", chapters: 52 },
-            { id: 25, name: "Ratapan", chapters: 5 }, { id: 26, name: "Yehezkiel", chapters: 48 },
-            { id: 27, name: "Daniel", chapters: 12 }, { id: 28, name: "Hosea", chapters: 14 },
-            { id: 29, name: "Yoel", chapters: 3 }, { id: 30, name: "Amos", chapters: 9 },
-            { id: 31, name: "Obaja", chapters: 1 }, { id: 32, name: "Yunus", chapters: 4 },
-            { id: 33, name: "Mikha", chapters: 7 }, { id: 34, name: "Nahum", chapters: 3 },
-            { id: 35, name: "Habakuk", chapters: 3 }, { id: 36, name: "Zefanya", chapters: 3 },
-            { id: 37, name: "Hagai", chapters: 2 }, { id: 38, name: "Zakharia", chapters: 14 },
-            { id: 39, name: "Maleakhi", chapters: 4 }, { id: 40, name: "Matius", chapters: 28 },
-            { id: 41, name: "Markus", chapters: 16 }, { id: 42, name: "Lukas", chapters: 24 },
-            { id: 43, name: "Yohanes", chapters: 21 }, { id: 44, name: "Kisah Para Rasul", chapters: 28 },
-            { id: 45, name: "Roma", chapters: 16 }, { id: 46, name: "1 Korintus", chapters: 16 },
-            { id: 47, name: "2 Korintus", chapters: 13 }, { id: 48, name: "Galatia", chapters: 6 },
-            { id: 49, name: "Efesus", chapters: 6 }, { id: 50, name: "Filipi", chapters: 4 },
-            { id: 51, name: "Kolose", chapters: 4 }, { id: 52, name: "1 Tesalonika", chapters: 5 },
-            { id: 53, name: "2 Tesalonika", chapters: 3 }, { id: 54, name: "1 Timotius", chapters: 6 },
-            { id: 55, name: "2 Timotius", chapters: 4 }, { id: 56, name: "Titus", chapters: 3 },
-            { id: 57, name: "Filemon", chapters: 1 }, { id: 58, name: "Ibrani", chapters: 13 },
-            { id: 59, name: "Yakobus", chapters: 5 }, { id: 60, name: "1 Petrus", chapters: 5 },
-            { id: 61, name: "2 Petrus", chapters: 3 }, { id: 62, name: "1 Yohanes", chapters: 5 },
-            { id: 63, name: "2 Yohanes", chapters: 1 }, { id: 64, name: "3 Yohanes", chapters: 1 },
-            { id: 65, name: "Yudas", chapters: 1 }, { id: 66, name: "Wahyu", chapters: 22 }
+            { id: 1, name_id: "Kejadian", name_en: "Genesis", chapters: 50 },
+            { id: 2, name_id: "Keluaran", name_en: "Exodus", chapters: 40 },
+            { id: 3, name_id: "Imamat", name_en: "Leviticus", chapters: 27 },
+            { id: 4, name_id: "Bilangan", name_en: "Numbers", chapters: 36 },
+            { id: 5, name_id: "Ulangan", name_en: "Deuteronomy", chapters: 34 },
+            { id: 6, name_id: "Yosua", name_en: "Joshua", chapters: 24 },
+            { id: 7, name_id: "Hakim-hakim", name_en: "Judges", chapters: 21 },
+            { id: 8, name_id: "Rut", name_en: "Ruth", chapters: 4 },
+            { id: 9, name_id: "1 Samuel", name_en: "1 Samuel", chapters: 31 },
+            { id: 10, name_id: "2 Samuel", name_en: "2 Samuel", chapters: 24 },
+            { id: 11, name_id: "1 Raja-raja", name_en: "1 Kings", chapters: 22 },
+            { id: 12, name_id: "2 Raja-raja", name_en: "2 Kings", chapters: 25 },
+            { id: 13, name_id: "1 Tawarikh", name_en: "1 Chronicles", chapters: 29 },
+            { id: 14, name_id: "2 Tawarikh", name_en: "2 Chronicles", chapters: 36 },
+            { id: 15, name_id: "Ezra", name_en: "Ezra", chapters: 10 },
+            { id: 16, name_id: "Nehemia", name_en: "Nehemiah", chapters: 13 },
+            { id: 17, name_id: "Ester", name_en: "Esther", chapters: 10 },
+            { id: 18, name_id: "Ayub", name_en: "Job", chapters: 42 },
+            { id: 19, name_id: "Mazmur", name_en: "Psalms", chapters: 150 },
+            { id: 20, name_id: "Amsal", name_en: "Proverbs", chapters: 31 },
+            { id: 21, name_id: "Pengkhotbah", name_en: "Ecclesiastes", chapters: 12 },
+            { id: 22, name_id: "Kidung Agung", name_en: "Song of Solomon", chapters: 8 },
+            { id: 23, name_id: "Yesaya", name_en: "Isaiah", chapters: 66 },
+            { id: 24, name_id: "Yeremia", name_en: "Jeremiah", chapters: 52 },
+            { id: 25, name_id: "Ratapan", name_en: "Lamentations", chapters: 5 },
+            { id: 26, name_id: "Yehezkiel", name_en: "Ezekiel", chapters: 48 },
+            { id: 27, name_id: "Daniel", name_en: "Daniel", chapters: 12 },
+            { id: 28, name_id: "Hosea", name_en: "Hosea", chapters: 14 },
+            { id: 29, name_id: "Yoel", name_en: "Joel", chapters: 3 },
+            { id: 30, name_id: "Amos", name_en: "Amos", chapters: 9 },
+            { id: 31, name_id: "Obaja", name_en: "Obadiah", chapters: 1 },
+            { id: 32, name_id: "Yunus", name_en: "Jonah", chapters: 4 },
+            { id: 33, name_id: "Mikha", name_en: "Micah", chapters: 7 },
+            { id: 34, name_id: "Nahum", name_en: "Nahum", chapters: 3 },
+            { id: 35, name_id: "Habakuk", name_en: "Habakkuk", chapters: 3 },
+            { id: 36, name_id: "Zefanya", name_en: "Zephaniah", chapters: 3 },
+            { id: 37, name_id: "Hagai", name_en: "Haggai", chapters: 2 },
+            { id: 38, name_id: "Zakharia", name_en: "Zechariah", chapters: 14 },
+            { id: 39, name_id: "Maleakhi", name_en: "Malachi", chapters: 4 },
+            { id: 40, name_id: "Matius", name_en: "Matthew", chapters: 28 },
+            { id: 41, name_id: "Markus", name_en: "Mark", chapters: 16 },
+            { id: 42, name_id: "Lukas", name_en: "Luke", chapters: 24 },
+            { id: 43, name_id: "Yohanes", name_en: "John", chapters: 21 },
+            { id: 44, name_id: "Kisah Para Rasul", name_en: "Acts", chapters: 28 },
+            { id: 45, name_id: "Roma", name_en: "Romans", chapters: 16 },
+            { id: 46, name_id: "1 Korintus", name_en: "1 Corinthians", chapters: 16 },
+            { id: 47, name_id: "2 Korintus", name_en: "2 Corinthians", chapters: 13 },
+            { id: 48, name_id: "Galatia", name_en: "Galatians", chapters: 6 },
+            { id: 49, name_id: "Efesus", name_en: "Ephesians", chapters: 6 },
+            { id: 50, name_id: "Filipi", name_en: "Philippians", chapters: 4 },
+            { id: 51, name_id: "Kolose", name_en: "Colossians", chapters: 4 },
+            { id: 52, name_id: "1 Tesalonika", name_en: "1 Thessalonians", chapters: 5 },
+            { id: 53, name_id: "2 Tesalonika", name_en: "2 Thessalonians", chapters: 3 },
+            { id: 54, name_id: "1 Timotius", name_en: "1 Timothy", chapters: 6 },
+            { id: 55, name_id: "2 Timotius", name_en: "2 Timothy", chapters: 4 },
+            { id: 56, name_id: "Titus", name_en: "Titus", chapters: 3 },
+            { id: 57, name_id: "Filemon", name_en: "Philemon", chapters: 1 },
+            { id: 58, name_id: "Ibrani", name_en: "Hebrews", chapters: 13 },
+            { id: 59, name_id: "Yakobus", name_en: "James", chapters: 5 },
+            { id: 60, name_id: "1 Petrus", name_en: "1 Peter", chapters: 5 },
+            { id: 61, name_id: "2 Petrus", name_en: "2 Peter", chapters: 3 },
+            { id: 62, name_id: "1 Yohanes", name_en: "1 John", chapters: 5 },
+            { id: 63, name_id: "2 Yohanes", name_en: "2 John", chapters: 1 },
+            { id: 64, name_id: "3 Yohanes", name_en: "3 John", chapters: 1 },
+            { id: 65, name_id: "Yudas", name_en: "Jude", chapters: 1 },
+            { id: 66, name_id: "Wahyu", name_en: "Revelation", chapters: 22 }
         ];
 
         function initBible() {
-            const bookSelect = document.getElementById('bible-book-select');
-            if (!bookSelect || bookSelect.options.length > 0) return;
-
-            bibleBooks.forEach(b => {
-                const opt = document.createElement('option');
-                opt.value = b.id;
-                opt.innerText = b.name;
-                bookSelect.appendChild(opt);
-            });
-            bookSelect.value = "1"; // Default Kejadian
-            updateChapterOptions();
+            updateBookOptions();
             fetchBibleChapter();
         }
 
+        function updateBookOptions() {
+            const version = document.getElementById('bible-version-select').value;
+            const isEnglish = version !== 'TB';
+            const bookSelect = document.getElementById('bible-book-select');
+            const currentSelected = bookSelect.value || "1";
+
+            bookSelect.innerHTML = '';
+            bibleBooks.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.innerText = isEnglish ? b.name_en : b.name_id;
+                bookSelect.appendChild(opt);
+            });
+            bookSelect.value = currentSelected;
+            updateChapterOptions();
+        }
+
         function updateChapterOptions() {
+            const version = document.getElementById('bible-version-select').value;
+            const isEnglish = version !== 'TB';
             const bookId = parseInt(document.getElementById('bible-book-select').value);
             const chapterSelect = document.getElementById('bible-chapter-select');
-            chapterSelect.innerHTML = '';
+            const currentChapter = chapterSelect.value || "1";
             
+            chapterSelect.innerHTML = '';
             const selectedBook = bibleBooks.find(b => b.id === bookId);
             const totalChapters = selectedBook ? selectedBook.chapters : 1;
 
             for (let i = 1; i <= totalChapters; i++) {
                 const opt = document.createElement('option');
                 opt.value = i;
-                opt.innerText = "Pasal " + i;
+                opt.innerText = isEnglish ? `Chapter ${i}` : `Pasal ${i}`;
                 chapterSelect.appendChild(opt);
             }
+            chapterSelect.value = currentChapter <= totalChapters ? currentChapter : "1";
         }
 
         async function fetchBibleChapter() {
             const version = document.getElementById('bible-version-select').value;
+            const isEnglish = version !== 'TB';
             const bookId = document.getElementById('bible-book-select').value;
             const chapter = document.getElementById('bible-chapter-select').value || 1;
             const contentContainer = document.getElementById('bible-content');
             const titleContainer = document.getElementById('bible-chapter-title');
 
             const selectedBookObj = bibleBooks.find(b => b.id == bookId);
-            titleContainer.innerText = `${selectedBookObj.name} Pasal ${chapter} (${version})`;
+            const bookName = isEnglish ? selectedBookObj.name_en : selectedBookObj.name_id;
+            const chapterLabel = isEnglish ? `Chapter ${chapter}` : `Pasal ${chapter}`;
+
+            titleContainer.innerText = `${bookName} ${chapterLabel} (${version})`;
             contentContainer.innerHTML = '<div class="text-center py-10 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i><p class="text-sm mt-2">Memuat Alkitab...</p></div>';
 
             try {
@@ -633,7 +681,7 @@
                 </div>
             </section>
 
-            <!-- Bible Section (New!) -->
+            <!-- Bible Section -->
             <section id="sec-bible" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
@@ -642,7 +690,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                         <div>
                             <label class="block text-xs font-semibold mb-1 text-sage">Versi / Terjemahan</label>
-                            <select id="bible-version-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm focus:outline-none focus:border-rosewood bg-vanilla font-semibold">
+                            <select id="bible-version-select" onchange="updateBookOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm focus:outline-none focus:border-rosewood bg-vanilla font-semibold">
                                 <option value="TB">TB (Terjemahan Baru - Indonesia)</option>
                                 <option value="NIV">NIV (New International Version - English)</option>
                                 <option value="ESV">ESV (English Standard Version - English)</option>
