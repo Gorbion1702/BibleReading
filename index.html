@@ -47,7 +47,6 @@
     </div>
 
     <script>
-        // URL sanitizer on DOMContentLoaded and form submit interception
         window.addEventListener('DOMContentLoaded', () => {
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             if (window.location.search || window.location.href.includes('?')) {
@@ -58,6 +57,8 @@
                 e.preventDefault();
                 window.history.replaceState({}, document.title, window.location.protocol + "//" + window.location.host + window.location.pathname);
             }, true);
+
+            loadDailyVerse();
         });
 
         function showToast(message) {
@@ -217,6 +218,49 @@
                 'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).'
             };
             msgEl.innerText = messages[feeling];
+        }
+
+        const dailyVerses = [
+            { text: "Sebab Allah begitu mengasihi dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.", reference: "Yohanes 3:16" },
+            { text: "Segala perkara dapat kutanggung di dalam Dia yang memberi kekuatan kepadaku.", reference: "Filipi 4:13" },
+            { text: "Percayalah kepada TUHAN dengan segenap hatimu, dan janganlah bersandar kepada pengertianmu sendiri.", reference: "Amsal 3:5" },
+            { text: "TUHAN adalah gembalaku, takkan kekurangan aku.", reference: "Mazmur 23:1" },
+            { text: "Ia memberikan kekuatan kepada yang lelah dan menambah semangat kepada yang tiada berdaya.", reference: "Yesaya 40:29" },
+            { text: "Janganlah hendaknya kamu kuatir tentang apa pun juga, tetapi nyatakanlah dalam segala hal keinginanmu kepada Allah dalam doa dan permohonan dengan ucapan syukur.", reference: "Filipi 4:6" },
+            { text: "Tetapi carilah dahulu Kerajaan Allah dan kebenaran-Nya, maka semuanya itu akan ditambahkan kepadamu.", reference: "Matius 6:33" },
+            { text: "Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.", reference: "Matius 11:28" },
+            { text: "Serahkanlah perbuatanmu kepada TUHAN, maka terlaksanalah segala rencanamu.", reference: "Amsal 16:3" },
+            { text: "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu, dan apa yang Kuberikan tidak seperti yang diberikan oleh dunia kepadamu.", reference: "Yohanes 14:27" },
+            { text: "Karena aku ini mengetahui rancangan-rancangan apa yang ada pada-Ku mengenai kamu, demikianlah firman TUHAN, yaitu rancangan damai sejahtera dan bukan rancangan kecelakaan, untuk memberikan kepadamu hari depan yang penuh harapan.", reference: "Yeremia 29:11" },
+            { text: "Tetapi orang-orang yang menanti-nantikan TUHAN mendapat kekuatan baru: mereka seumpama rajawali yang naik terbang dengan kekuatan sayapnya; mereka berlari dan tidak menjadi lesu, mereka berjalan dan tidak menjadi lelah.", reference: "Yesaya 40:31" },
+            { text: "Mintalah, maka akan diberikan kepadamu; carilah, maka kamu akan mendapat; ketoklah, maka pintu akan dibukakan bagimu.", reference: "Matius 7:7" },
+            { text: "Allah itu bagi kita tempat perlindungan dan kekuatan, sebagai penolong dalam kesesakan sangat.", reference: "Mazmur 46:2" },
+            { text: "Sebab di mana dua atau tiga orang berkumpul dalam Nama-Ku, di situ Aku ada di tengah-tengah mereka.", reference: "Matius 18:20" },
+            { text: "Ujilah aku, ya TUHAN, dan cobailah aku; selidikilah batinku dan hatiku.", reference: "Mazmur 26:2" },
+            { text: "TUHAN itu baik bagi orang yang berharap kepada-Nya, bagi jiwa yang mencari Diri-Nya.", reference: "Ratapan 3:25" },
+            { text: "Sebab Engkaulah harapanku, ya Tuhan, kepercayaanku sejak masa muda, ya Allah.", reference: "Mazmur 71:5" },
+            { text: "Kเยี่ยมlah kiranya kasih setia-Mu ya TUHAN kepada kami, seperti kami berharap kepada-Mu.", reference: "Mazmur 33:22" },
+            { text: "Jikalau Allah di pihak kita, siapakah yang akan melawan kita?", reference: "Roma 8:31" }
+        ];
+
+        function loadDailyVerse() {
+            const todayStr = new Date().toISOString().slice(0, 10); // Format YYYY-MM-DD
+            let hash = 0;
+            for (let i = 0; i < todayStr.length; i++) {
+                hash = (hash << 5) - hash + todayStr.charCodeAt(i);
+                hash |= 0;
+            }
+            const index = Math.abs(hash) % dailyVerses.length;
+            const v = dailyVerses[index];
+
+            const container = document.getElementById('daily-verse-container');
+            if (container) {
+                container.innerHTML = `
+                    <h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3>
+                    <p class="text-sm italic mb-2">"${v.text}"</p>
+                    <span class="text-xs font-semibold text-sage">— ${v.reference} (Terjemahan Baru)</span>
+                `;
+            }
         }
 
         async function loadUserProfile() {
@@ -614,7 +658,6 @@
     <div id="main-view" class="hidden flex-col min-h-screen">
         <header class="bg-midnight text-white px-4 sm:px-6 py-3 shadow-md">
             <div class="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
-                <!-- Left: Brand Title -->
                 <div class="flex justify-between items-center w-full sm:w-auto sm:justify-start">
                     <div class="font-bold text-sm sm:text-base tracking-wider text-blush">Bible Reading Perkantas Jabar</div>
                     <button type="button" onclick="logout()" class="text-misty hover:text-white transition sm:hidden p-1" title="Logout">
@@ -622,7 +665,6 @@
                     </button>
                 </div>
                 
-                <!-- Center: Navigation -->
                 <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm sm:justify-self-center">
                     <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold transition hover:text-blush px-2 py-1">Home</button>
                     <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Bible</button>
@@ -631,7 +673,6 @@
                     <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Profile</button>
                 </nav>
 
-                <!-- Right: Logout button (Desktop) -->
                 <div class="hidden sm:flex justify-end sm:justify-self-end">
                     <button type="button" onclick="logout()" class="text-misty hover:text-white transition flex items-center gap-1 text-sm" title="Logout">
                         <i class="ph ph-sign-out text-lg"></i> Logout
@@ -674,10 +715,8 @@
                     <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty"></div>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3>
-                    <p class="text-sm italic mb-2">"Sebab Allah begitu mengasihi dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal."</p>
-                    <span class="text-xs font-semibold text-sage">— Yohanes 3:16</span>
+                <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <!-- Dynamic Daily Verse populated here -->
                 </div>
             </section>
 
@@ -686,7 +725,6 @@
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
                     
-                    <!-- Controls Filter Bar -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                         <div>
                             <label class="block text-xs font-semibold mb-1 text-sage">Versi / Terjemahan</label>
@@ -711,7 +749,6 @@
                         </div>
                     </div>
 
-                    <!-- Reader Box -->
                     <div class="border border-misty rounded-xl p-5 bg-vanilla">
                         <h3 id="bible-chapter-title" class="text-lg font-bold text-rosewood mb-4 border-b border-misty pb-2">Memuat...</h3>
                         <div id="bible-content" class="min-h-[300px]">
