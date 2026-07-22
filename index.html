@@ -409,39 +409,27 @@
 
         async function loadSharings() {
             try {
-                let allSharings = [];
                 const res = await fetch('/api/sharing');
-                if (res.ok) {
-                    allSharings = await res.json();
-                } else if (supabaseClient) {
-                    const { data, error } = await supabaseClient.from('sharings').select('*').order('created_at', { ascending: false });
-                    if (!error && data) allSharings = data;
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || "Gagal memuat sharing.");
                 }
-                
-                const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
-                const combined = [...localSharings, ...allSharings].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const data = await res.json();
 
                 const listEl = document.getElementById('sharing-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
-                if (combined.length === 0) {
-                    listEl.innerHTML = `
-                        <div class="border-b border-misty border-opacity-30 pb-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">A</div>
-                                <span class="font-bold text-midnight text-sm">Andi (Contoh)</span>
-                            </div>
-                            <p class="text-sm pl-10">Ayat Yohanes 3:16 hari ini mengingatkan saya bahwa kasih Tuhan tidak bersyarat.</p>
-                        </div>
-                    `;
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic">Belum ada sharing. Jadilah yang pertama membagikan!</p>';
                     return;
                 }
-                combined.forEach(item => {
+                data.forEach(item => {
                     listEl.innerHTML += `
                         <div class="border-b border-misty border-opacity-30 pb-4">
                             <div class="flex items-center gap-2 mb-1">
                                 <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>
                                 <span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span>
+                                <span class="text-[10px] text-sage ml-auto">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                             </div>
                             <p class="text-sm pl-10">${item.text}</p>
                         </div>
@@ -449,6 +437,8 @@
                 });
             } catch (error) {
                 console.error("Gagal memuat sharing:", error);
+                const listEl = document.getElementById('sharing-list');
+                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">Gagal memuat dari database: ${error.message}. Pastikan Anda sudah menjalankan SQL Setup di menu Profile.</p>`;
             }
         }
 
@@ -460,80 +450,46 @@
             const inputEl = document.getElementById('sharing-input');
             const text = inputEl.value;
             const userName = await getUserDisplayName();
-            const newItem = {
-                id: Date.now(),
-                text: text,
-                user_name: userName,
-                created_at: new Date().toISOString()
-            };
 
             try {
-                let success = false;
                 const res = await fetch('/api/sharing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName })
                 });
-                if (res.ok) {
-                    success = true;
-                } else if (supabaseClient) {
-                    const { error } = await supabaseClient.from('sharings').insert([{ text: text, user_name: userName }]);
-                    if (!error) success = true;
+                
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.error || "Gagal menyimpan ke database.");
                 }
 
-                if (!success) {
-                    const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
-                    localSharings.unshift(newItem);
-                    localStorage.setItem('local_sharings', JSON.stringify(localSharings));
-                    showToast("Sharing berhasil disimpan!");
-                } else {
-                    showToast("Sharing berhasil diposting!");
-                }
+                showToast("Sharing berhasil diposting ke Supabase!");
                 inputEl.value = '';
                 loadSharings();
             } catch (error) {
-                const localSharings = JSON.parse(localStorage.getItem('local_sharings') || '[]');
-                localSharings.unshift(newItem);
-                localStorage.setItem('local_sharings', JSON.stringify(localSharings));
-                inputEl.value = '';
-                loadSharings();
-                showToast("Sharing berhasil disimpan secara lokal.");
+                console.error("Post Error:", error);
+                showToast("Gagal: " + error.message);
             }
             return false;
         }
 
         async function loadPrayers() {
             try {
-                let allPrayers = [];
                 const res = await fetch('/api/prayers');
-                if (res.ok) {
-                    allPrayers = await res.json();
-                } else if (supabaseClient) {
-                    const { data, error } = await supabaseClient.from('prayers').select('*').order('created_at', { ascending: false });
-                    if (!error && data) allPrayers = data;
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || "Gagal memuat pokok doa.");
                 }
-
-                const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
-                const combined = [...localPrayers, ...allPrayers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const data = await res.json();
 
                 const listEl = document.getElementById('prayer-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
-                if (combined.length === 0) {
-                    listEl.innerHTML = `
-                        <div class="bg-vanilla p-3 rounded-lg border border-misty">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-sm text-rosewood">Budi (Contoh)</span>
-                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="showToast('Anda telah mendukung dalam doa.')">
-                                    <i class="ph ph-hands-praying"></i> Berdoa
-                                </button>
-                            </div>
-                            <p class="text-sm">Mohon doa untuk ibu saya yang sedang sakit di rumah sakit.</p>
-                        </div>
-                    `;
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic col-span-2">Belum ada pokok doa.</p>';
                     return;
                 }
-                combined.forEach(item => {
+                data.forEach(item => {
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
@@ -542,12 +498,15 @@
                                     <i class="ph ph-hands-praying"></i> Berdoa
                                 </button>
                             </div>
-                            <p class="text-sm">${item.text}</p>
+                            <p class="text-sm mb-1">${item.text}</p>
+                            <span class="text-[10px] text-sage">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                         </div>
                     `;
                 });
             } catch (error) {
                 console.error("Gagal memuat doa:", error);
+                const listEl = document.getElementById('prayer-list');
+                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200 col-span-2">Gagal memuat dari database: ${error.message}. Pastikan Anda sudah menjalankan SQL Setup di menu Profile.</p>`;
             }
         }
 
@@ -559,44 +518,25 @@
             const inputEl = document.getElementById('prayer-input');
             const text = inputEl.value;
             const userName = await getUserDisplayName();
-            const newItem = {
-                id: Date.now(),
-                text: text,
-                user_name: userName,
-                created_at: new Date().toISOString()
-            };
 
             try {
-                let success = false;
                 const res = await fetch('/api/prayers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName })
                 });
-                if (res.ok) {
-                    success = true;
-                } else if (supabaseClient) {
-                    const { error } = await supabaseClient.from('prayers').insert([{ text: text, user_name: userName }]);
-                    if (!error) success = true;
+                
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.error || "Gagal menyimpan ke database.");
                 }
 
-                if (!success) {
-                    const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
-                    localPrayers.unshift(newItem);
-                    localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
-                    showToast("Pokok doa berhasil disimpan!");
-                } else {
-                    showToast("Pokok doa berhasil dikirim!");
-                }
+                showToast("Pokok doa berhasil dikirim ke Supabase!");
                 inputEl.value = '';
                 loadPrayers();
             } catch (error) {
-                const localPrayers = JSON.parse(localStorage.getItem('local_prayers') || '[]');
-                localPrayers.unshift(newItem);
-                localStorage.setItem('local_prayers', JSON.stringify(localPrayers));
-                inputEl.value = '';
-                loadPrayers();
-                showToast("Pokok doa berhasil disimpan secara lokal.");
+                console.error("Prayer Error:", error);
+                showToast("Gagal: " + error.message);
             }
             return false;
         }

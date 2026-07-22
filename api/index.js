@@ -18,10 +18,7 @@ app.get('/api/sharing', async (req, res) => {
             .order('created_at', { ascending: false });
             
         if (error) {
-            // Fallback jika tabel belum dibuat di Supabase
-            return res.status(200).json([
-                { id: 1, user_name: 'Andi', text: 'Ayat Yohanes 3:16 hari ini mengingatkan saya bahwa kasih Tuhan tidak bersyarat.', created_at: new Date().toISOString() }
-            ]);
+            return res.status(500).json({ error: error.message + " (Pastikan tabel 'sharings' sudah dibuat di Supabase SQL Editor)" });
         }
         res.status(200).json(data);
     } catch (error) {
@@ -39,8 +36,7 @@ app.post('/api/sharing', async (req, res) => {
             .select();
             
         if (error) {
-            // Fallback mock response jika tabel belum ada
-            return res.status(201).json({ id: Date.now(), text, user_name, created_at: new Date().toISOString() });
+            return res.status(500).json({ error: error.message + " (Pastikan tabel 'sharings' sudah dibuat di Supabase SQL Editor)" });
         }
         res.status(201).json(data[0]);
     } catch (error) {
@@ -57,9 +53,7 @@ app.get('/api/prayers', async (req, res) => {
             .order('created_at', { ascending: false });
             
         if (error) {
-            return res.status(200).json([
-                { id: 1, user_name: 'Budi', text: 'Mohon doa untuk ibu saya yang sedang sakit di rumah sakit.', created_at: new Date().toISOString() }
-            ]);
+            return res.status(500).json({ error: error.message + " (Pastikan tabel 'prayers' sudah dibuat di Supabase SQL Editor)" });
         }
         res.status(200).json(data);
     } catch (error) {
@@ -77,7 +71,7 @@ app.post('/api/prayers', async (req, res) => {
             .select();
             
         if (error) {
-            return res.status(201).json({ id: Date.now(), text, user_name, created_at: new Date().toISOString() });
+            return res.status(500).json({ error: error.message + " (Pastikan tabel 'prayers' sudah dibuat di Supabase SQL Editor)" });
         }
         res.status(201).json(data[0]);
     } catch (error) {
@@ -88,7 +82,6 @@ app.post('/api/prayers', async (req, res) => {
 // Vercel Serverless Function membutuhkan aplikasi di-export
 module.exports = app;
 
-// Jika dijalankan secara lokal (node api/index.js) di komputer Anda:
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
