@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bible Reading Community</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -22,12 +21,8 @@
             }
         }
     </script>
-    <!-- Phosphor Icons for UI icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
-    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #FFF7E6; color: #2D3A47; }
         .page-section { display: none; }
@@ -35,7 +30,6 @@
         .emoji-btn { transition: transform 0.2s; }
         .emoji-btn:hover { transform: scale(1.1); }
         .emoji-btn.selected { background-color: #F7C8D3; border-color: #B46A72; border-width: 2px; }
-        /* Transisi halus saat ganti mode auth */
         #auth-form-container { transition: all 0.3s ease; }
     </style>
 </head>
@@ -43,66 +37,40 @@
 
     <!-- LOGIN / REGISTER VIEW -->
     <div id="login-view" class="flex-grow flex items-center justify-center page-section active p-4">
-        <div id="auth-form-container" class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty">
+        <div id="auth-form-container" class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             
-            <!-- Elemen untuk menampilkan pesan error atau notifikasi -->
             <div id="auth-error-message" class="hidden text-sm text-center mb-4 p-3 rounded bg-red-100 text-red-700 border border-red-200"></div>
+            <div id="auth-success-message" class="hidden text-sm text-center mb-4 p-3 rounded bg-green-100 text-green-700 border border-green-200"></div>
 
-            <div id="login-section">
-                <h1 class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
-                <p class="text-center text-misty mb-6">Login to your Bible Community</p>
+            <div id="auth-section">
+                <h1 id="auth-title" class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
+                <p id="auth-subtitle" class="text-center text-misty mb-6">Login to your Bible Community</p>
                 
-                <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
+                <form id="auth-form" class="space-y-4" onsubmit="handleAuth(event)">
                     <div>
-                        <label class="block text-sm font-medium text-midnight mb-1" for="login-email">Email</label>
-                        <input type="email" id="login-email" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Enter your email" required>
+                        <label class="block text-sm font-medium text-midnight mb-1" for="auth-email">Email</label>
+                        <input type="email" id="auth-email" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Enter your email" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-midnight mb-1" for="login-password">Password</label>
-                        <input type="password" id="login-password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Enter your password" required>
+                        <label class="block text-sm font-medium text-midnight mb-1" for="auth-password">Password</label>
+                        <input type="password" id="auth-password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Enter your password" minlength="6" required>
                     </div>
                     
-                    <button id="login-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
+                    <button id="auth-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
                         Login
                     </button>
                 </form>
                 
                 <div class="text-center mt-6 text-sm">
-                    <p class="text-misty">Belum punya akun? <button onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button></p>
+                    <p class="text-misty" id="auth-toggle-text">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button></p>
                 </div>
             </div>
-
-            <div id="register-section" class="hidden">
-                <h1 class="text-3xl font-bold text-rosewood text-center mb-2">Buat Akun Baru</h1>
-                <p class="text-center text-misty mb-6">Bergabung dengan Komunitas Alkitab</p>
-                
-                <form id="register-form" class="space-y-4" onsubmit="handleRegister(event)">
-                    <div>
-                        <label class="block text-sm font-medium text-midnight mb-1" for="reg-email">Email</label>
-                        <input type="email" id="reg-email" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Enter your email" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-midnight mb-1" for="reg-password">Password</label>
-                        <input type="password" id="reg-password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage bg-vanilla" placeholder="Create a password (min. 6 char)" minlength="6" required>
-                    </div>
-                    
-                    <button id="reg-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
-                        Register
-                    </button>
-                </form>
-                
-                <div class="text-center mt-6 text-sm">
-                    <p class="text-misty">Sudah punya akun? <button onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button></p>
-                </div>
-            </div>
-
         </div>
     </div>
 
     <!-- MAIN APPLICATION VIEW -->
     <div id="main-view" class="page-section hidden flex-col h-screen">
         
-        <!-- Top Navigation Menu -->
         <header class="bg-midnight text-vanilla shadow-md sticky top-0 z-10">
             <div class="max-w-6xl mx-auto px-4">
                 <div class="flex justify-between items-center h-16">
@@ -117,7 +85,6 @@
                         <i class="ph ph-sign-out text-2xl"></i>
                     </button>
                 </div>
-                <!-- Mobile nav -->
                 <div class="md:hidden flex justify-around py-2 border-t border-misty border-opacity-30">
                     <button onclick="navigate('home')" class="nav-btn text-sm hover:text-blush" data-target="home"><i class="ph ph-house text-xl block"></i>Home</button>
                     <button onclick="navigate('devotion')" class="nav-btn text-sm hover:text-blush" data-target="devotion"><i class="ph ph-book-open text-xl block"></i>Devotion</button>
@@ -127,12 +94,9 @@
             </div>
         </header>
 
-        <!-- Main Content Area -->
         <main class="flex-grow max-w-6xl mx-auto w-full p-4 md:p-6 overflow-y-auto pb-20">
             
-            <!-- HOME SECTION -->
             <section id="sec-home" class="content-section space-y-6">
-                <!-- Feeling Today -->
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6">
                     <h2 class="text-xl font-bold text-rosewood mb-4">How was your feeling today?</h2>
                     <div class="flex justify-between md:justify-start md:space-x-4">
@@ -146,7 +110,6 @@
                     <p id="feeling-message" class="text-sage mt-4 hidden font-medium"></p>
                 </div>
 
-                <!-- Daily Devotional -->
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6">
                     <h2 class="text-xl font-bold text-rosewood mb-2">Renungan Hari Ini</h2>
                     <h3 class="text-lg font-semibold mb-4 text-midnight">Berjalan dalam Kasih</h3>
@@ -160,9 +123,7 @@
                 </div>
             </section>
 
-            <!-- DEVOTION SECTION -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
-                <!-- Bible Reader -->
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Membaca Alkitab</h2>
                     
@@ -187,7 +148,6 @@
                         </div>
                     </div>
 
-                    <!-- Bible Text Area -->
                     <div class="bg-vanilla p-4 rounded-lg border border-misty h-64 overflow-y-auto mb-4">
                         <h3 class="font-bold text-lg mb-2 text-center">Yohanes 3</h3>
                         <p class="mb-2"><sup class="text-xs text-rosewood mr-1">16</sup> Karena begitu besar kasih Allah akan dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.</p>
@@ -196,31 +156,22 @@
                     </div>
                 </div>
 
-                <!-- Sharing Section -->
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Sharing Komunitas</h2>
                     
                     <form onsubmit="postSharing(event)" class="mb-6">
-                        <textarea id="sharing-input" rows="3" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage mb-2 bg-vanilla" placeholder="Bagikan rhema atau pemikiran Anda hari ini..."></textarea>
+                        <textarea id="sharing-input" rows="3" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage mb-2 bg-vanilla" placeholder="Bagikan rhema atau pemikiran Anda hari ini..." required></textarea>
                         <div class="flex justify-end">
                             <button type="submit" class="bg-sage text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition">Bagikan</button>
                         </div>
                     </form>
 
                     <div id="sharing-list" class="space-y-4">
-                        <div class="p-4 border border-blush bg-vanilla rounded-lg">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="w-8 h-8 rounded-full bg-misty flex items-center justify-center text-white font-bold">A</div>
-                                <span class="font-bold text-sm">Andi</span>
-                                <span class="text-xs text-misty ml-auto">2 jam yang lalu</span>
-                            </div>
-                            <p class="text-sm">Ayat Yohanes 3:16 hari ini mengingatkan saya bahwa kasih Tuhan tidak bersyarat. Terkadang saya merasa tidak layak, tapi ayat ini meneguhkan kembali.</p>
-                        </div>
+                        <!-- Data Sharing akan muncul di sini -->
                     </div>
                 </div>
             </section>
 
-            <!-- PRAYER SECTION -->
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6">
                     <h2 class="text-xl font-bold text-rosewood mb-2">Pokok Doa</h2>
@@ -235,16 +186,7 @@
 
                     <h3 class="font-bold text-midnight mb-4">Daftar Pokok Doa</h3>
                     <div id="prayer-list" class="space-y-4">
-                        <div class="p-4 border border-sage bg-vanilla rounded-lg border-l-4 border-l-sage">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-sm text-midnight">Budi</span>
-                                <span class="text-xs text-misty">Kemarin</span>
-                            </div>
-                            <p class="text-sm mb-3">Mohon doa untuk ibu saya yang sedang sakit di rumah sakit, agar Tuhan memberikan kesembuhan dan kekuatan bagi keluarga.</p>
-                            <button class="text-xs text-sage font-bold hover:text-midnight transition flex items-center gap-1" onclick="this.classList.toggle('text-rosewood')">
-                                <i class="ph ph-hands-praying"></i> Saya berdoa untuk ini
-                            </button>
-                        </div>
+                        <!-- Data Doa akan muncul di sini -->
                     </div>
                 </div>
             </section>
@@ -253,14 +195,13 @@
             <section id="sec-profile" class="content-section hidden space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-misty border-opacity-30 p-6 max-w-2xl mx-auto">
                     
-                    <!-- Alert Profile Messages -->
                     <div id="profile-msg" class="hidden mb-4 p-3 rounded text-sm text-center"></div>
 
                     <div class="flex flex-col items-center mb-8">
-                        <div id="profile-avatar" class="w-24 h-24 rounded-full bg-blush flex items-center justify-center text-rosewood text-4xl font-bold mb-4">
+                        <div id="profile-avatar-text" class="w-28 h-28 mb-2 rounded-full bg-blush flex items-center justify-center text-rosewood text-4xl font-bold border-4 border-vanilla shadow-md">
                             U
                         </div>
-                        <h2 class="text-2xl font-bold text-midnight">User Profile</h2>
+                        <h2 id="display-name-title" class="text-2xl font-bold text-midnight mt-2">User Profile</h2>
                     </div>
 
                     <div class="space-y-8">
@@ -298,352 +239,349 @@
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt'; 
+        const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
         
-        // Inisialisasi Supabase aman
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentUser = null;
-        let isRegisterMode = false;
+        let supabaseClient;
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else {
+            console.error("Supabase library is not loaded properly.");
+        }
+
+        let isLoginMode = true;
 
         function toggleAuthMode() {
-            isRegisterMode = !isRegisterMode;
-            const loginSec = document.getElementById('login-section');
-            const regSec = document.getElementById('register-section');
-            const errorEl = document.getElementById('auth-error-message');
-            
-            errorEl.classList.add('hidden');
+            isLoginMode = !isLoginMode;
+            const title = document.getElementById('auth-title');
+            const subtitle = document.getElementById('auth-subtitle');
+            const btn = document.getElementById('auth-btn');
+            const toggleText = document.getElementById('auth-toggle-text');
 
-            if (isRegisterMode) {
-                loginSec.classList.add('hidden');
-                regSec.classList.remove('hidden');
+            const errorMsg = document.getElementById('auth-error-message');
+            const successMsg = document.getElementById('auth-success-message');
+            errorMsg.classList.add('hidden');
+            successMsg.classList.add('hidden');
+
+            if (isLoginMode) {
+                title.innerText = "Welcome Back";
+                subtitle.innerText = "Login to your Bible Community";
+                btn.innerText = "Login";
+                toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
             } else {
-                regSec.classList.add('hidden');
-                loginSec.classList.remove('hidden');
+                title.innerText = "Buat Akun Baru";
+                subtitle.innerText = "Bergabung dengan Komunitas Alkitab";
+                btn.innerText = "Register";
+                toggleText.innerHTML = 'Sudah punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>';
             }
         }
 
-        async function checkSession() {
+        async function handleAuth(event) {
+            if (event) event.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const btn = document.getElementById('auth-btn');
+            const errorMsg = document.getElementById('auth-error-message');
+            const successMsg = document.getElementById('auth-success-message');
+            const originalBtnText = btn.innerText;
+
+            if (!supabaseClient) {
+                errorMsg.innerText = "Koneksi ke database gagal. Coba refresh halaman.";
+                errorMsg.classList.remove('hidden');
+                return false;
+            }
+
+            btn.innerText = 'Mohon tunggu...';
+            btn.disabled = true;
+            errorMsg.classList.add('hidden');
+            successMsg.classList.add('hidden');
+
             try {
-                const { data: { session } } = await sb.auth.getSession();
-                if (session) {
-                    currentUser = session.user;
-                    showMainApp();
+                let result;
+                if (isLoginMode) {
+                    result = await supabaseClient.auth.signInWithPassword({ email, password });
                 } else {
-                    document.getElementById('login-view').classList.remove('hidden');
-                    document.getElementById('login-view').classList.add('active');
+                    result = await supabaseClient.auth.signUp({ email, password });
                 }
-            } catch (err) {
-                console.error("Session check error:", err);
-            }
-        }
-        
-        checkSession();
 
-        function getUserDisplayName() {
-            if (!currentUser) return 'Member';
-            // Jika user punya metadata full_name, gunakan itu. Jika tidak, gunakan username/email.
-            if (currentUser.user_metadata && currentUser.user_metadata.full_name) {
-                return currentUser.user_metadata.full_name;
-            }
-            return currentUser.email.split('@')[0];
-        }
+                if (result.error) {
+                    throw result.error;
+                }
 
-        function updateProfileUI() {
-            if(!currentUser) return;
-            
-            const emailInput = document.getElementById('profile-email');
-            const nameInput = document.getElementById('profile-name');
-            const avatar = document.getElementById('profile-avatar');
-            
-            emailInput.value = currentUser.email;
-            
-            const displayName = getUserDisplayName();
-            nameInput.value = (currentUser.user_metadata && currentUser.user_metadata.full_name) ? currentUser.user_metadata.full_name : '';
-            
-            // Set inisial avatar
-            if(displayName) {
-                avatar.textContent = displayName.charAt(0).toUpperCase();
+                if (!isLoginMode && result.data.user && result.data.user.identities && result.data.user.identities.length === 0) {
+                    throw new Error("Email ini sudah terdaftar. Silakan login.");
+                }
+
+                if (!isLoginMode) {
+                    successMsg.innerText = "Pendaftaran berhasil! Anda akan segera masuk...";
+                    successMsg.classList.remove('hidden');
+                    setTimeout(() => {
+                        showMainApp();
+                    }, 1500);
+                } else {
+                    showMainApp();
+                }
+
+            } catch (error) {
+                console.error("Auth Error:", error.message);
+                if (error.message.includes("Signups not allowed") || error.message.includes("disabled")) {
+                    errorMsg.innerHTML = "<strong>Pendaftaran dinonaktifkan.</strong><br>Aktifkan 'Allow new users to sign up' di Supabase Dashboard > Authentication > Providers > Email.";
+                } else if (error.message.includes("Invalid login credentials")) {
+                    errorMsg.innerText = "Email atau password salah.";
+                } else {
+                    errorMsg.innerText = error.message;
+                }
+                errorMsg.classList.remove('hidden');
+            } finally {
+                btn.innerText = originalBtnText;
+                btn.disabled = false;
             }
+            return false;
         }
 
         function showMainApp() {
             document.getElementById('login-view').classList.remove('active');
             document.getElementById('login-view').classList.add('hidden');
-            
-            document.getElementById('main-view').classList.add('flex');
             document.getElementById('main-view').classList.remove('hidden');
-            
-            updateProfileUI();
+            document.getElementById('main-view').classList.add('flex');
             navigate('home');
-        }
-
-        function hideMainApp() {
-            document.getElementById('main-view').classList.remove('flex');
-            document.getElementById('main-view').classList.add('hidden');
-            
-            document.getElementById('login-view').classList.remove('hidden');
-            document.getElementById('login-view').classList.add('active');
-        }
-
-        function navigate(targetId) {
-            document.querySelectorAll('.content-section').forEach(el => {
-                el.classList.add('hidden');
-            });
-            document.getElementById(`sec-${targetId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if(btn.dataset.target === targetId) {
-                    btn.classList.add('text-blush', 'font-bold');
-                    btn.classList.remove('text-vanilla', 'text-misty');
-                } else {
-                    btn.classList.remove('text-blush', 'font-bold');
-                    if(btn.parentElement.classList.contains('md:hidden')) {
-                        btn.classList.add('text-misty');
-                    } else {
-                        btn.classList.add('text-vanilla');
-                    }
-                }
-            });
+            loadUserProfile();
+            loadSharings();
+            loadPrayers();
         }
 
         async function logout() {
-            await sb.auth.signOut();
-            currentUser = null;
-            hideMainApp();
-            document.getElementById('login-email').value = '';
-            document.getElementById('login-password').value = '';
-        }
-
-        function showAuthError(msg) {
-            const errorEl = document.getElementById('auth-error-message');
-            errorEl.innerHTML = msg;
-            errorEl.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'border-green-200');
-            errorEl.classList.add('bg-red-100', 'text-red-700', 'border-red-200');
-        }
-
-        function showAuthSuccess(msg) {
-            const errorEl = document.getElementById('auth-error-message');
-            errorEl.innerHTML = msg;
-            errorEl.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'border-red-200');
-            errorEl.classList.add('bg-green-100', 'text-green-700', 'border-green-200');
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const btn = document.getElementById('login-btn');
-            
-            btn.textContent = 'Loading...';
-            
-            try {
-                const { data, error } = await sb.auth.signInWithPassword({ email, password });
-                if (error) {
-                    showAuthError(error.message);
-                } else {
-                    currentUser = data.user;
-                    showMainApp();
-                }
-            } catch (err) {
-                showAuthError("Terjadi kesalahan jaringan.");
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
             }
-            btn.textContent = 'Login';
+            document.getElementById('main-view').classList.remove('flex');
+            document.getElementById('main-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-view').classList.add('active');
+            document.getElementById('auth-email').value = '';
+            document.getElementById('auth-password').value = '';
+            isLoginMode = true;
+            toggleAuthMode();
+            toggleAuthMode(); 
         }
 
-        async function handleRegister(e) {
-            e.preventDefault();
-            const email = document.getElementById('reg-email').value;
-            const password = document.getElementById('reg-password').value;
-            const btn = document.getElementById('reg-btn');
+        function navigate(sectionId) {
+            document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('sec-' + sectionId).classList.remove('hidden');
             
-            btn.textContent = 'Loading...';
-            
-            try {
-                const { data, error } = await sb.auth.signUp({ email, password });
-                if (error) {
-                    if (error.message.includes('Signups not allowed')) {
-                        showAuthError('<strong>Registrasi ditolak.</strong><br>Buka Supabase Dashboard > Authentication > Providers > Email, pastikan <b>Enable Signups</b> menyala (hijau).');
-                    } else {
-                        showAuthError(error.message);
-                    }
-                } else {
-                    showAuthSuccess('<strong>Registrasi berhasil!</strong> Silakan login dengan akun tersebut.');
-                    document.getElementById('reg-email').value = '';
-                    document.getElementById('reg-password').value = '';
-                    toggleAuthMode(); // Pindah ke tab login
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blush', 'font-bold');
+                if (btn.dataset.target === sectionId) {
+                    btn.classList.add('text-blush', 'font-bold');
                 }
-            } catch (err) {
-                showAuthError("Terjadi kesalahan jaringan.");
-            }
-            btn.textContent = 'Register';
-        }
-
-        function selectFeeling(btnElement, feeling) {
-            document.querySelectorAll('.emoji-btn').forEach(btn => {
-                btn.classList.remove('selected');
             });
-            btnElement.classList.add('selected');
+        }
+
+        function selectFeeling(btn, feeling) {
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
             const msgEl = document.getElementById('feeling-message');
-            msgEl.textContent = `Anda merasa ${feeling} hari ini. Tuhan menyertaimu.`;
             msgEl.classList.remove('hidden');
-        }
-
-        async function postSharing(e) {
-            e.preventDefault();
-            const input = document.getElementById('sharing-input');
-            const text = input.value.trim();
-            if(!text) return;
-
-            const userName = getUserDisplayName();
-
-            try {
-                const response = await fetch('/api/sharing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        text: text, 
-                        user_name: userName
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const list = document.getElementById('sharing-list');
-                    const newHtml = `
-                        <div class="p-4 border border-blush bg-vanilla rounded-lg">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="w-8 h-8 rounded-full bg-midnight flex items-center justify-center text-white font-bold">
-                                    ${data.user_name.charAt(0).toUpperCase()}
-                                </div>
-                                <span class="font-bold text-sm">${data.user_name}</span>
-                                <span class="text-xs text-misty ml-auto">Baru saja</span>
-                            </div>
-                            <p class="text-sm">${data.text}</p>
-                        </div>
-                    `;
-                    list.insertAdjacentHTML('afterbegin', newHtml);
-                    input.value = '';
-                } else {
-                    alert("Gagal membagikan ke server.");
-                }
-            } catch (err) {
-                console.error("Gagal mengirim sharing", err);
-            }
-        }
-
-        async function postPrayer(e) {
-            e.preventDefault();
-            const input = document.getElementById('prayer-input');
-            const text = input.value.trim();
-            if(!text) return;
-
-            const userName = getUserDisplayName();
-
-            try {
-                const response = await fetch('/api/prayers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        text: text, 
-                        user_name: userName 
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    const list = document.getElementById('prayer-list');
-                    const newHtml = `
-                        <div class="p-4 border border-sage bg-vanilla rounded-lg border-l-4 border-l-sage">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-sm text-midnight">${data.user_name}</span>
-                                <span class="text-xs text-misty">Baru saja</span>
-                            </div>
-                            <p class="text-sm mb-3">${data.text}</p>
-                            <button class="text-xs text-sage font-bold hover:text-midnight transition flex items-center gap-1" onclick="this.classList.toggle('text-rosewood')">
-                                <i class="ph ph-hands-praying"></i> Saya berdoa untuk ini
-                            </button>
-                        </div>
-                    `;
-                    list.insertAdjacentHTML('afterbegin', newHtml);
-                    input.value = '';
-                } else {
-                    alert("Gagal menyimpan doa.");
-                }
-            } catch (err) {
-                console.error("Gagal mengirim doa", err);
-            }
-        }
-
-        function showProfileMsg(msg, isError = false) {
-            const msgEl = document.getElementById('profile-msg');
-            msgEl.textContent = msg;
-            msgEl.className = `mb-4 p-3 rounded text-sm text-center ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-            msgEl.classList.remove('hidden');
-            setTimeout(() => {
-                msgEl.classList.add('hidden');
-            }, 3000);
-        }
-
-        // --- UPDATE PROFILE NAME ---
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            if(!currentUser) return;
             
+            const messages = {
+                'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini. Bagikan kebahagiaanmu dengan orang lain!',
+                'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu. Nikmati ketenangan ini.',
+                'Sad': 'Tuhan dekat dengan mereka yang patah hati. Tak apa bersedih, mari datang kepada-Nya dalam doa.',
+                'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
+                'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
+                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).'
+            };
+            msgEl.innerText = messages[feeling];
+        }
+
+        async function loadUserProfile() {
+            if (!supabaseClient) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                document.getElementById('profile-email').value = user.email;
+                const fullName = user.user_metadata?.full_name || '';
+                document.getElementById('profile-name').value = fullName;
+                updateAvatarUI(user.email, fullName);
+            }
+        }
+
+        function updateAvatarUI(email, fullName) {
+            const displayName = fullName || email.split('@')[0];
+            document.getElementById('display-name-title').innerText = displayName;
+            
+            const initial = displayName.charAt(0).toUpperCase();
+            document.getElementById('profile-avatar-text').innerText = initial;
+        }
+
+        async function getUserDisplayName() {
+            if (!supabaseClient) return "User";
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                if (user.user_metadata && user.user_metadata.full_name) {
+                    return user.user_metadata.full_name;
+                }
+                return user.email.split('@')[0];
+            }
+            return "User";
+        }
+
+        async function handleProfileUpdate(event) {
+            if (event) event.preventDefault();
             const btn = document.getElementById('update-profile-btn');
-            const nameInput = document.getElementById('profile-name').value.trim();
+            const msgEl = document.getElementById('profile-msg');
+            const newName = document.getElementById('profile-name').value;
             
-            const originalText = btn.textContent;
-            btn.textContent = "Menyimpan...";
-            
+            btn.innerText = 'Menyimpan...';
+            btn.disabled = true;
+
             try {
-                // Supabase: Update user metadata (full_name)
-                const { data, error } = await sb.auth.updateUser({
-                    data: { full_name: nameInput }
+                const { data, error } = await supabaseClient.auth.updateUser({
+                    data: { full_name: newName }
                 });
 
                 if (error) throw error;
-                
-                currentUser = data.user;
-                updateProfileUI();
-                showProfileMsg("Nama berhasil diperbarui!");
-                
+
+                msgEl.innerText = "Profile berhasil diperbarui!";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
+                updateAvatarUI(data.user.email, newName);
             } catch (error) {
-                console.error("Error update profile:", error.message);
-                showProfileMsg(error.message, true);
+                msgEl.innerText = error.message;
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
             } finally {
-                btn.textContent = originalText;
+                btn.innerText = 'Simpan Profile';
+                btn.disabled = false;
+                setTimeout(() => msgEl.classList.add('hidden'), 3000);
             }
+            return false;
         }
 
-        // --- UPDATE PASSWORD ---
-        async function handlePasswordChange(e) {
-            e.preventDefault();
-            if(!currentUser) return;
-            
+        async function handlePasswordChange(event) {
+            if (event) event.preventDefault();
             const btn = document.getElementById('update-password-btn');
+            const msgEl = document.getElementById('profile-msg');
             const newPassword = document.getElementById('profile-new-password').value;
             
-            const originalText = btn.textContent;
-            btn.textContent = "Mengubah...";
-            
+            btn.innerText = 'Memperbarui...';
+            btn.disabled = true;
+
             try {
-                const { data, error } = await sb.auth.updateUser({
+                const { error } = await supabaseClient.auth.updateUser({
                     password: newPassword
                 });
 
                 if (error) throw error;
-                
-                e.target.reset();
-                showProfileMsg("Password berhasil diubah!");
-                
+
+                msgEl.innerText = "Password berhasil diubah!";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
+                document.getElementById('profile-new-password').value = '';
             } catch (error) {
-                console.error("Error update password:", error.message);
-                showProfileMsg(error.message, true);
+                msgEl.innerText = error.message;
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-green-200 block";
             } finally {
-                btn.textContent = originalText;
+                btn.innerText = 'Ubah Password';
+                btn.disabled = false;
+                setTimeout(() => msgEl.classList.add('hidden'), 3000);
+            }
+            return false;
+        }
+
+        async function loadSharings() {
+            try {
+                const res = await fetch('/api/sharing');
+                const data = await res.json();
+                const listEl = document.getElementById('sharing-list');
+                listEl.innerHTML = '';
+                
+                data.forEach(item => {
+                    listEl.innerHTML += `
+                        <div class="border-b border-misty border-opacity-30 pb-4">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">${item.user_name.charAt(0).toUpperCase()}</div>
+                                <span class="font-bold text-midnight text-sm">${item.user_name}</span>
+                            </div>
+                            <p class="text-sm pl-10">${item.text}</p>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Gagal memuat sharing:", error);
             }
         }
+
+        async function postSharing(event) {
+            if (event) event.preventDefault();
+            const inputEl = document.getElementById('sharing-input');
+            const text = inputEl.value;
+            const userName = await getUserDisplayName();
+
+            try {
+                await fetch('/api/sharing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, user_name: userName })
+                });
+                inputEl.value = '';
+                loadSharings();
+            } catch (error) {
+                console.error("Gagal memposting sharing:", error);
+            }
+            return false;
+        }
+
+        async function loadPrayers() {
+            try {
+                const res = await fetch('/api/prayers');
+                const data = await res.json();
+                const listEl = document.getElementById('prayer-list');
+                listEl.innerHTML = '';
+                
+                data.forEach(item => {
+                    listEl.innerHTML += `
+                        <div class="bg-vanilla p-3 rounded-lg border border-misty">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-bold text-sm text-rosewood">${item.user_name}</span>
+                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Anda telah berdoa untuk ini.')">
+                                    <i class="ph ph-hands-praying"></i> Berdoa
+                                </button>
+                            </div>
+                            <p class="text-sm">${item.text}</p>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Gagal memuat doa:", error);
+            }
+        }
+
+        async function postPrayer(event) {
+            if (event) event.preventDefault();
+            const inputEl = document.getElementById('prayer-input');
+            const text = inputEl.value;
+            const userName = await getUserDisplayName();
+
+            try {
+                await fetch('/api/prayers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, user_name: userName })
+                });
+                inputEl.value = '';
+                loadPrayers();
+            } catch (error) {
+                console.error("Gagal mengirim doa:", error);
+            }
+            return false;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (supabaseClient) {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    showMainApp();
+                }
+            }
+        });
+
     </script>
 </body>
 </html>
