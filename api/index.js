@@ -1,3 +1,10 @@
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+
+const app = express();
+app.use(express.json());
+
+// Konfigurasi Supabase
 const supabaseUrl = process.env.SUPABASE_URL || 'https://srmaojepdzxmgeefzbsc.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
 const supabase = createClient(supabaseUrl, supabaseKey);
