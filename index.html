@@ -487,17 +487,33 @@
 
         async function loadSharings() {
             try {
-                const res = await fetch('/api/sharing');
-                const data = await res.json();
+                const { data, error } = await supabaseClient
+                    .from('sharings')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
                 const listEl = document.getElementById('sharing-list');
                 listEl.innerHTML = '';
                 
+                if (error || !data || data.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="border-b border-misty border-opacity-30 pb-4">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">A</div>
+                                <span class="font-bold text-midnight text-sm">Andi (Contoh)</span>
+                            </div>
+                            <p class="text-sm pl-10">Ayat Yohanes 3:16 hari ini mengingatkan saya bahwa kasih Tuhan tidak bersyarat.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 data.forEach(item => {
                     listEl.innerHTML += `
                         <div class="border-b border-misty border-opacity-30 pb-4">
                             <div class="flex items-center gap-2 mb-1">
-                                <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">${item.user_name.charAt(0).toUpperCase()}</div>
-                                <span class="font-bold text-midnight text-sm">${item.user_name}</span>
+                                <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>
+                                <span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span>
                             </div>
                             <p class="text-sm pl-10">${item.text}</p>
                         </div>
@@ -515,32 +531,52 @@
             const userName = await getUserDisplayName();
 
             try {
-                await fetch('/api/sharing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, user_name: userName })
-                });
+                const { error } = await supabaseClient
+                    .from('sharings')
+                    .insert([{ text: text, user_name: userName }]);
+
+                if (error) throw error;
+
                 inputEl.value = '';
                 loadSharings();
             } catch (error) {
                 console.error("Gagal memposting sharing:", error);
+                alert("Gagal memposting. Pastikan tabel 'sharings' sudah dibuat di Supabase.");
             }
             return false;
         }
 
         async function loadPrayers() {
             try {
-                const res = await fetch('/api/prayers');
-                const data = await res.json();
+                const { data, error } = await supabaseClient
+                    .from('prayers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
                 const listEl = document.getElementById('prayer-list');
                 listEl.innerHTML = '';
                 
+                if (error || !data || data.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="bg-vanilla p-3 rounded-lg border border-misty">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-bold text-sm text-rosewood">Budi (Contoh)</span>
+                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Anda telah berdoa untuk ini.')">
+                                    <i class="ph ph-hands-praying"></i> Berdoa
+                                </button>
+                            </div>
+                            <p class="text-sm">Mohon doa untuk ibu saya yang sedang sakit di rumah sakit.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 data.forEach(item => {
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-3 rounded-lg border border-misty">
                             <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-sm text-rosewood">${item.user_name}</span>
-                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Anda telah berdoa untuk ini.')">
+                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
+                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="alert('Terima kasih, Anda telah mendukung dalam doa.')">
                                     <i class="ph ph-hands-praying"></i> Berdoa
                                 </button>
                             </div>
@@ -560,15 +596,17 @@
             const userName = await getUserDisplayName();
 
             try {
-                await fetch('/api/prayers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, user_name: userName })
-                });
+                const { error } = await supabaseClient
+                    .from('prayers')
+                    .insert([{ text: text, user_name: userName }]);
+
+                if (error) throw error;
+
                 inputEl.value = '';
                 loadPrayers();
             } catch (error) {
                 console.error("Gagal mengirim doa:", error);
+                alert("Gagal mengirim pokok doa. Pastikan tabel 'prayers' sudah dibuat di Supabase.");
             }
             return false;
         }
