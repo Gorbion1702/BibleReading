@@ -7,7 +7,7 @@
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        //        tailwind.config = {
+        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -25,16 +25,13 @@
     <!-- Phosphor Icons for UI icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
-    <!-- Supabase JS Client (Ditambahkan) -->
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #FFF7E6; color: #2D3A47; }
-        /* Hide all sections by default */
         .page-section { display: none; }
-        /* Show active section */
         .page-section.active { display: block; }
-        
         .emoji-btn { transition: transform 0.2s; }
         .emoji-btn:hover { transform: scale(1.1); }
         .emoji-btn.selected { background-color: #F7C8D3; border-color: #B46A72; border-width: 2px; }
@@ -43,12 +40,11 @@
 <body class="bg-vanilla text-midnight min-h-screen flex flex-col">
 
     <!-- LOGIN VIEW -->
-    <div id="login-view" class="flex-grow flex items-center justify-center page-section active">
+    <div id="login-view" class="flex-grow flex items-center justify-center page-section active p-4">
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty">
-            <h1 class="text-3xl font-bold text-rosewood text-center mb-6">Welcome Back</h1>
-            <p class="text-center text-misty mb-8">Login to your Bible Community</p>
+            <h1 class="text-3xl font-bold text-rosewood text-center mb-2">Welcome Back</h1>
+            <p class="text-center text-misty mb-6">Login to your Bible Community</p>
             
-            <!-- Error message container (Ditambahkan) -->
             <p class="text-sm text-center text-rosewood mb-4 bg-vanilla p-2 rounded hidden" id="login-error"></p>
             
             <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
@@ -60,14 +56,14 @@
                     <label class="block text-sm font-medium text-midnight mb-1" for="password">Password</label>
                     <input type="password" id="password" class="w-full p-3 rounded-lg border border-misty focus:outline-none focus:ring-2 focus:ring-sage" placeholder="Enter your password" required>
                 </div>
-                <button id="login-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-4">
+                <button id="login-btn" type="submit" class="w-full bg-rosewood text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition mt-6 shadow-md">
                     Login / Register
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- MAIN APPLICATION VIEW (Hidden initially) -->
+    <!-- MAIN APPLICATION VIEW -->
     <div id="main-view" class="page-section flex-col h-screen">
         
         <!-- Top Navigation Menu -->
@@ -81,7 +77,7 @@
                         <button onclick="navigate('prayer')" class="nav-btn hover:text-blush transition px-2 py-1 rounded" data-target="prayer">Prayer</button>
                         <button onclick="navigate('profile')" class="nav-btn hover:text-blush transition px-2 py-1 rounded" data-target="profile">Profile</button>
                     </nav>
-                    <button onclick="logout()" class="text-misty hover:text-white transition">
+                    <button onclick="logout()" class="text-misty hover:text-white transition" title="Logout">
                         <i class="ph ph-sign-out text-2xl"></i>
                     </button>
                 </div>
@@ -160,7 +156,6 @@
                         <h3 class="font-bold text-lg mb-2 text-center">Yohanes 3</h3>
                         <p class="mb-2"><sup class="text-xs text-rosewood mr-1">16</sup> Karena begitu besar kasih Allah akan dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.</p>
                         <p class="mb-2"><sup class="text-xs text-rosewood mr-1">17</sup> Sebab Allah mengutus Anak-Nya ke dalam dunia bukan untuk menghakimi dunia, melainkan untuk menyelamatkannya oleh Dia.</p>
-                        <!-- Mock text -->
                         <p class="text-misty italic mt-4 text-sm text-center">Pilih pasal lain untuk membaca lebih lanjut.</p>
                     </div>
                 </div>
@@ -177,7 +172,6 @@
                     </form>
 
                     <div id="sharing-list" class="space-y-4">
-                        <!-- Example Sharing -->
                         <div class="p-4 border border-blush bg-vanilla rounded-lg">
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="w-8 h-8 rounded-full bg-misty flex items-center justify-center text-white font-bold">A</div>
@@ -205,7 +199,6 @@
 
                     <h3 class="font-bold text-midnight mb-4">Daftar Pokok Doa</h3>
                     <div id="prayer-list" class="space-y-4">
-                        <!-- Example Prayer -->
                         <div class="p-4 border border-sage bg-vanilla rounded-lg border-l-4 border-l-sage">
                             <div class="flex justify-between items-start mb-2">
                                 <span class="font-bold text-sm text-midnight">Budi</span>
@@ -231,7 +224,6 @@
                     </div>
 
                     <div class="space-y-8">
-                        <!-- Edit Profile -->
                         <div>
                             <h3 class="text-lg font-bold text-rosewood border-b border-misty pb-2 mb-4">Edit Profile</h3>
                             <form onsubmit="handleProfileUpdate(event)" class="space-y-4">
@@ -248,7 +240,6 @@
                             </form>
                         </div>
 
-                        <!-- Change Password -->
                         <div>
                             <h3 class="text-lg font-bold text-rosewood border-b border-misty pb-2 mb-4">Ubah Password</h3>
                             <form onsubmit="handlePasswordChange(event)" class="space-y-4">
@@ -271,15 +262,12 @@
     </div>
 
     <script>
-        // --- 1. Supabase Configuration ---
-        // PENTING: GANTI URL DAN KEY INI DENGAN PROJECT SUPABASE ANDA
-        const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5c...'; 
+        const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt'; 
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUser = null;
 
-        // Cek status login saat halaman dimuat
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -287,15 +275,13 @@
                 showMainApp();
             }
         }
-        checkSession(); // Jalankan saat web dibuka
+        checkSession();
 
-        // Fungsi untuk mengatur tampilan jika sudah login
         function showMainApp() {
             document.getElementById('login-view').classList.remove('active');
             document.getElementById('main-view').classList.add('flex');
             document.getElementById('main-view').classList.remove('hidden');
             
-            // Isi email di halaman profile
             if(currentUser) {
                 const profileEmailInputs = document.querySelectorAll('input[type="email"]');
                 profileEmailInputs.forEach(input => {
@@ -305,30 +291,24 @@
             navigate('home');
         }
 
-        // Fungsi untuk mengatur tampilan jika logout
         function hideMainApp() {
             document.getElementById('main-view').classList.remove('flex');
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('login-view').classList.add('active');
         }
 
-        // --- Navigation Logic ---
         function navigate(targetId) {
-            // Hide all sections
             document.querySelectorAll('.content-section').forEach(el => {
                 el.classList.add('hidden');
             });
-            // Show target section
             document.getElementById(`sec-${targetId}`).classList.remove('hidden');
 
-            // Update nav styling
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 if(btn.dataset.target === targetId) {
                     btn.classList.add('text-blush', 'font-bold');
                     btn.classList.remove('text-vanilla', 'text-misty');
                 } else {
                     btn.classList.remove('text-blush', 'font-bold');
-                    // desktop vs mobile initial state differs slightly
                     if(btn.parentElement.classList.contains('md:hidden')) {
                         btn.classList.add('text-misty');
                     } else {
@@ -338,7 +318,6 @@
             });
         }
 
-        // --- Authentication (Real with Supabase) ---
         async function handleLogin(e) {
             e.preventDefault();
             const email = document.getElementById('email').value;
@@ -349,17 +328,14 @@
             btn.textContent = 'Loading...';
             errorEl.classList.add('hidden');
 
-            // 1. Coba Login
             let { data, error } = await supabase.auth.signInWithPassword({ email, password });
             
-            // 2. Jika gagal login (mungkin akun belum ada), Coba Registrasi
             if (error) {
                 if (error.message.includes('Invalid login credentials')) {
                     const { data: regData, error: regError } = await supabase.auth.signUp({ email, password });
                     if (regError) {
                         showError(regError.message);
                     } else {
-                        // Jika register berhasil, tampilkan pesan sukses
                         errorEl.textContent = 'Registrasi berhasil! Silakan login (atau cek email konfirmasi).';
                         errorEl.classList.remove('hidden', 'text-rosewood');
                         errorEl.classList.add('text-sage');
@@ -368,7 +344,6 @@
                     showError(error.message);
                 }
             } else {
-                // Login Berhasil
                 currentUser = data.user;
                 showMainApp();
             }
@@ -385,36 +360,26 @@
             await supabase.auth.signOut();
             currentUser = null;
             hideMainApp();
-            
-            // clear form
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
         }
 
-        // --- Feature Logic (Mock for now, ready to be linked to DB) ---
-        
-        // 1. Home - Feelings
         function selectFeeling(btnElement, feeling) {
-            // Remove selected class from all
             document.querySelectorAll('.emoji-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
-            // Add to clicked
             btnElement.classList.add('selected');
-            
             const msgEl = document.getElementById('feeling-message');
             msgEl.textContent = `Anda merasa ${feeling} hari ini. Tuhan menyertaimu.`;
             msgEl.classList.remove('hidden');
         }
 
-        // 2. Devotion - Sharing (Diubah untuk memanggil Node.js API)
         async function postSharing(e) {
             e.preventDefault();
             const input = document.getElementById('sharing-input');
             const text = input.value.trim();
             if(!text) return;
 
-            // Panggil backend Express menggunakan Fetch
             try {
                 const response = await fetch('/api/sharing', {
                     method: 'POST',
@@ -429,7 +394,7 @@
                     const data = await response.json();
                     const list = document.getElementById('sharing-list');
                     const newHtml = `
-                        <div class="p-4 border border-blush bg-vanilla rounded-lg animate-[fadeIn_0.5s_ease-out]">
+                        <div class="p-4 border border-blush bg-vanilla rounded-lg">
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="w-8 h-8 rounded-full bg-midnight flex items-center justify-center text-white font-bold">
                                     ${data.user_name.charAt(0).toUpperCase()}
@@ -450,14 +415,12 @@
             }
         }
 
-        // 3. Prayer (Diubah untuk memanggil Node.js API)
         async function postPrayer(e) {
             e.preventDefault();
             const input = document.getElementById('prayer-input');
             const text = input.value.trim();
             if(!text) return;
 
-            // Panggil backend Express menggunakan Fetch
             try {
                 const response = await fetch('/api/prayers', {
                     method: 'POST',
@@ -472,7 +435,7 @@
                     const data = await response.json();
                     const list = document.getElementById('prayer-list');
                     const newHtml = `
-                        <div class="p-4 border border-sage bg-vanilla rounded-lg border-l-4 border-l-sage animate-[fadeIn_0.5s_ease-out]">
+                        <div class="p-4 border border-sage bg-vanilla rounded-lg border-l-4 border-l-sage">
                             <div class="flex justify-between items-start mb-2">
                                 <span class="font-bold text-sm text-midnight">${data.user_name}</span>
                                 <span class="text-xs text-misty">Baru saja</span>
@@ -493,10 +456,8 @@
             }
         }
 
-        // 4. Profile handlers (Mock)
         function handleProfileUpdate(e) {
             e.preventDefault();
-            // Replace with custom modal later if requested, no alert() allowed.
             const btn = e.target.querySelector('button');
             const originalText = btn.textContent;
             btn.textContent = "Tersimpan!";
@@ -509,7 +470,7 @@
 
         function handlePasswordChange(e) {
             e.preventDefault();
-            e.target.reset(); // clear inputs
+            e.target.reset();
             const btn = e.target.querySelector('button');
             const originalText = btn.textContent;
             btn.textContent = "Password Diubah!";
@@ -520,9 +481,7 @@
             }, 2000);
         }
 
-        // Initialize state (Login visible, app hidden)
         document.getElementById('main-view').classList.add('hidden');
-
     </script>
 </body>
 </html>
