@@ -595,6 +595,16 @@
                 }
                 const data = await res.json();
 
+                let currentUserId = null;
+                let currentUserName = "User";
+                if (supabaseClient) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) {
+                        currentUserId = user.id;
+                        currentUserName = user.user_metadata?.full_name || user.email.split('@')[0];
+                    }
+                }
+
                 const listEl = document.getElementById('prayer-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
@@ -602,17 +612,48 @@
                     listEl.innerHTML = '<p class="text-xs text-sage italic col-span-2">Belum ada pokok doa.</p>';
                     return;
                 }
+
                 data.forEach(item => {
+                    const intercessors = item.intercessors || [];
+                    const count = intercessors.length;
+                    
+                    // Cek apakah user saat ini sudah pernah klik berdoa
+                    const hasPrayed = intercessors.some(i => 
+                        (currentUserId && i.user_id === currentUserId) || 
+                        (!i.user_id && i.user_name === currentUserName)
+                    );
+
+                    const intercessorsNames = intercessors.map(i => i.user_name || 'User').join(', ');
+
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-3 rounded-lg border border-misty">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
-                                <button type="button" class="text-xs flex items-center gap-1 text-sage hover:text-midnight transition" onclick="showToast('Terima kasih, Anda telah mendukung dalam doa.')">
-                                    <i class="ph ph-hands-praying"></i> Berdoa
-                                </button>
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs">
+                                            ${(item.user_name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                        <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
+                                    </div>
+                                    <span class="text-[10px] text-sage">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                </div>
+                                <p class="text-sm text-midnight mb-3 pl-9">${item.text}</p>
                             </div>
-                            <p class="text-sm mb-1">${item.text}</p>
-                            <span class="text-[10px] text-sage">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+
+                            <div class="pl-9 pt-2 border-t border-misty border-opacity-50 flex flex-col gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <button type="button" onclick="togglePray('${item.id}')" class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition ${hasPrayed ? 'bg-rosewood text-white shadow-sm' : 'bg-blush text-rosewood hover:bg-opacity-80'}">
+                                        <i class="ph ph-hands-praying text-sm"></i> ${hasPrayed ? 'Sudah Didoakan' : 'Berdoa'} (${count})
+                                    </button>
+                                </div>
+                                ${count > 0 ? `
+                                    <p class="text-[11px] text-sage italic" title="${intercessorsNames}">
+                                        <i class="ph ph-heart text-rosewood mr-0.5"></i> Didoakan oleh: <span class="font-medium text-midnight">${intercessorsNames}</span>
+                                    </p>
+                                ` : `
+                                    <p class="text-[11px] text-sage italic">Belum ada yang mendoakan. Jadilah yang pertama!</p>
+                                `}
+                            </div>
                         </div>
                     `;
                 });
@@ -620,6 +661,32 @@
                 console.error("Gagal memuat doa:", error);
                 const listEl = document.getElementById('prayer-list');
                 if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200 col-span-2">Gagal memuat dari database: ${error.message}. Pastikan Anda sudah menjalankan SQL Setup di menu Profile.</p>`;
+            }
+        }
+
+        async function togglePray(prayerId) {
+            const userName = await getUserDisplayName();
+            let userId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
+
+            try {
+                const res = await fetch(`/api/prayers/${prayerId}/pray`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, user_name: userName })
+                });
+
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || "Gagal memperbarui status doa.");
+
+                showToast(result.message);
+                loadPrayers();
+            } catch (error) {
+                console.error("Pray Error:", error);
+                showToast("Gagal: " + error.message);
             }
         }
 
@@ -631,12 +698,17 @@
             const inputEl = document.getElementById('prayer-input');
             const text = inputEl.value;
             const userName = await getUserDisplayName();
+            let userId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
 
             try {
                 const res = await fetch('/api/prayers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, user_name: userName })
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
                 
                 const result = await res.json();
@@ -1034,7 +1106,7 @@
                                 <i class="ph ph-database text-base"></i> Setup Tabel & Perbaikan RLS Supabase
                             </h3>
                             <p class="text-xs text-sage mb-3 leading-relaxed">
-                                Jika muncul error RLS, jalankan script SQL berikut di <strong>Supabase Dashboard &gt; SQL Editor</strong> untuk menonaktifkan pembatasan keamanan tabel:
+                                Jika muncul error, jalankan script SQL berikut di <strong>Supabase Dashboard &gt; SQL Editor</strong> untuk membuat tabel dan menonaktifkan pembatasan keamanan:
                             </p>
                             <div class="relative">
                                 <pre id="supabase-sql-code" class="bg-midnight text-blush text-[11px] p-3 rounded-lg overflow-x-auto font-mono mb-2">create table if not exists sharings (
@@ -1051,9 +1123,18 @@ create table if not exists prayers (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Nonaktifkan RLS agar postingan publik dapat langsung tersimpan tanpa error policy
+create table if not exists prayer_intercessors (
+  id bigint generated by default as identity primary key,
+  prayer_id bigint references prayers(id) on delete cascade,
+  user_id text,
+  user_name text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Nonaktifkan RLS agar postingan dan interesi doa publik dapat langsung tersimpan
 alter table sharings disable row level security;
-alter table prayers disable row level security;</pre>
+alter table prayers disable row level security;
+alter table prayer_intercessors disable row level security;</pre>
                                 <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('supabase-sql-code').innerText); showToast('SQL berhasil disalin!');" class="absolute top-2 right-2 bg-rosewood text-white px-2.5 py-1 rounded text-[10px] font-bold hover:bg-opacity-90 transition flex items-center gap-1">
                                     <i class="ph ph-copy"></i> Salin SQL
                                 </button>

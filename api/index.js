@@ -142,7 +142,7 @@ app.delete('/api/sharing/:id', async (req, res) => {
 // Route GET: Mengambil semua pokok doa
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { data: prayers, error } = await supabase
             .from('prayers') 
             .select('*')
             .order('created_at', { ascending: false });
@@ -150,7 +150,21 @@ app.get('/api/prayers', async (req, res) => {
         if (error) {
             return res.status(500).json({ error: error.message + " (Pastikan tabel 'prayers' sudah dibuat di Supabase SQL Editor)" });
         }
-        res.status(200).json(data);
+
+        // Ambil data intercessors untuk semua doa
+        const { data: intercessors, error: intErr } = await supabase
+            .from('prayer_intercessors')
+            .select('*');
+
+        const prayersWithIntercessors = (prayers || []).map(prayer => {
+            const pIntercessors = (intercessors || []).filter(i => String(i.prayer_id) === String(prayer.id));
+            return {
+                ...prayer,
+                intercessors: pIntercessors
+            };
+        });
+
+        res.status(200).json(prayersWithIntercessors);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -159,12 +173,24 @@ app.get('/api/prayers', async (req, res) => {
 // Route POST: Menyimpan pokok doa baru
 app.post('/api/prayers', async (req, res) => {
     try {
-        const { text, user_name } = req.body;
-        const { data, error } = await supabase
+        const { text, user_name, user_id } = req.body;
+        let insertData = { text, user_name };
+        if (user_id) insertData.user_id = user_id;
+
+        let { data, error } = await supabase
             .from('prayers')
-            .insert([{ text, user_name }])
+            .insert([insertData])
             .select();
             
+        if (error && error.message.includes('user_id')) {
+            const fallbackRes = await supabase
+                .from('prayers')
+                .insert([{ text, user_name }])
+                .select();
+            data = fallbackRes.data;
+            error = fallbackRes.error;
+        }
+
         if (error) {
             if (error.message.includes('row-level security policy')) {
                 return res.status(403).json({ 
@@ -173,7 +199,66 @@ app.post('/api/prayers', async (req, res) => {
             }
             return res.status(500).json({ error: error.message });
         }
-        res.status(201).json(data[0]);
+        res.status(201).json({ ...data[0], intercessors: [] });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route POST: Toggle klik Berdoa pada suatu pokok doa (1 akun hanya 1 kali)
+app.post('/api/prayers/:id/pray', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { user_id, user_name } = req.body;
+
+        if (!user_id && !user_name) {
+            return res.status(400).json({ error: "Identitas user diperlukan untuk berdoa." });
+        }
+
+        let query = supabase
+            .from('prayer_intercessors')
+            .select('*')
+            .eq('prayer_id', id);
+
+        if (user_id) {
+            query = query.eq('user_id', user_id);
+        } else {
+            query = query.eq('user_name', user_name);
+        }
+
+        const { data: existing, error: checkErr } = await query;
+
+        if (checkErr) {
+            if (checkErr.message.includes('does not exist')) {
+                return res.status(500).json({ error: "Tabel 'prayer_intercessors' belum dibuat di Supabase. Silakan jalankan SQL Setup di menu Profile." });
+            }
+            return res.status(500).json({ error: checkErr.message });
+        }
+
+        if (existing && existing.length > 0) {
+            const { error: delErr } = await supabase
+                .from('prayer_intercessors')
+                .delete()
+                .eq('id', existing[0].id);
+
+            if (delErr) return res.status(500).json({ error: delErr.message });
+            return res.status(200).json({ prayed: false, message: "Dukungan doa dibatalkan." });
+        } else {
+            const insertObj = { prayer_id: id, user_name: user_name || 'User' };
+            if (user_id) insertObj.user_id = user_id;
+
+            const { error: insErr } = await supabase
+                .from('prayer_intercessors')
+                .insert([insertObj]);
+
+            if (insErr) {
+                if (insErr.message.includes('row-level security policy')) {
+                    return res.status(403).json({ error: "Error RLS Supabase pada tabel 'prayer_intercessors'." });
+                }
+                return res.status(500).json({ error: insErr.message });
+            }
+            return res.status(200).json({ prayed: true, message: "Terima kasih telah mendoakan." });
+        }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
