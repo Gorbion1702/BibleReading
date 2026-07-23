@@ -209,15 +209,13 @@
             successMsg.classList.add('hidden');
 
             try {
-                // Mengambil URL web yang sedang aktif saat ini
-                const redirectUrl = window.location.origin + window.location.pathname;
-                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                    redirectTo: redirectUrl,
-                });
+                // Hapus redirectUrl dinamis. 
+                // Biarkan Supabase otomatis mengarahkan ke "Site URL" utama yang Anda atur di Dashboard.
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
 
                 if (error) throw error;
 
-                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Jika link di email mengarah ke localhost, pastikan Anda telah mengubah <b>Site URL</b> di Supabase > Authentication > URL Configuration.</span>`;
+                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan <b>Site URL</b> di Supabase (Auth > URL Configuration) mengarah ke domain utama web Anda (bukan localhost).</span>`;
                 successMsg.classList.remove('hidden');
             } catch (error) {
                 console.error("Reset Password Error:", error.message);
