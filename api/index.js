@@ -1,6 +1,5 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -9,16 +8,6 @@ app.use(express.json());
 const supabaseUrl = process.env.SUPABASE_URL || 'https://srmaojepdzxmgeefzbsc.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// --- PERUBAHAN UNTUK RENDER ---
-// Meminta Express untuk melayani file statis (seperti CSS, gambar, JS frontend) dari folder root
-app.use(express.static(path.join(__dirname, '../')));
-
-// Route utama: Ketika orang membuka web Anda, tampilkan index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
-});
-// ------------------------------
 
 // Route GET: Mengambil semua daftar sharing dari Supabase
 app.get('/api/sharing', async (req, res) => {
@@ -287,10 +276,10 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
     }
 });
 
-// Export untuk Vercel (berjaga-jaga jika Anda pakai Vercel lagi nanti)
+// Export untuk Vercel (PENTING untuk Serverless)
 module.exports = app;
 
-// Menjalankan Server secara Native (untuk Render / Localhost)
+// Menjalankan Server secara Native (untuk Localhost jika di-run manual)
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
