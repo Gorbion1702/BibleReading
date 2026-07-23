@@ -11,7 +11,8 @@
         // Aggressive URL sanitizer to prevent any query parameters
         (function() {
             if (window.location.search || window.location.href.includes('?')) {
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                if (window.location.hash) cleanUrl += window.location.hash; // Pertahankan hash token Supabase
                 window.history.replaceState({}, document.title, cleanUrl);
             }
         })();
@@ -48,7 +49,9 @@
 
     <script>
         window.addEventListener('DOMContentLoaded', () => {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            if (window.location.hash) cleanUrl += window.location.hash;
+            
             if (window.location.search || window.location.href.includes('?')) {
                 window.history.replaceState({}, document.title, cleanUrl);
             }
@@ -97,16 +100,20 @@
             if(errorMsg) errorMsg.classList.add('hidden');
             if(successMsg) successMsg.classList.add('hidden');
 
+            const forgotLink = document.getElementById('forgot-password-link');
+
             if (isLoginMode) {
                 title.innerText = "Welcome Back";
                 subtitle.innerText = "Login to your Bible Community";
                 btn.innerText = "Login";
                 toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
+                if(forgotLink) forgotLink.classList.remove('hidden');
             } else {
                 title.innerText = "Buat Akun Baru";
                 subtitle.innerText = "Bergabung dengan Komunitas Alkitab";
                 btn.innerText = "Register";
                 toggleText.innerHTML = 'Sudah punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>';
+                if(forgotLink) forgotLink.classList.add('hidden');
             }
         }
 
@@ -157,6 +164,63 @@
                 } else {
                     errorMsg.innerText = error.message;
                 }
+                errorMsg.classList.remove('hidden');
+            } finally {
+                btn.innerText = originalBtnText;
+                btn.disabled = false;
+            }
+            return false;
+        }
+
+        function toggleForgotPassword() {
+            const standardAuth = document.getElementById('standard-auth-container');
+            const forgotAuth = document.getElementById('forgot-password-container');
+            
+            if (standardAuth.classList.contains('hidden')) {
+                standardAuth.classList.remove('hidden');
+                forgotAuth.classList.add('hidden');
+            } else {
+                standardAuth.classList.add('hidden');
+                forgotAuth.classList.remove('hidden');
+                // Mengisi otomatis email jika pengguna sudah mengetiknya
+                const currentEmail = document.getElementById('auth-email').value;
+                if (currentEmail) document.getElementById('forgot-email-input').value = currentEmail;
+            }
+        }
+
+        async function handleForgotPasswordSubmit(event) {
+            if (event) event.preventDefault();
+            
+            const email = document.getElementById('forgot-email-input').value;
+            const btn = document.getElementById('forgot-submit-btn');
+            const errorMsg = document.getElementById('forgot-error-message');
+            const successMsg = document.getElementById('forgot-success-message');
+            const originalBtnText = btn.innerText;
+
+            if (!supabaseClient) {
+                errorMsg.innerText = "Koneksi ke database gagal. Coba refresh halaman.";
+                errorMsg.classList.remove('hidden');
+                return false;
+            }
+
+            btn.innerText = 'Mengirim...';
+            btn.disabled = true;
+            errorMsg.classList.add('hidden');
+            successMsg.classList.add('hidden');
+
+            try {
+                const redirectUrl = window.location.origin + window.location.pathname;
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                    redirectTo: redirectUrl,
+                });
+
+                if (error) throw error;
+
+                successMsg.innerText = "Link reset password telah dikirim ke email Anda. Silakan cek kotak masuk atau folder spam.";
+                successMsg.classList.remove('hidden');
+            } catch (error) {
+                console.error("Reset Password Error:", error.message);
+                errorMsg.innerText = error.message;
                 errorMsg.classList.remove('hidden');
             } finally {
                 btn.innerText = originalBtnText;
@@ -950,6 +1014,24 @@
             }
 
             if (supabaseClient) {
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    if (event === 'PASSWORD_RECOVERY') {
+                        setTimeout(() => {
+                            showToast("Silakan atur password baru Anda di menu Profile.");
+                            showMainApp();
+                            navigate('profile');
+                            
+                            // Highlight input password baru untuk memandu pengguna
+                            const newPassInput = document.getElementById('profile-new-password');
+                            if(newPassInput) {
+                                newPassInput.focus();
+                                newPassInput.classList.add('ring-2', 'ring-rosewood', 'ring-offset-2', 'transition', 'duration-500');
+                                setTimeout(() => newPassInput.classList.remove('ring-2', 'ring-rosewood', 'ring-offset-2'), 4000);
+                            }
+                        }, 500);
+                    }
+                });
+
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
                     showMainApp();
@@ -959,28 +1041,56 @@
     </script>
 
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty">
-            <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
-            <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
+        <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             
-            <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
-            <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
+            <div id="standard-auth-container" class="transition-opacity duration-300">
+                <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
+                <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
+                
+                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
+                <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
 
-            <form method="POST" onsubmit="return handleAuth(event)">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-1">Email</label>
-                    <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
-                </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold mb-1">Password</label>
-                    <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
-                </div>
-                <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition">Login</button>
-            </form>
+                <form method="POST" onsubmit="return handleAuth(event)">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-semibold">Password</label>
+                            <button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button>
+                        </div>
+                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                    </div>
+                    <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition">Login</button>
+                </form>
 
-            <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">
-                Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>
-            </p>
+                <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">
+                    Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>
+                </p>
+            </div>
+
+            <!-- Forgot Password Container -->
+            <div id="forgot-password-container" class="hidden transition-opacity duration-300">
+                <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
+                <p class="text-center text-sage text-sm mb-6">Masukkan email Anda untuk menerima link reset.</p>
+
+                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
+                <div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
+
+                <form method="POST" onsubmit="return handleForgotPasswordSubmit(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                    </div>
+                    <button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition mb-4">Kirim Link Reset</button>
+                </form>
+
+                <p class="text-center text-xs text-sage mt-2">
+                    Ingat password Anda? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold hover:underline ml-1">Kembali ke Login</button>
+                </p>
+            </div>
+
         </div>
     </div>
 
