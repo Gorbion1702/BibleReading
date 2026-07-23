@@ -182,7 +182,6 @@
             } else {
                 standardAuth.classList.add('hidden');
                 forgotAuth.classList.remove('hidden');
-                // Mengisi otomatis email jika pengguna sudah mengetiknya
                 const currentEmail = document.getElementById('auth-email').value;
                 if (currentEmail) document.getElementById('forgot-email-input').value = currentEmail;
             }
@@ -209,13 +208,11 @@
             successMsg.classList.add('hidden');
 
             try {
-                // Hapus redirectUrl dinamis. 
-                // Biarkan Supabase otomatis mengarahkan ke "Site URL" utama yang Anda atur di Dashboard.
                 const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
 
                 if (error) throw error;
 
-                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan <b>Site URL</b> di Supabase (Auth > URL Configuration) mengarah ke domain utama web Anda (bukan localhost).</span>`;
+                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan <b>Site URL</b> di Supabase (Auth > URL Configuration) mengarah ke domain utama web Anda (Vercel).</span>`;
                 successMsg.classList.remove('hidden');
             } catch (error) {
                 console.error("Reset Password Error:", error.message);
@@ -298,17 +295,7 @@
             { text: "Tetapi carilah dahulu Kerajaan Allah dan kebenaran-Nya, maka semuanya itu akan ditambahkan kepadamu.", reference: "Matius 6:33" },
             { text: "Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.", reference: "Matius 11:28" },
             { text: "Serahkanlah perbuatanmu kepada TUHAN, maka terlaksanalah segala rencanamu.", reference: "Amsal 16:3" },
-            { text: "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu, dan apa yang Kuberikan tidak seperti yang diberikan oleh dunia kepadamu.", reference: "Yohanes 14:27" },
-            { text: "Karena aku ini mengetahui rancangan-rancangan apa yang ada pada-Ku mengenai kamu, demikianlah firman TUHAN, yaitu rancangan damai sejahtera dan bukan rancangan kecelakaan, untuk memberikan kepadamu hari depan yang penuh harapan.", reference: "Yeremia 29:11" },
-            { text: "Tetapi orang-orang yang menanti-nantikan TUHAN mendapat kekuatan baru: mereka seumpama rajawali yang naik terbang dengan kekuatan sayapnya; mereka berlari dan tidak menjadi lesu, mereka berjalan dan tidak menjadi lelah.", reference: "Yesaya 40:31" },
-            { text: "Mintalah, maka akan diberikan kepadamu; carilah, maka kamu akan mendapat; ketoklah, maka pintu akan dibukakan bagimu.", reference: "Matius 7:7" },
-            { text: "Allah itu bagi kita tempat perlindungan dan kekuatan, sebagai penolong dalam kesesakan sangat.", reference: "Mazmur 46:2" },
-            { text: "Sebab di mana dua atau tiga orang berkumpul dalam Nama-Ku, di situ Aku ada di tengah-tengah mereka.", reference: "Matius 18:20" },
-            { text: "Ujilah aku, ya TUHAN, dan cobailah aku; selidikilah batinku dan hatiku.", reference: "Mazmur 26:2" },
-            { text: "TUHAN itu baik bagi orang yang berharap kepada-Nya, bagi jiwa yang mencari Diri-Nya.", reference: "Ratapan 3:25" },
-            { text: "Sebab Engkaulah harapanku, ya Tuhan, kepercayaanku sejak masa muda, ya Allah.", reference: "Mazmur 71:5" },
-            { text: "Kiranya kasih setia-Mu ya TUHAN kepada kami, seperti kami berharap kepada-Mu.", reference: "Mazmur 33:22" },
-            { text: "Jikalau Allah di pihak kita, siapakah yang akan melawan kita?", reference: "Roma 8:31" }
+            { text: "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu, dan apa yang Kuberikan tidak seperti yang diberikan oleh dunia kepadamu.", reference: "Yohanes 14:27" }
         ];
 
         const dailyDevotionsList = [
@@ -749,7 +736,7 @@
             } catch (error) {
                 console.error("Gagal memuat doa:", error);
                 const listEl = document.getElementById('prayer-list');
-                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200 col-span-2">Gagal memuat dari database: ${error.message}. Pastikan Anda sudah menjalankan SQL Setup di menu Profile.</p>`;
+                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200 col-span-2">Gagal memuat dari database: ${error.message}.</p>`;
             }
         }
 
@@ -797,7 +784,7 @@
         }
 
         function cancelDeletePrayer(id) {
-            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
+            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.remove('hidden');
             document.getElementById(`prayer-delete-confirm-${id}`).classList.add('hidden');
         }
 
@@ -860,6 +847,31 @@
                 showToast("Gagal: " + error.message);
             }
             return false;
+        }
+
+        async function togglePray(prayerId) {
+            let userId = null;
+            let userName = await getUserDisplayName();
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
+
+            try {
+                const res = await fetch(`/api/prayers/${prayerId}/pray`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, user_name: userName })
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || "Gagal memperbarui dukungan doa.");
+
+                showToast(result.message);
+                loadPrayers();
+            } catch (error) {
+                console.error("Pray Error:", error);
+                showToast("Gagal: " + error.message);
+            }
         }
 
         const bibleBooks = [
@@ -1024,7 +1036,6 @@
                             showMainApp();
                             navigate('profile');
                             
-                            // Highlight input password baru untuk memandu pengguna
                             const newPassInput = document.getElementById('profile-new-password');
                             if(newPassInput) {
                                 newPassInput.focus();
@@ -1073,7 +1084,6 @@
                 </p>
             </div>
 
-            <!-- Forgot Password Container -->
             <div id="forgot-password-container" class="hidden transition-opacity duration-300">
                 <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
                 <p class="text-center text-sage text-sm mb-6">Masukkan email Anda untuk menerima link reset.</p>
@@ -1128,7 +1138,9 @@
             <section id="sec-home" class="content-section space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-3">How was your feeling today?</h2>
-                    <div class="flex flex-wrap gap-4 justify-center sm:justify-start my-4">
+                    
+                    <!-- Emojis Grid: 5 columns format 5 top and 5 bottom -->
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
                         <button type="button" onclick="selectFeeling(this, 'Happy')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
                             <span class="text-3xl">😁</span>
                             <span class="text-xs mt-1">Happy</span>
@@ -1170,6 +1182,7 @@
                             <span class="text-xs mt-1">Sleepy</span>
                         </button>
                     </div>
+
                     <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty"></div>
                 </div>
 
@@ -1216,14 +1229,12 @@
                 </div>
             </section>
 
-            <!-- Devotion / Sharing Section (Updated) -->
+            <!-- Devotion / Sharing Section -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
-                <!-- Renungan Harian Card -->
                 <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <!-- Populated dynamically by loadDailyDevotion() -->
+                    <!-- Populated dynamically -->
                 </div>
 
-                <!-- Community Sharing & Journal Section -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h3 class="text-lg font-bold text-rosewood mb-2 flex items-center gap-2">
                         <i class="ph ph-chats-teardrop text-xl"></i> Jurnal & Sharing Komunitas
@@ -1304,6 +1315,7 @@
             &copy; 2026 Perkantas Jabar. All rights reserved.
         </footer>
     </div>
+
 
 </body>
 </html>
