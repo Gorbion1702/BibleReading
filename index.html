@@ -276,10 +276,14 @@
             const messages = {
                 'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini.',
                 'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu.',
+                'Excited': 'Luar biasa! Biarlah antusiasme dan semangatmu hari ini memuliakan nama-Nya.',
+                'In Love': 'Kasih karunia Tuhan senantiasa mengelilingimu. Bagikan kasih itu kepada sesama!',
+                'Flat': 'Di saat hari terasa datar, ketahuilah bahwa penyertaan Tuhan selalu setia dan tak pernah berubah.',
                 'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya dalam doa.',
                 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
                 'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
-                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).'
+                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).',
+                'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya (Mazmur 127:2). Jangan memaksakan diri, selamat beristirahat!'
             };
             msgEl.innerText = messages[feeling];
         }
@@ -1133,6 +1137,18 @@
                             <span class="text-3xl">😌</span>
                             <span class="text-xs mt-1">Peaceful</span>
                         </button>
+                        <button type="button" onclick="selectFeeling(this, 'Excited')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">🤩</span>
+                            <span class="text-xs mt-1">Excited</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'In Love')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">🥰</span>
+                            <span class="text-xs mt-1">In Love</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Flat')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">😐</span>
+                            <span class="text-xs mt-1">Flat</span>
+                        </button>
                         <button type="button" onclick="selectFeeling(this, 'Sad')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
                             <span class="text-3xl">😢</span>
                             <span class="text-xs mt-1">Sad</span>
@@ -1148,6 +1164,10 @@
                         <button type="button" onclick="selectFeeling(this, 'Tired')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
                             <span class="text-3xl">😩</span>
                             <span class="text-xs mt-1">Tired</span>
+                        </button>
+                        <button type="button" onclick="selectFeeling(this, 'Sleepy')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
+                            <span class="text-3xl">🥱</span>
+                            <span class="text-xs mt-1">Sleepy</span>
                         </button>
                     </div>
                     <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty"></div>
