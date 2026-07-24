@@ -14,17 +14,24 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // --- FEELINGS (NEW) ---
 
 // Route GET: Mengambil perasaan komunitas khusus HARI INI
-app.get('/api/feelings', async (req, res) => {
+app.get('/api/sharing', async (req, res) => {
     try {
-        // Ambil waktu awal hari ini untuk filter
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const { data, error } = await supabase
-            .from('feelings') 
-            .select('*')
-            .gte('created_at', today.toISOString())
-            .order('created_at', { ascending: false });
+        const { today, user_id } = req.query;
+        let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
+
+        // Jika diminta data hari ini saja (untuk feed komunitas)
+        if (today === 'true') {
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+            query = query.gte('created_at', startOfDay.toISOString());
+        }
+
+        // Jika diminta berdasarkan user (untuk riwayat di profile)
+        if (user_id) {
+            query = query.eq('user_id', user_id);
+        }
+
+        const { data, error } = await query;
             
         if (error) return res.status(500).json({ error: error.message });
         res.status(200).json(data);
