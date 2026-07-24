@@ -11,33 +11,15 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        blush: '#f5e6d3',
-                        rosewood: '#964f4c',
-                        vanilla: '#fdfbf7',
-                        misty: '#d4c5b9',
-                        midnight: '#2b2d42',
-                        sage: '#8a9a86'
-                    },
-                    animation: {
-                        'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeInUp: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
+                    colors: { blush: '#f5e6d3', rosewood: '#964f4c', vanilla: '#fdfbf7', misty: '#d4c5b9', midnight: '#2b2d42', sage: '#8a9a86' },
+                    animation: { 'fade-in-up': 'fadeInUp 0.3s ease-out forwards' },
+                    keyframes: { fadeInUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
                 }
             }
         }
     </script>
     <style>
-        .emoji-btn.selected {
-            background-color: #f5e6d3;
-            border-color: #964f4c;
-            transform: scale(1.05);
-        }
+        .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
     </style>
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
@@ -136,7 +118,6 @@
             });
         }
 
-        // Fungsi khusus untuk mendapatkan jam 00:00 hari ini berdasar zona waktu perangkat user
         function getLocalMidnight() {
             const d = new Date();
             d.setHours(0, 0, 0, 0);
@@ -439,11 +420,10 @@
                 const res = await fetch('/api/feelings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // Kirimkan batas midnight lokal agar backend tahu rentang "hari ini" yang benar
                     body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, local_midnight: getLocalMidnight() })
                 });
                 
-                if (!res.ok) throw new Error("Gagal menyimpan perasaan.");
+                if (!res.ok) throw new Error("Gagal menyimpan perasaan ke server.");
 
                 showToast("Perasaan Anda berhasil dibagikan!");
                 document.getElementById('feeling-reason').value = '';
@@ -453,7 +433,8 @@
                 
                 loadFeelings();
             } catch (error) {
-                showToast("Gagal: " + error.message);
+                showToast("Error: " + error.message);
+                console.error(error);
             } finally {
                 submitBtn.innerHTML = originalText; submitBtn.disabled = false;
             }
@@ -462,7 +443,6 @@
 
         async function loadFeelings() {
             try {
-                // Meminta data feeling sejak jam 00:00 waktu perangkat user (mengatasi zona waktu UTC Vercel)
                 const res = await fetch('/api/feelings?since=' + getLocalMidnight());
                 if (!res.ok) throw new Error("Gagal memuat daftar perasaan.");
                 const data = await res.json();
@@ -593,8 +573,8 @@
         // =========================================================================
         async function loadSharings() {
             try {
-                // Menggunakan getLocalMidnight() agar reset tepat jam 00:00 WIB
                 const res = await fetch('/api/sharing?since=' + getLocalMidnight());
+                if (!res.ok) throw new Error("Gagal mengambil data");
                 const data = await res.json();
                 const listEl = document.getElementById('sharing-list');
                 if(!listEl) return; listEl.innerHTML = '';
@@ -616,7 +596,7 @@
                         </div>
                     `;
                 });
-            } catch (error) {}
+            } catch (error) { console.error(error); }
         }
 
         async function postSharing(event) {
@@ -632,11 +612,13 @@
                 const submitBtn = document.querySelector('#sec-devotion button[type="submit"]');
                 submitBtn.innerHTML = 'Membagikan...'; submitBtn.disabled = true;
 
-                await fetch('/api/sharing', {
+                const res = await fetch('/api/sharing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
+                
+                if (!res.ok) throw new Error("Gagal menyimpan data ke database");
                 
                 document.getElementById('sharing-input').value = '';
                 loadSharings(); 
@@ -644,7 +626,11 @@
                 showToast("Sharing dibagikan!");
                 
                 submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
-            } catch (error) {}
+            } catch (error) {
+                showToast("Error: " + error.message);
+                const submitBtn = document.querySelector('#sec-devotion button[type="submit"]');
+                submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
+            }
         }
 
         // =========================================================================
@@ -653,6 +639,7 @@
         async function loadPrayers() {
             try {
                 const res = await fetch('/api/prayers');
+                if (!res.ok) throw new Error("Gagal mengambil doa");
                 const data = await res.json();
                 const listEl = document.getElementById('prayer-list');
                 if(!listEl) return; listEl.innerHTML = '';
@@ -676,7 +663,7 @@
                         </div>
                     `;
                 });
-            } catch (error) {}
+            } catch (error) { console.error(error); }
         }
 
         async function postPrayer(event) {
@@ -689,15 +676,27 @@
                 if (user) userId = user.id;
             }
             try {
-                await fetch('/api/prayers', {
+                const submitBtn = document.querySelector('#sec-prayer button[type="submit"]');
+                submitBtn.innerHTML = 'Mengirim...'; submitBtn.disabled = true;
+
+                const res = await fetch('/api/prayers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
+
+                if (!res.ok) throw new Error("Gagal menyimpan doa ke database");
+
                 document.getElementById('prayer-input').value = '';
                 loadPrayers();
                 showToast("Doa dikirim!");
-            } catch (error) {}
+                
+                submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false;
+            } catch (error) {
+                showToast("Error: " + error.message);
+                const submitBtn = document.querySelector('#sec-prayer button[type="submit"]');
+                submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false;
+            }
         }
 
         async function togglePray(prayerId) {
@@ -721,7 +720,6 @@
 
     <!-- TAMPILAN LOGIN & REGISTER -->
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
-        <!-- Struktur Login tetap sama, di-skip visualnya di sini agar fokus ke fitur baru -->
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
@@ -800,7 +798,7 @@
                     </div>
                     
                     <form id="feeling-form" onsubmit="return postFeeling(event)">
-                        <!-- Grid Emoji 5 Atas, 5 Bawah -->
+                        <!-- Grid Emoji 5x5 -->
                         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
                             <!-- Baris Atas -->
                             <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button>
@@ -846,7 +844,7 @@
                 <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
             </section>
 
-            <!-- SECTION: BIBLE, DEVOTION, PRAYER, PROFILE TETAP SAMA -->
+            <!-- SECTION: BIBLE -->
             <section id="sec-bible" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
@@ -870,6 +868,7 @@
                 </div>
             </section>
 
+            <!-- SECTION: DEVOTION -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
@@ -882,6 +881,7 @@
                 </div>
             </section>
 
+            <!-- SECTION: PRAYER -->
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
@@ -893,6 +893,7 @@
                 </div>
             </section>
 
+            <!-- SECTION: PROFILE -->
             <section id="sec-profile" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
                     <div class="flex flex-col items-center mb-6">
