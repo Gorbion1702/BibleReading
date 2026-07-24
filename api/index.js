@@ -37,25 +37,67 @@ app.get('/api/feelings', async (req, res) => {
 app.post('/api/feelings', async (req, res) => {
     try {
         const { feeling, emoji, reason, user_name, user_id } = req.body;
-        let insertData = { feeling, emoji, reason, user_name };
-        if (user_id) insertData.user_id = user_id;
+        
+        // 1. Tentukan waktu awal hari ini
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startOfDay = today.toISOString();
 
-        let { data, error } = await supabase
-            .from('feelings')
-            .insert([insertData])
-            .select();
-            
-        if (error && error.message.includes('user_id')) {
-            const fallbackRes = await supabase
-                .from('feelings')
-                .insert([{ feeling, emoji, reason, user_name }])
-                .select();
-            data = fallbackRes.data;
-            error = fallbackRes.error;
+        // 2. Cek apakah user ini sudah posting feeling hari ini
+        let query = supabase.from('feelings').select('*').gte('created_at', startOfDay);
+        if (user_id) {
+            query = query.eq('user_id', user_id);
+        } else {
+            query = query.eq('user_name', user_name);
         }
 
-        if (error) return res.status(500).json({ error: error.message });
-        res.status(201).json(data[0]);
+        const { data: existing, error: checkError } = await query;
+        if (checkError) throw checkError;
+
+        let resultData, resultError;
+
+        if (existing && existing.length > 0) {
+            // 3A. Jika SUDAH ADA -> UPDATE (Replace) data yang lama
+            const recordId = existing[0].id;
+            const updateRes = await supabase
+                .from('feelings')
+                .update({ 
+                    feeling, 
+                    emoji, 
+                    reason, 
+                    created_at: new Date().toISOString() // Update waktunya menjadi yang terbaru
+                })
+                .eq('id', recordId)
+                .select();
+                
+            resultData = updateRes.data;
+            resultError = updateRes.error;
+        } else {
+            // 3B. Jika BELUM ADA -> INSERT data baru
+            let insertData = { feeling, emoji, reason, user_name };
+            if (user_id) insertData.user_id = user_id;
+
+            const insertRes = await supabase
+                .from('feelings')
+                .insert([insertData])
+                .select();
+                
+            resultData = insertRes.data;
+            resultError = insertRes.error;
+            
+            // Fallback keamanan jika kolom user_id belum terbuat di Supabase
+            if (resultError && resultError.message.includes('user_id')) {
+                const fallbackRes = await supabase
+                    .from('feelings')
+                    .insert([{ feeling, emoji, reason, user_name }])
+                    .select();
+                resultData = fallbackRes.data;
+                resultError = fallbackRes.error;
+            }
+        }
+
+        if (resultError) return res.status(500).json({ error: resultError.message });
+        res.status(201).json(resultData[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
