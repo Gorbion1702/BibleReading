@@ -1,15 +1,69 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const cors = require('cors');
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 // Konfigurasi Supabase
 const supabaseUrl = process.env.SUPABASE_URL || 'https://srmaojepdzxmgeefzbsc.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Route GET: Mengambil semua daftar sharing dari Supabase
+// --- FEELINGS (NEW) ---
+
+// Route GET: Mengambil perasaan komunitas khusus HARI INI
+app.get('/api/feelings', async (req, res) => {
+    try {
+        // Ambil waktu awal hari ini untuk filter
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data, error } = await supabase
+            .from('feelings') 
+            .select('*')
+            .gte('created_at', today.toISOString())
+            .order('created_at', { ascending: false });
+            
+        if (error) return res.status(500).json({ error: error.message });
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route POST: Menyimpan perasaan user
+app.post('/api/feelings', async (req, res) => {
+    try {
+        const { feeling, emoji, reason, user_name, user_id } = req.body;
+        let insertData = { feeling, emoji, reason, user_name };
+        if (user_id) insertData.user_id = user_id;
+
+        let { data, error } = await supabase
+            .from('feelings')
+            .insert([insertData])
+            .select();
+            
+        if (error && error.message.includes('user_id')) {
+            const fallbackRes = await supabase
+                .from('feelings')
+                .insert([{ feeling, emoji, reason, user_name }])
+                .select();
+            data = fallbackRes.data;
+            error = fallbackRes.error;
+        }
+
+        if (error) return res.status(500).json({ error: error.message });
+        res.status(201).json(data[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// --- SHARING ---
+
 app.get('/api/sharing', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -17,16 +71,13 @@ app.get('/api/sharing', async (req, res) => {
             .select('*')
             .order('created_at', { ascending: false });
             
-        if (error) {
-            return res.status(500).json({ error: error.message });
-        }
+        if (error) return res.status(500).json({ error: error.message });
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Route POST: Menyimpan sharing baru ke Supabase
 app.post('/api/sharing', async (req, res) => {
     try {
         const { text, user_name, user_id } = req.body;
@@ -54,33 +105,18 @@ app.post('/api/sharing', async (req, res) => {
     }
 });
 
-// Route PUT: Memperbarui sharing
 app.put('/api/sharing/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { text, user_name, user_id } = req.body;
         
-        const { data: existing, error: fetchErr } = await supabase
-            .from('sharings')
-            .select('*')
-            .eq('id', id)
-            .single();
-
+        const { data: existing, error: fetchErr } = await supabase.from('sharings').select('*').eq('id', id).single();
         if (fetchErr || !existing) return res.status(404).json({ error: "Sharing tidak ditemukan." });
 
-        if (existing.user_id && user_id && existing.user_id !== user_id) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
-        }
-        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin untuk mengedit sharing ini." });
-        }
+        if (existing.user_id && user_id && existing.user_id !== user_id) return res.status(403).json({ error: "Akses ditolak." });
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) return res.status(403).json({ error: "Akses ditolak." });
 
-        const { data, error } = await supabase
-            .from('sharings')
-            .update({ text })
-            .eq('id', id)
-            .select();
-
+        const { data, error } = await supabase.from('sharings').update({ text }).eq('id', id).select();
         if (error) return res.status(500).json({ error: error.message });
         res.status(200).json(data[0]);
     } catch (error) {
@@ -88,32 +124,18 @@ app.put('/api/sharing/:id', async (req, res) => {
     }
 });
 
-// Route DELETE: Menghapus sharing
 app.delete('/api/sharing/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { user_name, user_id } = req.body;
         
-        const { data: existing, error: fetchErr } = await supabase
-            .from('sharings')
-            .select('*')
-            .eq('id', id)
-            .single();
-
+        const { data: existing, error: fetchErr } = await supabase.from('sharings').select('*').eq('id', id).single();
         if (fetchErr || !existing) return res.status(404).json({ error: "Sharing tidak ditemukan." });
 
-        if (existing.user_id && user_id && existing.user_id !== user_id) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
-        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
+        if (existing.user_id && user_id && existing.user_id !== user_id) return res.status(403).json({ error: "Akses ditolak." });
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) return res.status(403).json({ error: "Akses ditolak." });
 
-        const { error } = await supabase
-            .from('sharings')
-            .delete()
-            .eq('id', id);
-
+        const { error } = await supabase.from('sharings').delete().eq('id', id);
         if (error) return res.status(500).json({ error: error.message });
         res.status(200).json({ success: true });
     } catch (error) {
@@ -121,26 +143,18 @@ app.delete('/api/sharing/:id', async (req, res) => {
     }
 });
 
-// Route GET: Mengambil semua pokok doa
+
+// --- PRAYERS ---
+
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { data: prayers, error } = await supabase
-            .from('prayers') 
-            .select('*')
-            .order('created_at', { ascending: false });
-            
+        const { data: prayers, error } = await supabase.from('prayers').select('*').order('created_at', { ascending: false });
         if (error) return res.status(500).json({ error: error.message });
 
-        const { data: intercessors, error: intErr } = await supabase
-            .from('prayer_intercessors')
-            .select('*');
-
+        const { data: intercessors } = await supabase.from('prayer_intercessors').select('*');
         const prayersWithIntercessors = (prayers || []).map(prayer => {
             const pIntercessors = (intercessors || []).filter(i => String(i.prayer_id) === String(prayer.id));
-            return {
-                ...prayer,
-                intercessors: pIntercessors
-            };
+            return { ...prayer, intercessors: pIntercessors };
         });
 
         res.status(200).json(prayersWithIntercessors);
@@ -149,27 +163,18 @@ app.get('/api/prayers', async (req, res) => {
     }
 });
 
-// Route POST: Menyimpan pokok doa baru
 app.post('/api/prayers', async (req, res) => {
     try {
         const { text, user_name, user_id } = req.body;
         let insertData = { text, user_name };
         if (user_id) insertData.user_id = user_id;
 
-        let { data, error } = await supabase
-            .from('prayers')
-            .insert([insertData])
-            .select();
-            
+        let { data, error } = await supabase.from('prayers').insert([insertData]).select();
         if (error && error.message.includes('user_id')) {
-            const fallbackRes = await supabase
-                .from('prayers')
-                .insert([{ text, user_name }])
-                .select();
+            const fallbackRes = await supabase.from('prayers').insert([{ text, user_name }]).select();
             data = fallbackRes.data;
             error = fallbackRes.error;
         }
-
         if (error) return res.status(500).json({ error: error.message });
         res.status(201).json({ ...data[0], intercessors: [] });
     } catch (error) {
@@ -177,33 +182,18 @@ app.post('/api/prayers', async (req, res) => {
     }
 });
 
-// Route PUT: Memperbarui pokok doa
 app.put('/api/prayers/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { text, user_name, user_id } = req.body;
         
-        const { data: existing, error: fetchErr } = await supabase
-            .from('prayers')
-            .select('*')
-            .eq('id', id)
-            .single();
-
+        const { data: existing, error: fetchErr } = await supabase.from('prayers').select('*').eq('id', id).single();
         if (fetchErr || !existing) return res.status(404).json({ error: "Pokok doa tidak ditemukan." });
 
-        if (existing.user_id && user_id && existing.user_id !== user_id) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
-        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
+        if (existing.user_id && user_id && existing.user_id !== user_id) return res.status(403).json({ error: "Akses ditolak." });
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) return res.status(403).json({ error: "Akses ditolak." });
 
-        const { data, error } = await supabase
-            .from('prayers')
-            .update({ text })
-            .eq('id', id)
-            .select();
-
+        const { data, error } = await supabase.from('prayers').update({ text }).eq('id', id).select();
         if (error) return res.status(500).json({ error: error.message });
         res.status(200).json(data[0]);
     } catch (error) {
@@ -211,32 +201,18 @@ app.put('/api/prayers/:id', async (req, res) => {
     }
 });
 
-// Route DELETE: Menghapus pokok doa
 app.delete('/api/prayers/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { user_name, user_id } = req.body;
         
-        const { data: existing, error: fetchErr } = await supabase
-            .from('prayers')
-            .select('*')
-            .eq('id', id)
-            .single();
-
+        const { data: existing, error: fetchErr } = await supabase.from('prayers').select('*').eq('id', id).single();
         if (fetchErr || !existing) return res.status(404).json({ error: "Pokok doa tidak ditemukan." });
 
-        if (existing.user_id && user_id && existing.user_id !== user_id) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
-        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) {
-            return res.status(403).json({ error: "Anda tidak memiliki izin." });
-        }
+        if (existing.user_id && user_id && existing.user_id !== user_id) return res.status(403).json({ error: "Akses ditolak." });
+        if (!existing.user_id && existing.user_name && existing.user_name !== user_name) return res.status(403).json({ error: "Akses ditolak." });
 
-        const { error } = await supabase
-            .from('prayers')
-            .delete()
-            .eq('id', id);
-
+        const { error } = await supabase.from('prayers').delete().eq('id', id);
         if (error) return res.status(500).json({ error: error.message });
         res.status(200).json({ success: true });
     } catch (error) {
@@ -244,7 +220,6 @@ app.delete('/api/prayers/:id', async (req, res) => {
     }
 });
 
-// Route POST: Toggle klik Berdoa
 app.post('/api/prayers/:id/pray', async (req, res) => {
     try {
         const { id } = req.params;
@@ -276,10 +251,8 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
     }
 });
 
-// Export untuk Vercel (PENTING untuk Serverless)
 module.exports = app;
 
-// Menjalankan Server secara Native (untuk Localhost jika di-run manual)
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {

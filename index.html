@@ -5,18 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bible Reading Perkantas Jabar</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Aggressive URL sanitizer to prevent any query parameters
-        (function() {
-            if (window.location.search || window.location.href.includes('?')) {
-                let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                if (window.location.hash) cleanUrl += window.location.hash; // Pertahankan hash token Supabase
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
-        })();
-
         tailwind.config = {
             theme: {
                 extend: {
@@ -27,6 +18,15 @@
                         misty: '#d4c5b9',
                         midnight: '#2b2d42',
                         sage: '#8a9a86'
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
                     }
                 }
             }
@@ -36,11 +36,11 @@
         .emoji-btn.selected {
             background-color: #f5e6d3;
             border-color: #964f4c;
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
     </style>
 </head>
-<body class="bg-vanilla text-midnight min-h-screen flex flex-col justify-between font-sans">
+<body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
 
     <div id="toast-banner" class="fixed top-5 right-5 z-50 hidden transition-all duration-300 transform translate-y-[-20px] opacity-0 bg-midnight text-blush px-4 py-3 rounded-xl shadow-lg border border-misty text-sm flex items-center gap-2">
         <i class="ph ph-info text-lg text-rosewood"></i>
@@ -50,15 +50,16 @@
     <script>
         window.addEventListener('DOMContentLoaded', () => {
             let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            if (window.location.hash) cleanUrl += window.location.hash;
+            if (window.location.hash && !window.location.hash.includes('access_token')) {
+                cleanUrl += window.location.hash;
+            }
             
-            if (window.location.search || window.location.href.includes('?')) {
+            if (window.location.search || window.location.href.includes('?') || (window.location.hash && !window.location.hash.includes('access_token'))) {
                 window.history.replaceState({}, document.title, cleanUrl);
             }
 
             document.addEventListener('submit', (e) => {
                 e.preventDefault();
-                window.history.replaceState({}, document.title, window.location.protocol + "//" + window.location.host + window.location.pathname);
             }, true);
 
             loadDailyVerse();
@@ -87,20 +88,17 @@
         let isLoginMode = true;
 
         function toggleAuthMode() {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
             isLoginMode = !isLoginMode;
             const title = document.getElementById('auth-title');
             const subtitle = document.getElementById('auth-subtitle');
             const btn = document.getElementById('auth-btn');
             const toggleText = document.getElementById('auth-toggle-text');
-
+            const forgotLink = document.getElementById('forgot-password-link');
             const errorMsg = document.getElementById('auth-error-message');
             const successMsg = document.getElementById('auth-success-message');
+
             if(errorMsg) errorMsg.classList.add('hidden');
             if(successMsg) successMsg.classList.add('hidden');
-
-            const forgotLink = document.getElementById('forgot-password-link');
 
             if (isLoginMode) {
                 title.innerText = "Welcome Back";
@@ -117,10 +115,23 @@
             }
         }
 
+        function toggleForgotPassword() {
+            const standardAuth = document.getElementById('standard-auth-container');
+            const forgotAuth = document.getElementById('forgot-password-container');
+            
+            if (standardAuth.classList.contains('hidden')) {
+                standardAuth.classList.remove('hidden');
+                forgotAuth.classList.add('hidden');
+            } else {
+                standardAuth.classList.add('hidden');
+                forgotAuth.classList.remove('hidden');
+                const currentEmail = document.getElementById('auth-email').value;
+                if (currentEmail) document.getElementById('forgot-email-input').value = currentEmail;
+            }
+        }
+
         async function handleAuth(event) {
             if (event) event.preventDefault();
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
             
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
@@ -130,7 +141,7 @@
             const originalBtnText = btn.innerText;
 
             if (!supabaseClient) {
-                errorMsg.innerText = "Koneksi ke database gagal. Coba refresh halaman.";
+                errorMsg.innerText = "Koneksi database gagal.";
                 errorMsg.classList.remove('hidden');
                 return false;
             }
@@ -151,14 +162,13 @@
                 if (result.error) throw result.error;
 
                 if (!isLoginMode) {
-                    successMsg.innerText = "Pendaftaran berhasil! Anda akan segera masuk...";
+                    successMsg.innerText = "Pendaftaran berhasil! Segera masuk...";
                     successMsg.classList.remove('hidden');
                     setTimeout(() => showMainApp(), 1200);
                 } else {
                     showMainApp();
                 }
             } catch (error) {
-                console.error("Auth Error:", error.message);
                 if (error.message.includes("Invalid login credentials")) {
                     errorMsg.innerText = "Email atau password salah.";
                 } else {
@@ -172,21 +182,6 @@
             return false;
         }
 
-        function toggleForgotPassword() {
-            const standardAuth = document.getElementById('standard-auth-container');
-            const forgotAuth = document.getElementById('forgot-password-container');
-            
-            if (standardAuth.classList.contains('hidden')) {
-                standardAuth.classList.remove('hidden');
-                forgotAuth.classList.add('hidden');
-            } else {
-                standardAuth.classList.add('hidden');
-                forgotAuth.classList.remove('hidden');
-                const currentEmail = document.getElementById('auth-email').value;
-                if (currentEmail) document.getElementById('forgot-email-input').value = currentEmail;
-            }
-        }
-
         async function handleForgotPasswordSubmit(event) {
             if (event) event.preventDefault();
             
@@ -196,12 +191,6 @@
             const successMsg = document.getElementById('forgot-success-message');
             const originalBtnText = btn.innerText;
 
-            if (!supabaseClient) {
-                errorMsg.innerText = "Koneksi ke database gagal. Coba refresh halaman.";
-                errorMsg.classList.remove('hidden');
-                return false;
-            }
-
             btn.innerText = 'Mengirim...';
             btn.disabled = true;
             errorMsg.classList.add('hidden');
@@ -209,13 +198,11 @@
 
             try {
                 const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
-
                 if (error) throw error;
 
-                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan <b>Site URL</b> di Supabase (Auth > URL Configuration) mengarah ke domain utama web Anda (Vercel).</span>`;
+                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan Anda telah mengatur URL Vercel ini di Supabase Dashboard.</span>`;
                 successMsg.classList.remove('hidden');
             } catch (error) {
-                console.error("Reset Password Error:", error.message);
                 errorMsg.innerText = error.message;
                 errorMsg.classList.remove('hidden');
             } finally {
@@ -226,8 +213,6 @@
         }
 
         function showMainApp() {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('main-view').classList.remove('hidden');
             document.getElementById('main-view').classList.add('flex');
@@ -235,12 +220,11 @@
             loadUserProfile();
             loadSharings();
             loadPrayers();
+            loadFeelings(); // Muat daftar feeling
             initBible();
         }
 
         async function logout() {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
             if (supabaseClient) await supabaseClient.auth.signOut();
             document.getElementById('main-view').classList.remove('flex');
             document.getElementById('main-view').classList.add('hidden');
@@ -250,8 +234,6 @@
         }
 
         function navigate(sectionId) {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
             document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
             const targetSec = document.getElementById('sec-' + sectionId);
             if(targetSec) targetSec.classList.remove('hidden');
@@ -264,9 +246,12 @@
             });
         }
 
-        function selectFeeling(btn, feeling) {
+        // --- Fitur Feeling Komunitas ---
+        
+        function selectFeeling(btn, feeling, emoji) {
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
+            
             const msgEl = document.getElementById('feeling-message');
             msgEl.classList.remove('hidden');
             
@@ -279,23 +264,119 @@
                 'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya dalam doa.',
                 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
                 'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
-                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu (Matius 11:28).',
-                'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya (Mazmur 127:2). Jangan memaksakan diri, selamat beristirahat!'
+                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.',
+                'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya (Mazmur 127:2). Jangan memaksakan diri!'
             };
             msgEl.innerText = messages[feeling];
+
+            // Set nilai ke input tersembunyi
+            document.getElementById('selected-feeling-value').value = feeling;
+            document.getElementById('selected-emoji-value').value = emoji;
+            
+            // Tampilkan input form alasan
+            document.getElementById('feeling-input-area').classList.remove('hidden');
+            document.getElementById('feeling-reason').focus();
+        }
+
+        async function postFeeling(event) {
+            if (event) event.preventDefault();
+            
+            const feeling = document.getElementById('selected-feeling-value').value;
+            const emoji = document.getElementById('selected-emoji-value').value;
+            const reason = document.getElementById('feeling-reason').value;
+            
+            if (!feeling || !emoji) {
+                showToast("Silakan pilih emoji terlebih dahulu!");
+                return false;
+            }
+
+            const userName = await getUserDisplayName();
+            let userId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
+
+            const submitBtn = document.getElementById('feeling-submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengirim...';
+            submitBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/feelings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId })
+                });
+                
+                if (!res.ok) throw new Error("Gagal menyimpan perasaan.");
+
+                showToast("Perasaan Anda berhasil dibagikan!");
+                document.getElementById('feeling-reason').value = '';
+                
+                // Hilangkan seleksi form agar rapi kembali
+                document.getElementById('feeling-input-area').classList.add('hidden');
+                document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+                document.getElementById('feeling-message').classList.add('hidden');
+                document.getElementById('selected-feeling-value').value = '';
+
+                loadFeelings();
+            } catch (error) {
+                console.error("Feeling Error:", error);
+                showToast("Gagal: " + error.message);
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+            return false;
+        }
+
+        async function loadFeelings() {
+            try {
+                const res = await fetch('/api/feelings');
+                if (!res.ok) throw new Error("Gagal memuat daftar perasaan.");
+                const data = await res.json();
+
+                const listEl = document.getElementById('community-feelings-list');
+                if(!listEl) return;
+                listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada yang membagikan perasaan hari ini. Jadilah yang pertama!</p>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const timeString = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    
+                    listEl.innerHTML += `
+                        <div class="bg-vanilla p-3 rounded-xl border border-misty flex items-start gap-3 animate-fade-in-up">
+                            <div class="w-10 h-10 shrink-0 rounded-full bg-white border border-misty flex items-center justify-center text-2xl shadow-sm">
+                                ${item.emoji}
+                            </div>
+                            <div class="flex-grow min-w-0">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <span class="font-bold text-rosewood text-sm truncate pr-2">${item.user_name || 'User'}</span>
+                                    <span class="text-[10px] text-sage whitespace-nowrap">${timeString}</span>
+                                </div>
+                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block max-w-full break-words">
+                                    Merasa <b>${item.feeling}</b> ${item.reason ? `<span class="italic opacity-80">- "${item.reason}"</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Gagal memuat feeling:", error);
+            }
         }
 
         const dailyVerses = [
-            { text: "Sebab Allah begitu mengasihi dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.", reference: "Yohanes 3:16" },
-            { text: "Segala perkara dapat kutanggung di dalam Dia yang memberi kekuatan kepadaku.", reference: "Filipi 4:13" },
-            { text: "Percayalah kepada TUHAN dengan segenap hatimu, dan janganlah bersandar kepada pengertianmu sendiri.", reference: "Amsal 3:5" },
+            { text: "Sebab Allah begitu mengasihi dunia ini...", reference: "Yohanes 3:16" },
+            { text: "Segala perkara dapat kutanggung di dalam Dia...", reference: "Filipi 4:13" },
+            { text: "Percayalah kepada TUHAN dengan segenap hatimu...", reference: "Amsal 3:5" },
             { text: "TUHAN adalah gembalaku, takkan kekurangan aku.", reference: "Mazmur 23:1" },
-            { text: "Ia memberikan kekuatan kepada yang lelah dan menambah semangat kepada yang tiada berdaya.", reference: "Yesaya 40:29" },
-            { text: "Janganlah hendaknya kamu kuatir tentang apa pun juga, tetapi nyatakanlah dalam segala hal keinginanmu kepada Allah dalam doa dan permohonan dengan ucapan syukur.", reference: "Filipi 4:6" },
-            { text: "Tetapi carilah dahulu Kerajaan Allah dan kebenaran-Nya, maka semuanya itu akan ditambahkan kepadamu.", reference: "Matius 6:33" },
-            { text: "Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.", reference: "Matius 11:28" },
-            { text: "Serahkanlah perbuatanmu kepada TUHAN, maka terlaksanalah segala rencanamu.", reference: "Amsal 16:3" },
-            { text: "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu, dan apa yang Kuberikan tidak seperti yang diberikan oleh dunia kepadamu.", reference: "Yohanes 14:27" }
+            { text: "Ia memberikan kekuatan kepada yang lelah...", reference: "Yesaya 40:29" }
         ];
 
         const dailyDevotionsList = [
@@ -303,69 +384,34 @@
                 title: "Menghidupkan Kasih yang Tulus",
                 reference: "Kolose 3:12-14",
                 theme: "Kasih & Persaudaraan",
-                content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan, kemurahan, kerendahan hati, kelemahlembutan dan kesabaran. Sabarlah kamu seorang akan yang lain, dan ampunilah seorang akan yang lain apabila yang seorang menaruh dendam terhadap yang lain... Dan di atas semuanya itu: kenakanlah kasih, sebagai pengikat yang mempersatukan.",
-                application: "Adakah seseorang yang hari ini perlu Anda ampuni atau perlakukan dengan lebih sabar di dalam keluarga atau pelayanan?"
-            },
-            {
-                title: "Kekuatan di Tengah Badai",
-                reference: "Markus 4:39-40",
-                theme: "Ketenangan di Dalam Tuhan",
-                content: "Ia bangun, menghardik angin itu dan berkata kepada danau: 'Diam! Tenanglah!' Lalu angin itu reda and danau itu menjadi amat tenang. Ia berkata kepada mereka: 'Mengapa kamu begitu takut? Mengapa kamu tidak percaya?' Seringkali badai kehidupan membuat kita panik, padahal Yesus ada bersama kita di dalam perahu.",
-                application: "Serahkan kekuatiran Anda kepada Yesus hari ini dan percayai pemeliharaan-Nya."
-            },
-            {
-                title: "Berakar dan Bertumbuh",
-                reference: "Kolose 2:6-7",
-                theme: "Pertumbuhan Rohani",
-                content: "Kamu telah menerima Kristus Yesus, Tuhan kita. Karena itu hendaklah hidupmu tetap di dalam Dia. Hendaklah kamu berakar di dalam Dia dan dibangun di atas Dia, bertambah teguh dalam iman yang telah diajarkan kepadamu, dan hatimu melimpah dengan syukur.",
-                application: "Luangkan 10 menit hari ini untuk membaca Firman dan bersyukur atas kebaikan-Nya."
+                content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan...",
+                application: "Adakah seseorang yang hari ini perlu Anda ampuni?"
             }
         ];
 
         function loadDailyVerse() {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            let hash = 0;
-            for (let i = 0; i < todayStr.length; i++) {
-                hash = (hash << 5) - hash + todayStr.charCodeAt(i);
-                hash |= 0;
-            }
-            const index = Math.abs(hash) % dailyVerses.length;
+            const index = Math.abs(new Date().getDate()) % dailyVerses.length;
             const v = dailyVerses[index];
-
             const container = document.getElementById('daily-verse-container');
             if (container) {
-                container.innerHTML = `
-                    <h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3>
-                    <p class="text-sm italic mb-2">"${v.text}"</p>
-                    <span class="text-xs font-semibold text-sage">— ${v.reference} (Terjemahan Baru)</span>
-                `;
+                container.innerHTML = `<h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3><p class="text-sm italic mb-2">"${v.text}"</p><span class="text-xs font-semibold text-sage">— ${v.reference} (TB)</span>`;
             }
         }
 
         function loadDailyDevotion() {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            let hash = 0;
-            for (let i = 0; i < todayStr.length; i++) {
-                hash = (hash << 5) - hash + todayStr.charCodeAt(i);
-                hash |= 0;
-            }
-            const index = Math.abs(hash) % dailyDevotionsList.length;
-            const d = dailyDevotionsList[index];
-
+            const d = dailyDevotionsList[0];
             const container = document.getElementById('daily-devotion-card');
             if (container) {
                 container.innerHTML = `
                     <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-bold uppercase tracking-wider bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span>
-                        <span class="text-xs text-sage">${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        <span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span>
+                        <span class="text-xs text-sage">${new Date().toLocaleDateString('id-ID')}</span>
                     </div>
                     <h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3>
-                    <p class="text-xs font-semibold text-sage mb-4"><i class="ph ph-book-open mr-1"></i> ${d.reference}</p>
-                    <div class="prose text-sm leading-relaxed text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                        <p>${d.content}</p>
-                    </div>
+                    <p class="text-xs font-semibold text-sage mb-4">${d.reference}</p>
+                    <div class="prose text-sm text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty"><p>${d.content}</p></div>
                     <div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty">
-                        <h4 class="text-xs font-bold text-rosewood uppercase tracking-wider mb-1"><i class="ph ph-lightbulb mr-1"></i> Aplikasi / Refleksi Hari Ini</h4>
+                        <h4 class="text-xs font-bold text-rosewood uppercase mb-1">Aplikasi Hari Ini</h4>
                         <p class="text-sm italic text-midnight">${d.application}</p>
                     </div>
                 `;
@@ -395,862 +441,384 @@
         async function getUserDisplayName() {
             if (!supabaseClient) return "User";
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user && user.user_metadata && user.user_metadata.full_name) {
-                return user.user_metadata.full_name;
-            }
+            if (user && user.user_metadata && user.user_metadata.full_name) return user.user_metadata.full_name;
             return user ? user.email.split('@')[0] : "User";
         }
 
         async function handleProfileUpdate(event) {
             if (event) event.preventDefault();
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-            
             const btn = document.getElementById('update-profile-btn');
             const msgEl = document.getElementById('profile-msg');
             const newName = document.getElementById('profile-name').value;
             
-            btn.innerText = 'Menyimpan...';
-            btn.disabled = true;
-
+            btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
                 const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
                 if (error) throw error;
                 msgEl.innerText = "Profile berhasil diperbarui!";
-                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 block";
                 updateAvatarUI(data.user.email, newName);
-                showToast("Profil berhasil diperbarui!");
+                showToast("Profil diperbarui!");
             } catch (error) {
                 msgEl.innerText = error.message;
-                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 block";
             } finally {
-                btn.innerText = 'Simpan Profile';
-                btn.disabled = false;
+                btn.innerText = 'Simpan Profile'; btn.disabled = false;
                 setTimeout(() => msgEl.classList.add('hidden'), 3000);
             }
-            return false;
         }
 
         async function handlePasswordChange(event) {
             if (event) event.preventDefault();
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-            
             const btn = document.getElementById('update-password-btn');
             const msgEl = document.getElementById('profile-msg');
             const newPassword = document.getElementById('profile-new-password').value;
             
-            btn.innerText = 'Memperbarui...';
-            btn.disabled = true;
-
+            btn.innerText = 'Memperbarui...'; btn.disabled = true;
             try {
                 const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
                 if (error) throw error;
                 msgEl.innerText = "Password berhasil diubah!";
-                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200 block";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 block";
                 document.getElementById('profile-new-password').value = '';
-                showToast("Password berhasil diubah!");
             } catch (error) {
                 msgEl.innerText = error.message;
-                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200 block";
+                msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 block";
             } finally {
-                btn.innerText = 'Ubah Password';
-                btn.disabled = false;
+                btn.innerText = 'Ubah Password'; btn.disabled = false;
                 setTimeout(() => msgEl.classList.add('hidden'), 3000);
             }
-            return false;
         }
 
         async function loadSharings() {
             try {
                 const res = await fetch('/api/sharing');
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.error || "Gagal memuat sharing.");
-                }
                 const data = await res.json();
-
-                let currentUserId = null;
-                let currentUserName = "User";
-                if (supabaseClient) {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (user) {
-                        currentUserId = user.id;
-                        currentUserName = user.user_metadata?.full_name || user.email.split('@')[0];
-                    }
-                }
-
                 const listEl = document.getElementById('sharing-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
                 if (!data || data.length === 0) {
-                    listEl.innerHTML = '<p class="text-xs text-sage italic">Belum ada sharing. Jadilah yang pertama membagikan!</p>';
+                    listEl.innerHTML = '<p class="text-xs text-sage italic">Belum ada sharing.</p>';
                     return;
                 }
-
                 data.forEach(item => {
-                    const isWriter = (item.user_id && item.user_id === currentUserId) || (!item.user_id && item.user_name === currentUserName);
-                    
                     listEl.innerHTML += `
-                        <div class="border-b border-misty border-opacity-30 pb-4" id="sharing-card-${item.id}">
+                        <div class="border-b border-misty pb-4">
                             <div class="flex items-center gap-2 mb-1">
                                 <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>
                                 <span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span>
-                                <span class="text-[10px] text-sage ml-auto">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                             </div>
                             <div class="pl-10">
-                                <p class="text-sm text-midnight mb-2" id="sharing-text-${item.id}">${item.text}</p>
-                                <div id="sharing-edit-area-${item.id}" class="hidden mb-2">
-                                    <textarea id="sharing-edit-input-${item.id}" rows="2" class="w-full p-2.5 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-vanilla mb-2">${item.text}</textarea>
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="saveEditSharing('${item.id}')" class="bg-rosewood text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Simpan</button>
-                                        <button type="button" onclick="cancelEditSharing('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
-                                    </div>
-                                </div>
-                                <div id="sharing-delete-confirm-${item.id}" class="hidden mb-2 p-3 bg-red-50 rounded-xl border border-red-200">
-                                    <p class="text-xs font-semibold text-red-700 mb-2">Yakin ingin menghapus sharing ini?</p>
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="confirmDeleteSharing('${item.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Ya, Hapus</button>
-                                        <button type="button" onclick="cancelDeleteSharing('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
-                                    </div>
-                                </div>
-                                ${isWriter ? `
-                                    <div class="flex gap-3 text-xs text-sage mt-1" id="sharing-actions-${item.id}">
-                                        <button type="button" onclick="startEditSharing('${item.id}')" class="hover:text-rosewood font-semibold flex items-center gap-1 transition"><i class="ph ph-pencil-simple"></i> Edit</button>
-                                        <button type="button" onclick="promptDeleteSharing('${item.id}')" class="hover:text-red-600 font-semibold flex items-center gap-1 transition"><i class="ph ph-trash"></i> Hapus</button>
-                                    </div>
-                                ` : ''}
+                                <p class="text-sm text-midnight">${item.text}</p>
                             </div>
                         </div>
                     `;
                 });
-            } catch (error) {
-                console.error("Gagal memuat sharing:", error);
-                const listEl = document.getElementById('sharing-list');
-                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">Gagal memuat dari database: ${error.message}.</p>`;
-            }
+            } catch (error) {}
         }
 
         async function postSharing(event) {
             if (event) event.preventDefault();
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-            
-            const inputEl = document.getElementById('sharing-input');
-            const text = inputEl.value;
+            const text = document.getElementById('sharing-input').value;
             const userName = await getUserDisplayName();
             let userId = null;
             if (supabaseClient) {
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) userId = user.id;
             }
-
             try {
-                const res = await fetch('/api/sharing', {
+                await fetch('/api/sharing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
-                
-                const result = await res.json();
-                if (!res.ok) {
-                    throw new Error(result.error || "Gagal menyimpan ke database.");
-                }
-
-                showToast("Sharing berhasil diposting ke Supabase!");
-                inputEl.value = '';
+                document.getElementById('sharing-input').value = '';
                 loadSharings();
-            } catch (error) {
-                console.error("Post Error:", error);
-                showToast("Gagal: " + error.message);
-            }
-            return false;
-        }
-
-        function startEditSharing(id) {
-            document.getElementById(`sharing-text-${id}`).classList.add('hidden');
-            document.getElementById(`sharing-actions-${id}`).classList.add('hidden');
-            document.getElementById(`sharing-edit-area-${id}`).classList.remove('hidden');
-        }
-
-        function cancelEditSharing(id) {
-            document.getElementById(`sharing-text-${id}`).classList.remove('hidden');
-            document.getElementById(`sharing-actions-${id}`).classList.remove('hidden');
-            document.getElementById(`sharing-edit-area-${id}`).classList.add('hidden');
-        }
-
-        async function saveEditSharing(id) {
-            const newText = document.getElementById(`sharing-edit-input-${id}`).value;
-            const userName = await getUserDisplayName();
-            let userId = null;
-            if (supabaseClient) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) userId = user.id;
-            }
-
-            try {
-                const res = await fetch(`/api/sharing/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: newText, user_name: userName, user_id: userId })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal memperbarui sharing.");
-
-                showToast("Sharing berhasil diperbarui!");
-                loadSharings();
-            } catch (error) {
-                console.error("Edit Error:", error);
-                showToast("Gagal: " + error.message);
-            }
-        }
-
-        function promptDeleteSharing(id) {
-            document.getElementById(`sharing-actions-${id}`).classList.add('hidden');
-            document.getElementById(`sharing-delete-confirm-${id}`).classList.remove('hidden');
-        }
-
-        function cancelDeleteSharing(id) {
-            document.getElementById(`sharing-actions-${id}`).classList.remove('hidden');
-            document.getElementById(`sharing-delete-confirm-${id}`).classList.add('hidden');
-        }
-
-        async function confirmDeleteSharing(id) {
-            const userName = await getUserDisplayName();
-            let userId = null;
-            if (supabaseClient) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) userId = user.id;
-            }
-
-            try {
-                const res = await fetch(`/api/sharing/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_name: userName, user_id: userId })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal menghapus sharing.");
-
-                showToast("Sharing berhasil dihapus!");
-                loadSharings();
-            } catch (error) {
-                console.error("Delete Error:", error);
-                showToast("Gagal: " + error.message);
-            }
+                showToast("Sharing dibagikan!");
+            } catch (error) {}
         }
 
         async function loadPrayers() {
             try {
                 const res = await fetch('/api/prayers');
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.error || "Gagal memuat pokok doa.");
-                }
                 const data = await res.json();
-
-                let currentUserId = null;
-                let currentUserName = "User";
-                if (supabaseClient) {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (user) {
-                        currentUserId = user.id;
-                        currentUserName = user.user_metadata?.full_name || user.email.split('@')[0];
-                    }
-                }
-
                 const listEl = document.getElementById('prayer-list');
                 if(!listEl) return;
                 listEl.innerHTML = '';
                 if (!data || data.length === 0) {
-                    listEl.innerHTML = '<p class="text-xs text-sage italic col-span-2">Belum ada pokok doa.</p>';
+                    listEl.innerHTML = '<p class="text-xs text-sage col-span-2">Belum ada doa.</p>';
                     return;
                 }
-
                 data.forEach(item => {
-                    const intercessors = item.intercessors || [];
-                    const count = intercessors.length;
-                    
-                    const hasPrayed = intercessors.some(i => 
-                        (currentUserId && i.user_id === currentUserId) || 
-                        (!i.user_id && i.user_name === currentUserName)
-                    );
-
-                    const intercessorsNames = intercessors.map(i => i.user_name || 'User').join(', ');
-                    const isWriter = (item.user_id && item.user_id === currentUserId) || (!item.user_id && item.user_name === currentUserName);
-
+                    const count = item.intercessors?.length || 0;
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between" id="prayer-card-${item.id}">
-                            <div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs">
-                                            ${(item.user_name || 'U').charAt(0).toUpperCase()}
-                                        </div>
-                                        <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
-                                    </div>
-                                    <span class="text-[10px] text-sage">${item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                                </div>
-                                <div class="pl-9">
-                                    <p class="text-sm text-midnight mb-2" id="prayer-text-${item.id}">${item.text}</p>
-                                    <div id="prayer-edit-area-${item.id}" class="hidden mb-2">
-                                        <textarea id="prayer-edit-input-${item.id}" rows="2" class="w-full p-2.5 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-white mb-2">${item.text}</textarea>
-                                        <div class="flex gap-2">
-                                            <button type="button" onclick="saveEditPrayer('${item.id}')" class="bg-rosewood text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Simpan</button>
-                                            <button type="button" onclick="cancelEditPrayer('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
-                                        </div>
-                                    </div>
-                                    <div id="prayer-delete-confirm-${item.id}" class="hidden mb-2 p-3 bg-red-50 rounded-xl border border-red-200">
-                                        <p class="text-xs font-semibold text-red-700 mb-2">Yakin ingin menghapus pokok doa ini?</p>
-                                        <div class="flex gap-2">
-                                            <button type="button" onclick="confirmDeletePrayer('${item.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Ya, Hapus</button>
-                                            <button type="button" onclick="cancelDeletePrayer('${item.id}')" class="bg-misty text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-opacity-90 transition">Batal</button>
-                                        </div>
-                                    </div>
-                                    ${isWriter ? `
-                                        <div class="flex gap-3 text-xs text-sage mt-1 mb-2" id="prayer-actions-${item.id}">
-                                            <button type="button" onclick="startEditPrayer('${item.id}')" class="hover:text-rosewood font-semibold flex items-center gap-1 transition"><i class="ph ph-pencil-simple"></i> Edit</button>
-                                            <button type="button" onclick="promptDeletePrayer('${item.id}')" class="hover:text-red-600 font-semibold flex items-center gap-1 transition"><i class="ph ph-trash"></i> Hapus</button>
-                                        </div>
-                                    ` : ''}
-                                </div>
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between">
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>
+                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
                             </div>
-
-                            <div class="pl-9 pt-2 border-t border-misty border-opacity-50 flex flex-col gap-1.5">
-                                <div class="flex items-center justify-between">
-                                    <button type="button" onclick="togglePray('${item.id}')" class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition ${hasPrayed ? 'bg-rosewood text-white shadow-sm' : 'bg-blush text-rosewood hover:bg-opacity-80'}">
-                                        <i class="ph ph-hands-praying text-sm"></i> ${hasPrayed ? 'Sudah Didoakan' : 'Berdoa'} (${count})
-                                    </button>
-                                </div>
-                                ${count > 0 ? `
-                                    <p class="text-[11px] text-sage italic" title="${intercessorsNames}">
-                                        <i class="ph ph-heart text-rosewood mr-0.5"></i> Didoakan oleh: <span class="font-medium text-midnight">${intercessorsNames}</span>
-                                    </p>
-                                ` : `
-                                    <p class="text-[11px] text-sage italic">Belum ada yang mendoakan. Jadilah yang pertama!</p>
-                                `}
+                            <p class="text-sm text-midnight pl-9 mb-2">${item.text}</p>
+                            <div class="pl-9 pt-2 border-t border-misty border-opacity-50">
+                                <button type="button" onclick="togglePray('${item.id}')" class="text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold"><i class="ph ph-hands-praying"></i> Berdoa (${count})</button>
                             </div>
                         </div>
                     `;
                 });
-            } catch (error) {
-                console.error("Gagal memuat doa:", error);
-                const listEl = document.getElementById('prayer-list');
-                if(listEl) listEl.innerHTML = `<p class="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200 col-span-2">Gagal memuat dari database: ${error.message}.</p>`;
-            }
-        }
-
-        function startEditPrayer(id) {
-            document.getElementById(`prayer-text-${id}`).classList.add('hidden');
-            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
-            document.getElementById(`prayer-edit-area-${id}`).classList.remove('hidden');
-        }
-
-        function cancelEditPrayer(id) {
-            document.getElementById(`prayer-text-${id}`).classList.remove('hidden');
-            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.remove('hidden');
-            document.getElementById(`prayer-edit-area-${id}`).classList.add('hidden');
-        }
-
-        async function saveEditPrayer(id) {
-            const newText = document.getElementById(`prayer-edit-input-${id}`).value;
-            const userName = await getUserDisplayName();
-            let userId = null;
-            if (supabaseClient) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) userId = user.id;
-            }
-
-            try {
-                const res = await fetch(`/api/prayers/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: newText, user_name: userName, user_id: userId })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal memperbarui pokok doa.");
-
-                showToast("Pokok doa berhasil diperbarui!");
-                loadPrayers();
-            } catch (error) {
-                console.error("Edit Error:", error);
-                showToast("Gagal: " + error.message);
-            }
-        }
-
-        function promptDeletePrayer(id) {
-            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.add('hidden');
-            document.getElementById(`prayer-delete-confirm-${id}`).classList.remove('hidden');
-        }
-
-        function cancelDeletePrayer(id) {
-            if(document.getElementById(`prayer-actions-${id}`)) document.getElementById(`prayer-actions-${id}`).classList.remove('hidden');
-            document.getElementById(`prayer-delete-confirm-${id}`).classList.add('hidden');
-        }
-
-        async function confirmDeletePrayer(id) {
-            const userName = await getUserDisplayName();
-            let userId = null;
-            if (supabaseClient) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) userId = user.id;
-            }
-
-            try {
-                const res = await fetch(`/api/prayers/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_name: userName, user_id: userId })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal menghapus pokok doa.");
-
-                showToast("Pokok doa berhasil dihapus!");
-                loadPrayers();
-            } catch (error) {
-                console.error("Delete Error:", error);
-                showToast("Gagal: " + error.message);
-            }
+            } catch (error) {}
         }
 
         async function postPrayer(event) {
             if (event) event.preventDefault();
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-            
-            const inputEl = document.getElementById('prayer-input');
-            const text = inputEl.value;
+            const text = document.getElementById('prayer-input').value;
             const userName = await getUserDisplayName();
             let userId = null;
             if (supabaseClient) {
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) userId = user.id;
             }
-
             try {
-                const res = await fetch('/api/prayers', {
+                await fetch('/api/prayers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
-                
-                const result = await res.json();
-                if (!res.ok) {
-                    throw new Error(result.error || "Gagal menyimpan ke database.");
-                }
-
-                showToast("Pokok doa berhasil dikirim ke Supabase!");
-                inputEl.value = '';
+                document.getElementById('prayer-input').value = '';
                 loadPrayers();
-            } catch (error) {
-                console.error("Prayer Error:", error);
-                showToast("Gagal: " + error.message);
-            }
-            return false;
+                showToast("Doa dikirim!");
+            } catch (error) {}
         }
 
         async function togglePray(prayerId) {
+            const userName = await getUserDisplayName();
             let userId = null;
-            let userName = await getUserDisplayName();
             if (supabaseClient) {
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) userId = user.id;
             }
-
             try {
-                const res = await fetch(`/api/prayers/${prayerId}/pray`, {
+                await fetch(`/api/prayers/${prayerId}/pray`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: userId, user_name: userName })
                 });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Gagal memperbarui dukungan doa.");
-
-                showToast(result.message);
                 loadPrayers();
-            } catch (error) {
-                console.error("Pray Error:", error);
-                showToast("Gagal: " + error.message);
-            }
+            } catch (error) {}
         }
 
         const bibleBooks = [
-            { id: 1, name_id: "Kejadian", name_en: "Genesis", chapters: 50 },
-            { id: 2, name_id: "Keluaran", name_en: "Exodus", chapters: 40 },
-            { id: 3, name_id: "Imamat", name_en: "Leviticus", chapters: 27 },
-            { id: 4, name_id: "Bilangan", name_en: "Numbers", chapters: 36 },
-            { id: 5, name_id: "Ulangan", name_en: "Deuteronomy", chapters: 34 },
-            { id: 6, name_id: "Yosua", name_en: "Joshua", chapters: 24 },
-            { id: 7, name_id: "Hakim-hakim", name_en: "Judges", chapters: 21 },
-            { id: 8, name_id: "Rut", name_en: "Ruth", chapters: 4 },
-            { id: 9, name_id: "1 Samuel", name_en: "1 Samuel", chapters: 31 },
-            { id: 10, name_id: "2 Samuel", name_en: "2 Samuel", chapters: 24 },
-            { id: 11, name_id: "1 Raja-raja", name_en: "1 Kings", chapters: 22 },
-            { id: 12, name_id: "2 Raja-raja", name_en: "2 Kings", chapters: 25 },
-            { id: 13, name_id: "1 Tawarikh", name_en: "1 Chronicles", chapters: 29 },
-            { id: 14, name_id: "2 Tawarikh", name_en: "2 Chronicles", chapters: 36 },
-            { id: 15, name_id: "Ezra", name_en: "Ezra", chapters: 10 },
-            { id: 16, name_id: "Nehemia", name_en: "Nehemiah", chapters: 13 },
-            { id: 17, name_id: "Ester", name_en: "Esther", chapters: 10 },
-            { id: 18, name_id: "Ayub", name_en: "Job", chapters: 42 },
-            { id: 19, name_id: "Mazmur", name_en: "Psalms", chapters: 150 },
-            { id: 20, name_id: "Amsal", name_en: "Proverbs", chapters: 31 },
-            { id: 21, name_id: "Pengkhotbah", name_en: "Ecclesiastes", chapters: 12 },
-            { id: 22, name_id: "Kidung Agung", name_en: "Song of Solomon", chapters: 8 },
-            { id: 23, name_id: "Yesaya", name_en: "Isaiah", chapters: 66 },
-            { id: 24, name_id: "Yeremia", name_en: "Jeremiah", chapters: 52 },
-            { id: 25, name_id: "Ratapan", name_en: "Lamentations", chapters: 5 },
-            { id: 26, name_id: "Yehezkiel", name_en: "Ezekiel", chapters: 48 },
-            { id: 27, name_id: "Daniel", name_en: "Daniel", chapters: 12 },
-            { id: 28, name_id: "Hosea", name_en: "Hosea", chapters: 14 },
-            { id: 29, name_id: "Yoel", name_en: "Joel", chapters: 3 },
-            { id: 30, name_id: "Amos", name_en: "Amos", chapters: 9 },
-            { id: 31, name_id: "Obaja", name_en: "Obadiah", chapters: 1 },
-            { id: 32, name_id: "Yunus", name_en: "Jonah", chapters: 4 },
-            { id: 33, name_id: "Mikha", name_en: "Micah", chapters: 7 },
-            { id: 34, name_id: "Nahum", name_en: "Nahum", chapters: 3 },
-            { id: 35, name_id: "Habakuk", name_en: "Habakkuk", chapters: 3 },
-            { id: 36, name_id: "Zefanya", name_en: "Zephaniah", chapters: 3 },
-            { id: 37, name_id: "Hagai", name_en: "Haggai", chapters: 2 },
-            { id: 38, name_id: "Zakharia", name_en: "Zechariah", chapters: 14 },
-            { id: 39, name_id: "Maleakhi", name_en: "Malachi", chapters: 4 },
-            { id: 40, name_id: "Matius", name_en: "Matthew", chapters: 28 },
-            { id: 41, name_id: "Markus", name_en: "Mark", chapters: 16 },
-            { id: 42, name_id: "Lukas", name_en: "Luke", chapters: 24 },
-            { id: 43, name_id: "Yohanes", name_en: "John", chapters: 21 },
-            { id: 44, name_id: "Kisah Para Rasul", name_en: "Acts", chapters: 28 },
-            { id: 45, name_id: "Roma", name_en: "Romans", chapters: 16 },
-            { id: 46, name_id: "1 Korintus", name_en: "1 Corinthians", chapters: 16 },
-            { id: 47, name_id: "2 Korintus", name_en: "2 Corinthians", chapters: 13 },
-            { id: 48, name_id: "Galatia", name_en: "Galatians", chapters: 6 },
-            { id: 49, name_id: "Efesus", name_en: "Ephesians", chapters: 6 },
-            { id: 50, name_id: "Filipi", name_en: "Philippians", chapters: 4 },
-            { id: 51, name_id: "Kolose", name_en: "Colossians", chapters: 4 },
-            { id: 52, name_id: "1 Tesalonika", name_en: "1 Thessalonians", chapters: 5 },
-            { id: 53, name_id: "2 Tesalonika", name_en: "2 Thessalonians", chapters: 3 },
-            { id: 54, name_id: "1 Timotius", name_en: "1 Timothy", chapters: 6 },
-            { id: 55, name_id: "2 Timotius", name_en: "2 Timothy", chapters: 4 },
-            { id: 56, name_id: "Titus", name_en: "Titus", chapters: 3 },
-            { id: 57, name_id: "Filemon", name_en: "Philemon", chapters: 1 },
-            { id: 58, name_id: "Ibrani", name_en: "Hebrews", chapters: 13 },
-            { id: 59, name_id: "Yakobus", name_en: "James", chapters: 5 },
-            { id: 60, name_id: "1 Petrus", name_en: "1 Peter", chapters: 5 },
-            { id: 61, name_id: "2 Petrus", name_en: "2 Peter", chapters: 3 },
-            { id: 62, name_id: "1 Yohanes", name_en: "1 John", chapters: 5 },
-            { id: 63, name_id: "2 Yohanes", name_en: "2 John", chapters: 1 },
-            { id: 64, name_id: "3 Yohanes", name_en: "3 John", chapters: 1 },
-            { id: 65, name_id: "Yudas", name_en: "Jude", chapters: 1 },
-            { id: 66, name_id: "Wahyu", name_en: "Revelation", chapters: 22 }
+            { id: 1, name_id: "Kejadian", chapters: 50 },
+            { id: 40, name_id: "Matius", chapters: 28 },
+            { id: 43, name_id: "Yohanes", chapters: 21 },
+            { id: 19, name_id: "Mazmur", chapters: 150 }
         ];
 
         function initBible() {
-            updateBookOptions();
-            fetchBibleChapter();
-        }
-
-        function updateBookOptions() {
-            const version = document.getElementById('bible-version-select').value;
-            const isEnglish = version !== 'TB';
             const bookSelect = document.getElementById('bible-book-select');
-            const currentSelected = bookSelect.value || "1";
-
             bookSelect.innerHTML = '';
             bibleBooks.forEach(b => {
                 const opt = document.createElement('option');
-                opt.value = b.id;
-                opt.innerText = isEnglish ? b.name_en : b.name_id;
+                opt.value = b.id; opt.innerText = b.name_id;
                 bookSelect.appendChild(opt);
             });
-            bookSelect.value = currentSelected;
             updateChapterOptions();
+            fetchBibleChapter();
         }
 
         function updateChapterOptions() {
-            const version = document.getElementById('bible-version-select').value;
-            const isEnglish = version !== 'TB';
             const bookId = parseInt(document.getElementById('bible-book-select').value);
             const chapterSelect = document.getElementById('bible-chapter-select');
-            const currentChapter = chapterSelect.value || "1";
-            
             chapterSelect.innerHTML = '';
             const selectedBook = bibleBooks.find(b => b.id === bookId);
-            const totalChapters = selectedBook ? selectedBook.chapters : 1;
-
-            for (let i = 1; i <= totalChapters; i++) {
+            for (let i = 1; i <= (selectedBook ? selectedBook.chapters : 1); i++) {
                 const opt = document.createElement('option');
-                opt.value = i;
-                opt.innerText = isEnglish ? `Chapter ${i}` : `Pasal ${i}`;
+                opt.value = i; opt.innerText = `Pasal ${i}`;
                 chapterSelect.appendChild(opt);
             }
-            chapterSelect.value = currentChapter <= totalChapters ? currentChapter : "1";
         }
 
         async function fetchBibleChapter() {
             const version = document.getElementById('bible-version-select').value;
-            const isEnglish = version !== 'TB';
             const bookId = document.getElementById('bible-book-select').value;
             const chapter = document.getElementById('bible-chapter-select').value || 1;
             const contentContainer = document.getElementById('bible-content');
-            const titleContainer = document.getElementById('bible-chapter-title');
-
-            const selectedBookObj = bibleBooks.find(b => b.id == bookId);
-            const bookName = isEnglish ? selectedBookObj.name_en : selectedBookObj.name_id;
-            const chapterLabel = isEnglish ? `Chapter ${chapter}` : `Pasal ${chapter}`;
-
-            titleContainer.innerText = `${bookName} ${chapterLabel} (${version})`;
-            contentContainer.innerHTML = '<div class="text-center py-10 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i><p class="text-sm mt-2">Memuat Alkitab...</p></div>';
-
+            
+            contentContainer.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-2xl"></i></div>';
             try {
                 const response = await fetch(`https://bolls.life/get-chapter/${version}/${bookId}/${chapter}/`);
-                if (!response.ok) throw new Error("Gagal mengambil data Alkitab.");
                 const data = await response.json();
-
-                if (!data || data.length === 0) {
-                    contentContainer.innerHTML = '<p class="text-center text-sm text-sage py-8">Teks Alkitab tidak ditemukan.</p>';
-                    return;
-                }
-
-                let html = '<div class="space-y-3 leading-relaxed text-sm sm:text-base">';
-                data.forEach(v => {
-                    html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`;
-                });
+                let html = '<div class="space-y-3">';
+                data.forEach(v => { html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; });
                 html += '</div>';
                 contentContainer.innerHTML = html;
             } catch (error) {
-                console.error("Bible API Error:", error);
-                contentContainer.innerHTML = `<p class="text-center text-sm text-red-600 py-8">Gagal memuat Alkitab. Periksa koneksi internet Anda.</p>`;
+                contentContainer.innerHTML = `<p class="text-center text-red-600">Gagal memuat Alkitab.</p>`;
             }
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            if (window.location.search || window.location.href.includes('?')) {
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
-
             if (supabaseClient) {
                 supabaseClient.auth.onAuthStateChange((event, session) => {
                     if (event === 'PASSWORD_RECOVERY') {
                         setTimeout(() => {
-                            showToast("Silakan atur password baru Anda di menu Profile.");
-                            showMainApp();
-                            navigate('profile');
-                            
-                            const newPassInput = document.getElementById('profile-new-password');
-                            if(newPassInput) {
-                                newPassInput.focus();
-                                newPassInput.classList.add('ring-2', 'ring-rosewood', 'ring-offset-2', 'transition', 'duration-500');
-                                setTimeout(() => newPassInput.classList.remove('ring-2', 'ring-rosewood', 'ring-offset-2'), 4000);
-                            }
+                            showToast("Silakan atur password baru di menu Profile.");
+                            showMainApp(); navigate('profile');
                         }, 500);
                     }
                 });
-
                 const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) {
-                    showMainApp();
-                }
+                if (session) showMainApp();
             }
         });
     </script>
 
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
-            
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
                 <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
-                
-                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
-                <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
-
+                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
                 <form method="POST" onsubmit="return handleAuth(event)">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold mb-1">Email</label>
-                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg">
                     </div>
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-1">
                             <label class="block text-sm font-semibold">Password</label>
                             <button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button>
                         </div>
-                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg">
                     </div>
-                    <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition">Login</button>
+                    <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold">Login</button>
                 </form>
-
-                <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">
-                    Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>
-                </p>
+                <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold">Daftar sekarang</button></p>
             </div>
-
+            
             <div id="forgot-password-container" class="hidden transition-opacity duration-300">
                 <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
-                <p class="text-center text-sage text-sm mb-6">Masukkan email Anda untuk menerima link reset.</p>
-
-                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700 border border-red-200"></div>
-                <div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 border border-green-200"></div>
-
+                <p class="text-center text-sage text-sm mb-6">Masukkan email untuk link reset.</p>
+                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
                 <form method="POST" onsubmit="return handleForgotPasswordSubmit(event)">
                     <div class="mb-6">
                         <label class="block text-sm font-semibold mb-1">Email</label>
-                        <input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg focus:outline-none focus:border-rosewood">
+                        <input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg">
                     </div>
-                    <button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold hover:bg-opacity-90 transition mb-4">Kirim Link Reset</button>
+                    <button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold mb-4">Kirim Link Reset</button>
                 </form>
-
-                <p class="text-center text-xs text-sage mt-2">
-                    Ingat password Anda? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold hover:underline ml-1">Kembali ke Login</button>
-                </p>
+                <p class="text-center text-xs text-sage mt-2">Ingat password? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold">Kembali ke Login</button></p>
             </div>
-
         </div>
     </div>
 
     <div id="main-view" class="hidden flex-col min-h-screen">
         <header class="bg-midnight text-white px-4 sm:px-6 py-3 shadow-md">
             <div class="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
-                <div class="flex justify-between items-center w-full sm:w-auto sm:justify-start">
-                    <div class="font-bold text-sm sm:text-base tracking-wider text-blush">Bible Reading Perkantas Jabar</div>
-                    <button type="button" onclick="logout()" class="text-misty hover:text-white transition sm:hidden p-1" title="Logout">
-                        <i class="ph ph-sign-out text-xl"></i>
-                    </button>
+                <div class="flex justify-between w-full sm:w-auto">
+                    <div class="font-bold text-sm sm:text-base text-blush">Bible Reading Perkantas Jabar</div>
+                    <button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button>
                 </div>
-                
-                <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm sm:justify-self-center">
-                    <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold transition hover:text-blush px-2 py-1">Home</button>
-                    <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Bible</button>
-                    <button type="button" data-target="devotion" onclick="navigate('devotion')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Devotion</button>
-                    <button type="button" data-target="prayer" onclick="navigate('prayer')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Prayer</button>
-                    <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty transition hover:text-blush px-2 py-1">Profile</button>
+                <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                    <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold px-2 py-1">Home</button>
+                    <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty px-2 py-1">Bible</button>
+                    <button type="button" data-target="devotion" onclick="navigate('devotion')" class="nav-btn text-misty px-2 py-1">Devotion</button>
+                    <button type="button" data-target="prayer" onclick="navigate('prayer')" class="nav-btn text-misty px-2 py-1">Prayer</button>
+                    <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty px-2 py-1">Profile</button>
                 </nav>
-
-                <div class="hidden sm:flex justify-end sm:justify-self-end">
-                    <button type="button" onclick="logout()" class="text-misty hover:text-white transition flex items-center gap-1 text-sm" title="Logout">
-                        <i class="ph ph-sign-out text-lg"></i> Logout
-                    </button>
-                </div>
+                <div class="hidden sm:flex justify-end"><button type="button" onclick="logout()" class="text-misty flex items-center gap-1"><i class="ph ph-sign-out text-lg"></i> Logout</button></div>
             </div>
         </header>
 
         <main class="flex-grow p-4 sm:p-6 max-w-4xl mx-auto w-full">
             <!-- Home Section -->
             <section id="sec-home" class="content-section space-y-6">
+                <!-- Check-in Emosi -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-3">How was your feeling today?</h2>
                     
-                    <!-- Emojis Grid: 5 columns format 5 top and 5 bottom -->
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
-                        <button type="button" onclick="selectFeeling(this, 'Happy')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😁</span>
-                            <span class="text-xs mt-1">Happy</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Peaceful')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😌</span>
-                            <span class="text-xs mt-1">Peaceful</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Excited')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">🤩</span>
-                            <span class="text-xs mt-1">Excited</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'In Love')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">🥰</span>
-                            <span class="text-xs mt-1">In Love</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Flat')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😐</span>
-                            <span class="text-xs mt-1">Flat</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Sad')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😢</span>
-                            <span class="text-xs mt-1">Sad</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Anxious')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😟</span>
-                            <span class="text-xs mt-1">Anxious</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Angry')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😠</span>
-                            <span class="text-xs mt-1">Angry</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Tired')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">😩</span>
-                            <span class="text-xs mt-1">Tired</span>
-                        </button>
-                        <button type="button" onclick="selectFeeling(this, 'Sleepy')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood">
-                            <span class="text-3xl">🥱</span>
-                            <span class="text-xs mt-1">Sleepy</span>
-                        </button>
+                    <form id="feeling-form" onsubmit="return postFeeling(event)">
+                        <!-- Grid 5 Atas, 5 Bawah -->
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
+                            <!-- Baris Atas -->
+                            <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Peaceful', '😌')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😌</span><span class="text-xs mt-1">Peaceful</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Excited', '🤩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🤩</span><span class="text-xs mt-1">Excited</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'In Love', '🥰')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥰</span><span class="text-xs mt-1">In Love</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Flat', '😐')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😐</span><span class="text-xs mt-1">Flat</span></button>
+                            
+                            <!-- Baris Bawah -->
+                            <button type="button" onclick="selectFeeling(this, 'Sad', '😢')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😢</span><span class="text-xs mt-1">Sad</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Anxious', '😟')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😟</span><span class="text-xs mt-1">Anxious</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Angry', '😠')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😠</span><span class="text-xs mt-1">Angry</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Tired', '😩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😩</span><span class="text-xs mt-1">Tired</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Sleepy', '🥱')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥱</span><span class="text-xs mt-1">Sleepy</span></button>
+                        </div>
+
+                        <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty mb-4"></div>
+
+                        <!-- Form Input Alasan (Muncul saat emoji diklik) -->
+                        <div id="feeling-input-area" class="hidden animate-fade-in-up">
+                            <input type="hidden" id="selected-feeling-value">
+                            <input type="hidden" id="selected-emoji-value">
+                            
+                            <label class="block text-xs font-semibold text-sage mb-1 mt-2">Ceritakan sedikit perasaanmu? (Opsional)</label>
+                            <input type="text" id="feeling-reason" placeholder="Contoh: Senang karena baru saja selesai ujian..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-vanilla mb-3">
+                            
+                            <button type="submit" id="feeling-submit-btn" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition flex items-center justify-center gap-1.5 w-full sm:w-auto shadow-sm">
+                                <i class="ph ph-share-network text-lg"></i> Bagikan Perasaan
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Feed Perasaan Komunitas -->
+                    <div class="mt-8 pt-6 border-t border-misty">
+                        <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2">
+                            <i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini
+                        </h3>
+                        <div id="community-feelings-list" class="space-y-3">
+                            <!-- Diisi oleh Javascript -->
+                            <div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div>
+                        </div>
                     </div>
-
-                    <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty"></div>
                 </div>
 
-                <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <!-- Dynamic Daily Verse populated here -->
-                </div>
+                <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
             </section>
 
             <!-- Bible Section -->
             <section id="sec-bible" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
-                    
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                         <div>
-                            <label class="block text-xs font-semibold mb-1 text-sage">Versi / Terjemahan</label>
-                            <select id="bible-version-select" onchange="updateBookOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm focus:outline-none focus:border-rosewood bg-vanilla font-semibold">
-                                <option value="TB">TB (Terjemahan Baru - Indonesia)</option>
-                                <option value="NIV">NIV (New International Version - English)</option>
-                                <option value="ESV">ESV (English Standard Version - English)</option>
-                                <option value="NET">NET (New English Translation - English)</option>
+                            <select id="bible-version-select" onchange="fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla">
+                                <option value="TB">TB (Indonesia)</option>
+                                <option value="NIV">NIV (English)</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold mb-1 text-sage">Kitab</label>
-                            <select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm focus:outline-none focus:border-rosewood bg-vanilla font-semibold">
-                                <!-- Populated dynamically -->
-                            </select>
+                            <select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold mb-1 text-sage">Pasal</label>
-                            <select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm focus:outline-none focus:border-rosewood bg-vanilla font-semibold">
-                                <!-- Populated dynamically -->
-                            </select>
+                            <select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
                         </div>
                     </div>
-
                     <div class="border border-misty rounded-xl p-5 bg-vanilla">
-                        <h3 id="bible-chapter-title" class="text-lg font-bold text-rosewood mb-4 border-b border-misty pb-2">Memuat...</h3>
-                        <div id="bible-content" class="min-h-[300px]">
-                            <!-- Content loaded via API -->
-                        </div>
+                        <div id="bible-content" class="min-h-[300px]"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- Devotion / Sharing Section -->
+            <!-- Devotion Section -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
-                <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <!-- Populated dynamically -->
-                </div>
-
+                <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h3 class="text-lg font-bold text-rosewood mb-2 flex items-center gap-2">
-                        <i class="ph ph-chats-teardrop text-xl"></i> Jurnal & Sharing Komunitas
-                    </h3>
-                    <p class="text-xs text-sage mb-4">Bagikan refleksi, wawasan firman, atau apa yang Tuhan nyatakan melalui saat teduh Anda hari ini.</p>
-                    
-                    <form method="POST" onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                        <div class="mb-3">
-                            <label class="block text-xs font-semibold text-sage mb-1">Refleksi / Sharing Firman</label>
-                            <textarea id="sharing-input" rows="3" required placeholder="Tuliskan wawasan atau berkat yang Anda dapatkan saat teduh..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-white"></textarea>
-                        </div>
-                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition flex items-center gap-1.5">
-                            <i class="ph ph-paper-plane-tilt"></i> Bagikan ke Komunitas
-                        </button>
+                    <h3 class="text-lg font-bold text-rosewood mb-4">Jurnal & Sharing Komunitas</h3>
+                    <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
+                        <textarea id="sharing-input" rows="3" required placeholder="Tulis wawasan saat teduh..." class="w-full p-3 border border-misty rounded-xl mb-3"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold">Bagikan ke Komunitas</button>
                     </form>
-
                     <div id="sharing-list" class="space-y-4"></div>
                 </div>
             </section>
@@ -1259,9 +827,9 @@
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <form method="POST" onsubmit="return postPrayer(event)" class="mb-6">
-                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa atau pergumulan Anda di sini..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm mb-3"></textarea>
-                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Kirim Pokok Doa</button>
+                    <form onsubmit="return postPrayer(event)" class="mb-6">
+                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa..." class="w-full p-3 border border-misty rounded-xl mb-3"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold">Kirim Pokok Doa</button>
                     </form>
                     <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
@@ -1271,51 +839,32 @@
             <section id="sec-profile" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
                     <div class="flex flex-col items-center mb-6">
-                        <div id="profile-avatar-text" class="w-20 h-20 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-3xl mb-3 shadow-inner">U</div>
+                        <div id="profile-avatar-text" class="w-20 h-20 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-3xl mb-3">U</div>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
                     </div>
-
                     <div id="profile-msg" class="hidden mb-4 p-3 rounded text-sm text-center"></div>
-
                     <div class="space-y-6">
                         <div>
-                            <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Edit Profile</h3>
-                            <form method="POST" onsubmit="return handleProfileUpdate(event)">
-                                <div class="mb-3">
-                                    <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
-                                    <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="block text-xs font-semibold mb-1">Email</label>
-                                    <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm text-sage cursor-not-allowed">
-                                    <span class="text-[11px] text-sage mt-1 block">Email tidak dapat diubah.</span>
-                                </div>
-                                <button type="submit" id="update-profile-btn" class="bg-rosewood text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Simpan Profile</button>
+                            <form onsubmit="return handleProfileUpdate(event)">
+                                <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3">
+                                <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm mb-3">
+                                <button type="submit" id="update-profile-btn" class="bg-rosewood text-white px-4 py-2 rounded-lg text-sm font-bold">Simpan Profile</button>
                             </form>
                         </div>
-
-                        <hr class="border-misty opacity-50">
-
+                        <hr class="border-misty">
                         <div>
-                            <h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider">Ubah Password</h3>
-                            <form method="POST" onsubmit="return handlePasswordChange(event)">
-                                <div class="mb-3">
-                                    <label class="block text-xs font-semibold mb-1">Password Baru</label>
-                                    <input type="password" id="profile-new-password" required minlength="6" placeholder="Minimal 6 karakter" class="w-full px-3 py-2 border border-misty rounded-lg text-sm focus:outline-none focus:border-rosewood">
-                                </div>
-                                <button type="submit" id="update-password-btn" class="bg-midnight text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition">Ubah Password</button>
+                            <form onsubmit="return handlePasswordChange(event)">
+                                <input type="password" id="profile-new-password" required minlength="6" placeholder="Password Baru" class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3">
+                                <button type="submit" id="update-password-btn" class="bg-midnight text-white px-4 py-2 rounded-lg text-sm font-bold">Ubah Password</button>
                             </form>
                         </div>
                     </div>
                 </div>
             </section>
         </main>
-
         <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">
             &copy; 2026 Perkantas Jabar. All rights reserved.
         </footer>
     </div>
-
-
 </body>
 </html>
