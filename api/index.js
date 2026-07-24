@@ -15,12 +15,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.get('/api/feelings', async (req, res) => {
     try {
-        const { since } = req.query;
+        const { local_midnight } = req.query; // Menerima parameter jam 00:00 lokal dari frontend
         let query = supabase.from('feelings').select('*').order('created_at', { ascending: false });
         
         // Filter menggunakan zona waktu lokal dari frontend
-        if (since) {
-            query = query.gte('created_at', since);
+        if (local_midnight) {
+            query = query.gte('created_at', local_midnight);
         }
 
         const { data, error } = await query;
@@ -35,7 +35,6 @@ app.post('/api/feelings', async (req, res) => {
     try {
         const { feeling, emoji, reason, user_name, user_id, local_midnight } = req.body;
         
-        // 1. Cek apakah user sudah memposting hari ini (berdasarkan waktu lokal user)
         let checkQuery = supabase.from('feelings').select('*');
         if (user_id) checkQuery = checkQuery.eq('user_id', user_id);
         else checkQuery = checkQuery.eq('user_name', user_name);
@@ -51,7 +50,6 @@ app.post('/api/feelings', async (req, res) => {
         const { data: existingData } = await checkQuery;
 
         if (existingData && existingData.length > 0) {
-            // 2. Jika sudah ada, UPDATE datanya
             const { data, error } = await supabase
                 .from('feelings')
                 .update({ feeling, emoji, reason, created_at: new Date().toISOString() })
@@ -60,7 +58,6 @@ app.post('/api/feelings', async (req, res) => {
             if (error) return res.status(500).json({ error: error.message });
             return res.status(200).json(data);
         } else {
-            // 3. Jika belum ada, INSERT data baru
             const { data, error } = await supabase
                 .from('feelings')
                 .insert([{ feeling, emoji, reason, user_name, user_id }])
@@ -78,14 +75,22 @@ app.post('/api/feelings', async (req, res) => {
 
 app.get('/api/sharing', async (req, res) => {
     try {
-        const { since, user_id } = req.query;
+        const { today, user_id, local_midnight } = req.query;
         let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
 
-        // Filter untuk feed komunitas hari ini (menggunakan zona waktu lokal frontend)
-        if (since) query = query.gte('created_at', since);
+        // Jika diminta data hari ini saja (untuk feed komunitas)
+        if (today === 'true' && local_midnight) {
+            query = query.gte('created_at', local_midnight);
+        } else if (today === 'true') {
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+            query = query.gte('created_at', startOfDay.toISOString());
+        }
 
-        // Filter untuk riwayat jurnal profile
-        if (user_id) query = query.eq('user_id', user_id);
+        // Jika diminta berdasarkan user (untuk riwayat di profile)
+        if (user_id) {
+            query = query.eq('user_id', user_id);
+        }
 
         const { data, error } = await query;
         if (error) return res.status(500).json({ error: error.message });

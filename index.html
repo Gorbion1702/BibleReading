@@ -72,7 +72,7 @@
             setTimeout(() => {
                 toast.classList.add('translate-y-[-20px]', 'opacity-0');
                 setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 4000); // Diperlama sedikit agar error bisa dibaca
+            }, 4000);
         }
 
         function navigate(sectionId) {
@@ -104,7 +104,7 @@
 
         async function updateGreeting() {
             const userName = await getUserDisplayName();
-            const firstName = userName.split(' ')[0]; // Ambil nama panggilan
+            const firstName = userName.split(' ')[0]; // Mengambil kata pertama saja
             const greetingEl = document.getElementById('home-greeting');
             if (greetingEl) {
                 greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
@@ -264,14 +264,15 @@
         async function handleProfileUpdate(event) {
             if (event) event.preventDefault();
             const btn = document.getElementById('update-profile-btn');
-            const msgEl = document.getElementById('profile-msg');
             const newName = document.getElementById('profile-name').value;
             
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
                 const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
                 if (error) throw error;
-                updateAvatarUI(data.user.email, newName); updateGreeting(); showToast("Profil diperbarui!");
+                updateAvatarUI(data.user.email, newName); 
+                updateGreeting(); // Update sapaan juga
+                showToast("Profil diperbarui!");
             } catch (error) { showToast(error.message); } 
             finally { btn.innerText = 'Simpan Profile'; btn.disabled = false; }
         }
@@ -294,7 +295,7 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
             try {
-                const res = await fetch(`/api/sharing?user_id=${user.id}`);
+                const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`);
                 if (!res.ok) throw new Error("Gagal load jurnal");
                 const data = await res.json();
                 const listEl = document.getElementById('profile-journal-list');
@@ -357,8 +358,10 @@
                     body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, local_midnight: getLocalMidnight() })
                 });
                 if (!res.ok) {
-                    const errData = await res.json().catch(()=>({}));
-                    throw new Error(errData.error || `Server Error ${res.status}`);
+                    const errText = await res.text();
+                    let errMsg = `Server Error ${res.status}`;
+                    try { const errJson = JSON.parse(errText); if (errJson.error) errMsg = errJson.error; } catch (e) { errMsg = errText.substring(0,50); }
+                    throw new Error(errMsg);
                 }
                 showToast("Perasaan berhasil dibagikan!");
                 document.getElementById('feeling-reason').value = ''; document.getElementById('feeling-input-area').classList.add('hidden'); document.getElementById('feeling-message').classList.add('hidden');
@@ -369,7 +372,7 @@
 
         async function loadFeelings() {
             try {
-                const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}`);
+                const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
                 if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('community-feelings-list'); if(!listEl) return; listEl.innerHTML = '';
@@ -442,7 +445,7 @@
         // =========================================================================
         async function loadSharings() {
             try {
-                const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}`);
+                const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
                 if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('sharing-list'); if(!listEl) return; listEl.innerHTML = '';
@@ -487,14 +490,12 @@
                 });
                 
                 if (!res.ok) {
-                    // Coba ambil pesan error langsung dari response server agar kita tahu letak salahnya
                     const errText = await res.text();
                     let errMsg = `Server Error ${res.status}`;
                     try { 
                         const errJson = JSON.parse(errText); 
                         if (errJson.error) errMsg = errJson.error; 
                     } catch (e) { errMsg = `Error: ${errText.substring(0,50)}`; }
-                    
                     throw new Error(errMsg);
                 }
                 
@@ -503,7 +504,6 @@
                 loadUserJournals(); 
                 showToast("Sharing berhasil dibagikan!");
             } catch (error) {
-                // Notifikasi sekarang akan menampilkan error asli
                 showToast("Gagal: " + error.message);
             } finally {
                 submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
@@ -515,7 +515,7 @@
         // =========================================================================
         async function loadPrayers() {
             try {
-                const res = await fetch('/api/prayers'); if (!res.ok) return;
+                const res = await fetch(`/api/prayers?_t=${new Date().getTime()}`); if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('prayer-list'); if(!listEl) return; listEl.innerHTML = '';
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2">Belum ada pokok doa.</p>'; return; }
@@ -551,12 +551,10 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId })
                 });
-
                 if (!res.ok) {
                     const errData = await res.json().catch(()=>({}));
                     throw new Error(errData.error || `Server Error ${res.status}`);
                 }
-
                 document.getElementById('prayer-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
             } catch (error) { showToast("Gagal: " + error.message); } 
             finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
@@ -644,7 +642,9 @@
             <section id="sec-home" class="content-section space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6 border-b border-misty pb-4">
-                        <h2 id="home-greeting" class="text-xl font-bold text-rosewood">Hallo User, bagaimana perasaan kamu hari ini?</h2>
+                        <!-- Teks sapaan dengan ID home-greeting -->
+                        <h2 id="home-greeting" class="text-xl font-bold text-rosewood">How was your feeling today?</h2>
+                        <!-- Badge Tanggal -->
                         <div id="current-date-badge" class="text-xs font-bold bg-rosewood text-white px-4 py-1.5 rounded-full self-start sm:self-auto shadow-sm whitespace-nowrap">Hari, Tanggal</div>
                     </div>
                     
