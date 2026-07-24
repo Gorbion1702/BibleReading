@@ -48,7 +48,7 @@
         <span id="toast-message">Notifikasi</span>
     </div>
 
-    <!-- SCRIPT UTAMA - DIKELOMPOKKAN BERDASARKAN FITUR -->
+    <!-- SCRIPT UTAMA -->
     <script>
         // =========================================================================
         // 1. SETUP & INISIALISASI GLOBAL
@@ -93,6 +93,22 @@
             if (session) showMainApp();
         }
 
+        function showMainApp() {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('main-view').classList.remove('hidden');
+            document.getElementById('main-view').classList.add('flex');
+            
+            navigate('home');
+            updateDateUI();
+            updateGreeting(); 
+            loadUserProfile();
+            loadFeelings(); 
+            initBible();
+            loadSharings();
+            loadUserJournals();
+            loadPrayers();
+        }
+
         // =========================================================================
         // 2. UTILITAS & UI
         // =========================================================================
@@ -120,8 +136,15 @@
             });
         }
 
+        // Fungsi khusus untuk mendapatkan jam 00:00 hari ini berdasar zona waktu perangkat user
+        function getLocalMidnight() {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            return d.toISOString();
+        }
+
         // =========================================================================
-        // 3. MODUL AUTENTIKASI (LOGIN, REGISTER, LUPA PASSWORD)
+        // 3. MODUL AUTENTIKASI
         // =========================================================================
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
@@ -230,21 +253,6 @@
             return false;
         }
 
-        function showMainApp() {
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('main-view').classList.remove('hidden');
-            document.getElementById('main-view').classList.add('flex');
-            
-            navigate('home');
-            loadUserProfile();
-            updateGreeting(); // <--- Menjalankan fungsi sapaan personal
-            loadFeelings(); 
-            initBible();
-            loadSharings();
-            loadUserJournals();
-            loadPrayers();
-        }
-
         async function logout() {
             if (supabaseClient) await supabaseClient.auth.signOut();
             document.getElementById('main-view').classList.remove('flex');
@@ -296,7 +304,7 @@
                 msgEl.innerText = "Profile berhasil diperbarui!";
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 block";
                 updateAvatarUI(data.user.email, newName);
-                updateGreeting(); // Update sapaan juga jika nama diganti
+                updateGreeting(); 
                 showToast("Profil diperbarui!");
             } catch (error) {
                 msgEl.innerText = error.message;
@@ -329,14 +337,50 @@
             }
         }
 
+        async function loadUserJournals() {
+            if (!supabaseClient) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+
+            try {
+                const res = await fetch(`/api/sharing?user_id=${user.id}`);
+                const data = await res.json();
+                
+                const listEl = document.getElementById('profile-journal-list');
+                if(!listEl) return; listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal. Mulailah menulis di menu Devotion.</p>'; return;
+                }
+                
+                data.forEach(item => {
+                    const dateObj = new Date(item.created_at);
+                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    
+                    listEl.innerHTML += `
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty">
+                            <span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span>
+                            <p class="text-sm text-midnight">${item.text}</p>
+                        </div>
+                    `;
+                });
+            } catch (error) { console.error("Gagal memuat jurnal:", error); }
+        }
+
         // =========================================================================
         // 5. MODUL HOME & FEELINGS
         // =========================================================================
-        
-        // Fungsi baru untuk menyapa user dengan nama depannya
+        function updateDateUI() {
+            const dateBadge = document.getElementById('current-date-badge');
+            if (dateBadge) {
+                const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+                dateBadge.innerText = new Date().toLocaleDateString('id-ID', options);
+            }
+        }
+
         async function updateGreeting() {
             const userName = await getUserDisplayName();
-            // Mengambil kata pertama dari nama lengkap (misal: "Jonathan Jason J" jadi "Jonathan")
             const firstName = userName.split(' ')[0];
             const greetingEl = document.getElementById('home-greeting');
             if (greetingEl) {
@@ -395,7 +439,8 @@
                 const res = await fetch('/api/feelings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId })
+                    // Kirimkan batas midnight lokal agar backend tahu rentang "hari ini" yang benar
+                    body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, local_midnight: getLocalMidnight() })
                 });
                 
                 if (!res.ok) throw new Error("Gagal menyimpan perasaan.");
@@ -404,10 +449,8 @@
                 document.getElementById('feeling-reason').value = '';
                 
                 document.getElementById('feeling-input-area').classList.add('hidden');
-                document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
                 document.getElementById('feeling-message').classList.add('hidden');
-                document.getElementById('selected-feeling-value').value = '';
-
+                
                 loadFeelings();
             } catch (error) {
                 showToast("Gagal: " + error.message);
@@ -419,7 +462,8 @@
 
         async function loadFeelings() {
             try {
-                const res = await fetch('/api/feelings');
+                // Meminta data feeling sejak jam 00:00 waktu perangkat user (mengatasi zona waktu UTC Vercel)
+                const res = await fetch('/api/feelings?since=' + getLocalMidnight());
                 if (!res.ok) throw new Error("Gagal memuat daftar perasaan.");
                 const data = await res.json();
 
@@ -442,8 +486,8 @@
                                     <span class="font-bold text-rosewood text-sm truncate pr-2">${item.user_name || 'User'}</span>
                                     <span class="text-[10px] text-sage whitespace-nowrap">${timeString}</span>
                                 </div>
-                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block max-w-full break-words">
-                                    Merasa <b>${item.feeling}</b> ${item.reason ? `<span class="italic opacity-80">- "${item.reason}"</span>` : ''}
+                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block max-w-full break-words shadow-sm">
+                                    Merasa <b class="text-rosewood">${item.feeling}</b> ${item.reason ? `<span class="italic text-sage ml-1">- "${item.reason}"</span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -549,7 +593,8 @@
         // =========================================================================
         async function loadSharings() {
             try {
-                const res = await fetch('/api/sharing?today=true');
+                // Menggunakan getLocalMidnight() agar reset tepat jam 00:00 WIB
+                const res = await fetch('/api/sharing?since=' + getLocalMidnight());
                 const data = await res.json();
                 const listEl = document.getElementById('sharing-list');
                 if(!listEl) return; listEl.innerHTML = '';
@@ -603,41 +648,7 @@
         }
 
         // =========================================================================
-        // 8. MODUL JURNAL PRIBADI (PROFIL)
-        // =========================================================================
-        async function loadUserJournals() {
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return;
-
-            try {
-                const res = await fetch(`/api/sharing?user_id=${user.id}`);
-                const data = await res.json();
-                
-                const listEl = document.getElementById('profile-journal-list');
-                if(!listEl) return; listEl.innerHTML = '';
-                
-                if (!data || data.length === 0) {
-                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal. Mulailah menulis di menu Devotion.</p>'; return;
-                }
-                
-                data.forEach(item => {
-                    const dateObj = new Date(item.created_at);
-                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    
-                    listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty">
-                            <span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span>
-                            <p class="text-sm text-midnight">${item.text}</p>
-                        </div>
-                    `;
-                });
-            } catch (error) { console.error("Gagal memuat jurnal:", error); }
-        }
-
-        // =========================================================================
-        // 9. MODUL RUANG DOA
+        // 8. MODUL RUANG DOA
         // =========================================================================
         async function loadPrayers() {
             try {
@@ -710,8 +721,8 @@
 
     <!-- TAMPILAN LOGIN & REGISTER -->
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
+        <!-- Struktur Login tetap sama, di-skip visualnya di sini agar fokus ke fitur baru -->
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
-            
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
                 <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
@@ -750,7 +761,6 @@
                 </form>
                 <p class="text-center text-xs text-sage mt-2">Ingat password? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold">Kembali ke Login</button></p>
             </div>
-
         </div>
     </div>
 
@@ -782,11 +792,15 @@
             <section id="sec-home" class="content-section space-y-6">
                 <!-- Emosi Check-in Module -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <!-- Judul yang sudah diubah dengan tambahan ID -->
-                    <h2 id="home-greeting" class="text-xl font-bold text-rosewood mb-3">Bagaimana perasaan kamu hari ini?</h2>
+                    
+                    <!-- BARIS JUDUL DAN TANGGAL -->
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 border-b border-misty pb-4">
+                        <h2 id="home-greeting" class="text-xl font-bold text-rosewood">Hallo User, bagaimana perasaan kamu hari ini?</h2>
+                        <div id="current-date-badge" class="text-xs font-bold bg-rosewood text-white px-4 py-1.5 rounded-full self-start sm:self-auto shadow-sm whitespace-nowrap">Hari, Tanggal</div>
+                    </div>
                     
                     <form id="feeling-form" onsubmit="return postFeeling(event)">
-                        <!-- Grid Emoji: 5 Atas, 5 Bawah -->
+                        <!-- Grid Emoji 5 Atas, 5 Bawah -->
                         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
                             <!-- Baris Atas -->
                             <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button>
@@ -832,7 +846,7 @@
                 <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
             </section>
 
-            <!-- SECTION: BIBLE -->
+            <!-- SECTION: BIBLE, DEVOTION, PRAYER, PROFILE TETAP SAMA -->
             <section id="sec-bible" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
@@ -856,10 +870,8 @@
                 </div>
             </section>
 
-            <!-- SECTION: DEVOTION -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
-                
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h3 class="text-lg font-bold text-rosewood mb-4">Sharing Komunitas (Hari Ini)</h3>
                     <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
@@ -870,7 +882,6 @@
                 </div>
             </section>
 
-            <!-- SECTION: PRAYER -->
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
@@ -882,16 +893,13 @@
                 </div>
             </section>
 
-            <!-- SECTION: PROFILE -->
             <section id="sec-profile" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
-                    
                     <div class="flex flex-col items-center mb-6">
                         <div id="profile-avatar-text" class="w-20 h-20 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-3xl mb-3">U</div>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
                     </div>
                     <div id="profile-msg" class="hidden mb-4 p-3 rounded text-sm text-center"></div>
-                    
                     <div class="space-y-6">
                         <div>
                             <form onsubmit="return handleProfileUpdate(event)">
@@ -908,7 +916,6 @@
                             </form>
                         </div>
                     </div>
-                    
                     <div class="mt-8 pt-6 border-t border-misty">
                         <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2">
                             <i class="ph ph-book-open text-xl"></i> Riwayat Jurnal Pribadi
@@ -917,7 +924,6 @@
                             <div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div>
                         </div>
                     </div>
-
                 </div>
             </section>
         </main>
