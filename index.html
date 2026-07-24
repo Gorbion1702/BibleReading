@@ -64,7 +64,6 @@
         let isLoginMode = true;
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Membersihkan URL dari token Supabase saat redirect
             let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             if (window.location.hash && !window.location.hash.includes('access_token')) {
                 cleanUrl += window.location.hash;
@@ -75,11 +74,8 @@
 
             document.addEventListener('submit', (e) => e.preventDefault(), true);
 
-            // Memuat data statis harian
             loadDailyVerse();
             loadDailyDevotion();
-            
-            // Cek status sesi login
             checkSession();
         });
 
@@ -224,7 +220,7 @@
             try {
                 const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
                 if (error) throw error;
-                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.<br><span class="text-[10px] mt-1 block opacity-80">*Pastikan URL Vercel diatur di Supabase Dashboard.</span>`;
+                successMsg.innerHTML = `Link reset password telah dikirim ke email Anda.`;
                 successMsg.classList.remove('hidden');
             } catch (error) {
                 errorMsg.innerText = error.message; errorMsg.classList.remove('hidden');
@@ -239,9 +235,9 @@
             document.getElementById('main-view').classList.remove('hidden');
             document.getElementById('main-view').classList.add('flex');
             
-            // Masuk ke halaman home & load semua data
             navigate('home');
             loadUserProfile();
+            updateGreeting(); // <--- Menjalankan fungsi sapaan personal
             loadFeelings(); 
             initBible();
             loadSharings();
@@ -300,6 +296,7 @@
                 msgEl.innerText = "Profile berhasil diperbarui!";
                 msgEl.className = "mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700 block";
                 updateAvatarUI(data.user.email, newName);
+                updateGreeting(); // Update sapaan juga jika nama diganti
                 showToast("Profil diperbarui!");
             } catch (error) {
                 msgEl.innerText = error.message;
@@ -335,6 +332,18 @@
         // =========================================================================
         // 5. MODUL HOME & FEELINGS
         // =========================================================================
+        
+        // Fungsi baru untuk menyapa user dengan nama depannya
+        async function updateGreeting() {
+            const userName = await getUserDisplayName();
+            // Mengambil kata pertama dari nama lengkap (misal: "Jonathan Jason J" jadi "Jonathan")
+            const firstName = userName.split(' ')[0];
+            const greetingEl = document.getElementById('home-greeting');
+            if (greetingEl) {
+                greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
+            }
+        }
+
         function selectFeeling(btn, feeling, emoji) {
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
@@ -394,7 +403,6 @@
                 showToast("Perasaan Anda berhasil dibagikan!");
                 document.getElementById('feeling-reason').value = '';
                 
-                // Reset form ui
                 document.getElementById('feeling-input-area').classList.add('hidden');
                 document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
                 document.getElementById('feeling-message').classList.add('hidden');
@@ -541,7 +549,6 @@
         // =========================================================================
         async function loadSharings() {
             try {
-                // Memanggil API dengan filter hanya hari ini (Reset setiap hari untuk tampilan komunitas)
                 const res = await fetch('/api/sharing?today=true');
                 const data = await res.json();
                 const listEl = document.getElementById('sharing-list');
@@ -587,8 +594,8 @@
                 });
                 
                 document.getElementById('sharing-input').value = '';
-                loadSharings(); // Refresh komunitas (hanya list hari ini)
-                loadUserJournals(); // Refresh list riwayat profile
+                loadSharings(); 
+                loadUserJournals(); 
                 showToast("Sharing dibagikan!");
                 
                 submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
@@ -604,7 +611,6 @@
             if (!user) return;
 
             try {
-                // Mengambil SEMUA riwayat jurnal khusus milik user ini tanpa filter tanggal
                 const res = await fetch(`/api/sharing?user_id=${user.id}`);
                 const data = await res.json();
                 
@@ -706,7 +712,6 @@
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             
-            <!-- Standard Auth (Login/Register) -->
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
                 <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
@@ -730,7 +735,6 @@
                 <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold">Daftar sekarang</button></p>
             </div>
             
-            <!-- Lupa Password Form -->
             <div id="forgot-password-container" class="hidden transition-opacity duration-300">
                 <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
                 <p class="text-center text-sage text-sm mb-6">Masukkan email untuk link reset.</p>
@@ -778,7 +782,8 @@
             <section id="sec-home" class="content-section space-y-6">
                 <!-- Emosi Check-in Module -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h2 class="text-xl font-bold text-rosewood mb-3">How was your feeling today?</h2>
+                    <!-- Judul yang sudah diubah dengan tambahan ID -->
+                    <h2 id="home-greeting" class="text-xl font-bold text-rosewood mb-3">Bagaimana perasaan kamu hari ini?</h2>
                     
                     <form id="feeling-form" onsubmit="return postFeeling(event)">
                         <!-- Grid Emoji: 5 Atas, 5 Bawah -->
@@ -800,7 +805,6 @@
 
                         <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty mb-4"></div>
 
-                        <!-- Form Input Alasan (Muncul saat emoji diklik) -->
                         <div id="feeling-input-area" class="hidden animate-fade-in-up">
                             <input type="hidden" id="selected-feeling-value">
                             <input type="hidden" id="selected-emoji-value">
@@ -825,7 +829,6 @@
                     </div>
                 </div>
 
-                <!-- Modul Ayat Harian Singkat -->
                 <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
             </section>
 
@@ -883,7 +886,6 @@
             <section id="sec-profile" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
                     
-                    <!-- Informasi Akun -->
                     <div class="flex flex-col items-center mb-6">
                         <div id="profile-avatar-text" class="w-20 h-20 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-3xl mb-3">U</div>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
@@ -907,7 +909,6 @@
                         </div>
                     </div>
                     
-                    <!-- Riwayat Jurnal Pribadi -->
                     <div class="mt-8 pt-6 border-t border-misty">
                         <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2">
                             <i class="ph ph-book-open text-xl"></i> Riwayat Jurnal Pribadi
