@@ -2,409 +2,90 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Komunitas Alkitab</title>
-    
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Reading Perkantas Jabar</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
-    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        vanilla: '#fcfaf8',
-                        blush: '#f4ede6',
-                        sage: '#949e8d',
-                        rosewood: '#8b5a54',
-                        midnight: '#34333b',
-                        misty: '#e5e0db'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
+                    colors: { blush: '#f5e6d3', rosewood: '#964f4c', vanilla: '#fdfbf7', misty: '#d4c5b9', midnight: '#2b2d42', sage: '#8a9a86' },
+                    animation: { 'fade-in-up': 'fadeInUp 0.3s ease-out forwards' },
+                    keyframes: { fadeInUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
                 }
             }
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        body { font-family: 'Inter', sans-serif; background-color: #fcfaf8; color: #34333b; -webkit-tap-highlight-color: transparent; }
-        
-        /* Hide scrollbar for a cleaner look but keep functionality */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e5e0db; border-radius: 10px; }
-        
-        .tab-btn.active { color: #8b5a54; font-weight: 700; border-top: 3px solid #8b5a54; }
-        .tab-btn { color: #949e8d; border-top: 3px solid transparent; transition: all 0.2s ease; }
-        
-        /* Animations */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
-        
-        /* Toast hidden state */
-        .toast-hidden { transform: translateY(-150%); opacity: 0; }
-        .toast-visible { transform: translateY(0); opacity: 1; }
-
-        .glass-header {
-            background: rgba(252, 250, 248, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
+        .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
     </style>
 </head>
-<body class="bg-vanilla text-midnight min-h-screen pb-20">
+<body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ease-in-out toast-hidden flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium w-[90%] max-w-sm">
-        <i id="toast-icon" class="text-xl"></i>
-        <span id="toast-message"></span>
+    <!-- KOMPONEN TOAST / NOTIFIKASI -->
+    <div id="toast-banner" class="fixed top-5 right-5 z-[9999] hidden transition-all duration-300 transform translate-y-[-20px] opacity-0 bg-midnight text-blush px-4 py-3 rounded-xl shadow-lg border border-misty text-sm flex items-center gap-2 max-w-sm">
+        <i class="ph ph-info text-lg text-rosewood flex-shrink-0"></i>
+        <span id="toast-message" class="break-words">Notifikasi</span>
     </div>
 
-    <!-- SECTION: AUTH (Login/Register) -->
-    <div id="auth-section" class="min-h-screen flex items-center justify-center p-6">
-        <div class="bg-white p-8 rounded-3xl shadow-sm border border-misty w-full max-w-md animate-fade-in-up">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blush rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3 shadow-sm border border-misty">
-                    <i class="ph-fill ph-book-open-text text-3xl text-rosewood"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-midnight tracking-tight">Komunitas Alkitab</h1>
-                <p class="text-sm text-sage mt-2">Mari bertumbuh bersama dalam firman Tuhan.</p>
-            </div>
-
-            <!-- Login Form -->
-            <form id="login-form" onsubmit="handleAuth(event, 'login')" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-sage mb-1.5 ml-1">Email</label>
-                    <input type="email" id="login-email" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood focus:ring-1 focus:ring-rosewood transition" placeholder="email@contoh.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-sage mb-1.5 ml-1">Password</label>
-                    <input type="password" id="login-password" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood focus:ring-1 focus:ring-rosewood transition" placeholder="••••••••">
-                </div>
-                <button type="submit" id="btn-login" class="w-full bg-rosewood text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-opacity-90 transition mt-2 flex justify-center items-center gap-2">
-                    Masuk
-                </button>
-                <p class="text-center text-xs text-sage mt-4">Belum punya akun? <a href="#" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline">Daftar di sini</a></p>
-            </form>
-
-            <!-- Register Form (Hidden by default) -->
-            <form id="register-form" onsubmit="handleAuth(event, 'register')" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-xs font-semibold text-sage mb-1.5 ml-1">Nama Lengkap</label>
-                    <input type="text" id="reg-name" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood transition" placeholder="Nama Anda">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-sage mb-1.5 ml-1">Email</label>
-                    <input type="email" id="reg-email" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood transition" placeholder="email@contoh.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-sage mb-1.5 ml-1">Password</label>
-                    <input type="password" id="reg-password" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood transition" placeholder="Minimal 6 karakter">
-                </div>
-                <button type="submit" id="btn-register" class="w-full bg-midnight text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-opacity-90 transition mt-2 flex justify-center items-center gap-2">
-                    Daftar Sekarang
-                </button>
-                <p class="text-center text-xs text-sage mt-4">Sudah punya akun? <a href="#" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline">Masuk di sini</a></p>
-            </form>
-        </div>
-    </div>
-
-    <!-- SECTION: MAIN APP (Hidden until logged in) -->
-    <div id="main-app" class="hidden">
-        
-        <!-- Header -->
-        <header class="glass-header sticky top-0 z-40 border-b border-misty px-6 py-4 flex justify-between items-center">
-            <div>
-                <h1 id="greeting-text" class="text-lg font-bold text-midnight leading-tight">Halo,</h1>
-                <p class="text-[10px] font-semibold text-sage mt-0.5 tracking-wider uppercase">Komunitas Alkitab</p>
-            </div>
-            <div class="w-9 h-9 rounded-full bg-blush border border-misty flex items-center justify-center relative overflow-hidden shadow-sm" onclick="switchTab('profile')">
-                <img id="header-avatar" src="" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden')">
-                <i class="ph ph-user text-rosewood"></i>
-            </div>
-        </header>
-
-        <!-- Main Content Area -->
-        <main class="p-4 sm:p-6 pb-24 max-w-2xl mx-auto">
-            
-            <!-- SECTION: HOME (Feelings) -->
-            <section id="sec-home" class="content-section space-y-6">
-                <!-- Date Badge UI -->
-                <div class="flex justify-between items-end mb-2">
-                    <h2 class="text-xl font-bold text-rosewood">Bagaimana perasaanmu?</h2>
-                    <div class="bg-rosewood text-white px-3 py-1 rounded-lg text-xs font-semibold shadow-sm" id="current-date-badge">
-                        Hari ini
-                    </div>
-                </div>
-
-                <!-- 5x2 Emoji Grid -->
-                <div class="grid grid-cols-5 gap-2 sm:gap-3 bg-white p-4 rounded-2xl shadow-sm border border-misty">
-                    <!-- Row 1 -->
-                    <button onclick="submitFeeling('Happy')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😁</span><span class="text-[10px] text-sage font-medium">Happy</span>
-                    </button>
-                    <button onclick="submitFeeling('Peaceful')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😌</span><span class="text-[10px] text-sage font-medium">Peaceful</span>
-                    </button>
-                    <button onclick="submitFeeling('Excited')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🤩</span><span class="text-[10px] text-sage font-medium">Excited</span>
-                    </button>
-                    <button onclick="submitFeeling('In Love')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🥰</span><span class="text-[10px] text-sage font-medium">In Love</span>
-                    </button>
-                    <button onclick="submitFeeling('Flat')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😐</span><span class="text-[10px] text-sage font-medium">Flat</span>
-                    </button>
-                    <!-- Row 2 -->
-                    <button onclick="submitFeeling('Sad')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😢</span><span class="text-[10px] text-sage font-medium">Sad</span>
-                    </button>
-                    <button onclick="submitFeeling('Anxious')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🥺</span><span class="text-[10px] text-sage font-medium">Anxious</span>
-                    </button>
-                    <button onclick="submitFeeling('Angry')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😡</span><span class="text-[10px] text-sage font-medium">Angry</span>
-                    </button>
-                    <button onclick="submitFeeling('Tired')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">😩</span><span class="text-[10px] text-sage font-medium">Tired</span>
-                    </button>
-                    <button onclick="submitFeeling('Sleepy')" class="flex flex-col items-center p-2 rounded-xl hover:bg-blush transition border border-transparent hover:border-misty group">
-                        <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🥱</span><span class="text-[10px] text-sage font-medium">Sleepy</span>
-                    </button>
-                </div>
-
-                <hr class="border-misty">
-
-                <div>
-                    <h3 class="text-sm font-bold text-rosewood mb-4 flex items-center gap-2 uppercase tracking-wide"><i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini</h3>
-                    <div id="community-feelings-list" class="space-y-3">
-                        <!-- Diisi via JS -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: BIBLE -->
-            <section id="sec-bible" class="content-section hidden space-y-4">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-misty">
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <select id="bible-translation" onchange="loadBooks()" class="bg-vanilla border border-misty rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rosewood">
-                            <option value="TB">Terjemahan Baru (TB)</option>
-                        </select>
-                        <select id="bible-book" onchange="loadChapters()" class="bg-vanilla border border-misty rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rosewood">
-                            <option>Pilih Kitab</option>
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <select id="bible-chapter" onchange="loadVerses()" class="bg-vanilla border border-misty rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rosewood">
-                            <option>Pasal</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty min-h-[50vh]">
-                    <div id="bible-content" class="text-midnight space-y-2 text-[15px] leading-relaxed">
-                        <p class="text-sage text-center text-sm italic mt-10">Pilih kitab dan pasal untuk mulai membaca.</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: DEVOTION & SHARING -->
-            <section id="sec-devotion" class="content-section hidden space-y-6">
-                <!-- Static Devotion Content -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <div class="inline-block bg-blush text-rosewood text-xs font-bold px-3 py-1 rounded-full mb-3">Kasih & Persaudaraan</div>
-                    <h2 class="text-xl font-bold text-rosewood mb-1">Menghidupkan Kasih yang Tulus</h2>
-                    <p class="text-xs text-sage mb-4">Kolose 3:12-14</p>
-                    
-                    <div class="bg-vanilla p-4 rounded-xl border border-misty mb-4 text-sm text-midnight">
-                        Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan, kemurahan, kerendahan hati, kelemahlembutan dan kesabaran. Sabarlah kamu seorang terhadap yang lain, dan ampunilah seorang akan yang lain apabila yang seorang menaruh dendam terhadap yang lain, sama seperti Tuhan telah mengampuni kamu, perbuatlah jugalah demikian. Dan di atas semuanya itu: kenakanlah kasih, sebagai pengikat yang mempersatukan dan menyempurnakan.
-                    </div>
-                    
-                    <div class="bg-blush p-4 rounded-xl border border-rosewood border-opacity-20">
-                        <h4 class="text-xs font-bold text-rosewood uppercase tracking-wide mb-1">Aplikasi Hari Ini</h4>
-                        <p class="text-sm text-midnight italic">Adakah seseorang yang hari ini perlu Anda ampuni? Berdoalah meminta kekuatan Tuhan untuk melepaskan pengampunan itu.</p>
-                    </div>
-                </div>
-
-                <!-- Community Sharing Input -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h3 class="text-lg font-bold text-rosewood mb-4">Sharing Komunitas (Hari Ini)</h3>
-                    <textarea id="devotion-input" rows="3" class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood mb-3 resize-none" placeholder="Tulis wawasan saat teduh atau berkat yang Anda dapatkan hari ini..."></textarea>
-                    <button onclick="shareToCommunity()" class="bg-rosewood text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:bg-opacity-90 transition text-sm">Bagikan ke Komunitas</button>
-                </div>
-
-                <!-- Community Sharing List -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-misty">
-                    <div id="community-sharing-list" class="space-y-4">
-                        <!-- Diisi via JS -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: PRAYER -->
-            <section id="sec-prayer" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <textarea id="prayer-input" rows="3" class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood mb-3 resize-none" placeholder="Tuliskan pokok doa yang ingin didoakan bersama..."></textarea>
-                    <button onclick="submitPrayer()" class="bg-rosewood text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:bg-opacity-90 transition text-sm">Kirim Pokok Doa</button>
-                </div>
-
-                <div>
-                    <div id="prayer-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <!-- Diisi via JS -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: PROFILE -->
-            <section id="sec-profile" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
-                    <!-- Avatar Upload Area -->
-                    <div class="flex flex-col items-center mb-6">
-                        <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
-                            <div class="w-24 h-24 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-4xl mb-1 shadow-sm overflow-hidden relative border-4 border-white">
-                                <span id="profile-avatar-text">U</span>
-                                <img id="profile-avatar-img" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10" onerror="this.classList.add('hidden')" />
-                                <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition z-20">
-                                    <i class="ph ph-camera text-white text-3xl"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <h2 id="display-name-title" class="text-xl font-bold text-midnight mt-2">User Profile</h2>
-                        <p class="text-[10px] text-sage mt-0.5">Klik foto untuk mengubah (Maks 2MB)</p>
-                        <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="uploadAvatar(event)">
-                    </div>
-
-                    <!-- Profile Update Form -->
-                    <form onsubmit="return handleProfileUpdate(event)">
-                        <div class="space-y-4 mb-6">
-                            <input type="text" id="profile-name" class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood" placeholder="Nama Lengkap">
-                            <input type="email" id="profile-email" disabled class="w-full bg-misty border border-misty rounded-xl px-4 py-3 text-sm text-sage cursor-not-allowed" placeholder="Email">
-                        </div>
-                        <button type="submit" class="w-full bg-rosewood text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-opacity-90 transition">Simpan Profile</button>
-                    </form>
-                    
-                    <hr class="border-misty my-6">
-                    
-                    <form onsubmit="return handlePasswordUpdate(event)">
-                        <input type="password" id="profile-password" required class="w-full bg-vanilla border border-misty rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rosewood mb-3" placeholder="Password Baru">
-                        <button type="submit" class="w-full bg-midnight text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-opacity-90 transition">Ubah Password</button>
-                    </form>
-                    
-                    <div class="mt-6 text-center">
-                        <button onclick="handleLogout()" class="text-rosewood font-bold text-sm hover:underline"><i class="ph ph-sign-out mr-1"></i> Keluar Akun</button>
-                    </div>
-                </div>
-
-                <!-- Personal Journal History -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto mt-6">
-                    <h3 class="text-lg font-bold text-rosewood mb-4"><i class="ph ph-book-bookmark"></i> Riwayat Jurnal Pribadi</h3>
-                    <div id="profile-history-list" class="space-y-4">
-                        <!-- Diisi via JS -->
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Bottom Navigation -->
-        <nav class="fixed bottom-0 w-full bg-white border-t border-misty flex justify-around items-center pb-safe z-50">
-            <button onclick="switchTab('home')" id="tab-home" class="tab-btn active flex-1 py-3 flex flex-col items-center gap-1 relative">
-                <i class="ph-fill ph-house text-2xl"></i>
-                <span class="text-[10px]">Home</span>
-            </button>
-            <button onclick="switchTab('bible')" id="tab-bible" class="tab-btn flex-1 py-3 flex flex-col items-center gap-1 relative">
-                <i class="ph-fill ph-book-bible text-2xl"></i>
-                <span class="text-[10px]">Bible</span>
-            </button>
-            <button onclick="switchTab('devotion')" id="tab-devotion" class="tab-btn flex-1 py-3 flex flex-col items-center gap-1 relative">
-                <i class="ph-fill ph-hands-clapping text-2xl"></i>
-                <span class="text-[10px]">Devotion</span>
-            </button>
-            <button onclick="switchTab('prayer')" id="tab-prayer" class="tab-btn flex-1 py-3 flex flex-col items-center gap-1 relative">
-                <i class="ph-fill ph-hands-praying text-2xl"></i>
-                <span class="text-[10px]">Prayer</span>
-            </button>
-            <button onclick="switchTab('profile')" id="tab-profile" class="tab-btn flex-1 py-3 flex flex-col items-center gap-1 relative">
-                <i class="ph-fill ph-user-circle text-2xl"></i>
-                <span class="text-[10px]">Profile</span>
-            </button>
-        </nav>
-    </div>
-
+    <!-- SCRIPT UTAMA -->
     <script>
-        // =========================================================
-        // 1. SETUP & KONFIGURASI SUPABASE
-        // =========================================================
+        // =========================================================================
+        // 1. SETUP & INISIALISASI GLOBAL
+        // =========================================================================
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // HARAP GANTI DENGAN KUNCI ANON ANDA YANG ASLI
-        // Note: For security in production, Anon key is usually safe to expose in frontend if RLS is configured.
-        let supabaseClient;
+        const SUPABASE_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
         
-        try {
-            // Karena ini file statis untuk demo, saya menggunakan key dummy. 
-            // Pastikan Anda menggantinya dengan Anon Key Supabase Anda.
-            // supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            // KARENA KITA MEMAKAI EXPRESS BACKEND SEBAGAI PROXY, kita pakai supabase JS hanya untuk AUTH
-            // sedangkan manipulasi data via REST API /api/...
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); 
-        } catch (e) {
-            console.warn("Supabase init info:", e);
+        let supabaseClient;
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
-        // =========================================================
-        // 2. FUNGSI UTILITAS (Toast, Tanggal, Tab)
-        // =========================================================
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const msgEl = document.getElementById('toast-message');
-            
-            msgEl.innerText = message;
-            
-            if (isError) {
-                toast.classList.remove('bg-vanilla', 'text-midnight', 'border-misty');
-                toast.classList.add('bg-rosewood', 'text-white', 'border-rosewood');
-                icon.className = 'ph-fill ph-warning-circle text-xl';
-            } else {
-                toast.classList.remove('bg-rosewood', 'text-white', 'border-rosewood');
-                toast.classList.add('bg-vanilla', 'text-midnight', 'border-misty');
-                icon.className = 'ph-fill ph-check-circle text-sage text-xl';
+        let isLoginMode = true;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            if (window.location.hash && !window.location.hash.includes('access_token')) {
+                cleanUrl += window.location.hash;
+            }
+            if (window.location.search || window.location.href.includes('?') || (window.location.hash && !window.location.hash.includes('access_token'))) {
+                window.history.replaceState({}, document.title, cleanUrl);
             }
 
-            toast.classList.remove('toast-hidden');
-            toast.classList.add('toast-visible');
+            document.addEventListener('submit', (e) => e.preventDefault(), true);
 
+            loadDailyVerse();
+            loadDailyDevotion();
+            checkSession();
+        });
+
+        // =========================================================================
+        // 2. UTILITAS & UI
+        // =========================================================================
+        function showToast(message) {
+            const toast = document.getElementById('toast-banner');
+            const msg = document.getElementById('toast-message');
+            msg.innerText = message;
+            toast.classList.remove('hidden', 'translate-y-[-20px]', 'opacity-0');
             setTimeout(() => {
-                toast.classList.remove('toast-visible');
-                toast.classList.add('toast-hidden');
-            }, 3000);
+                toast.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 4000);
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        function navigate(sectionId) {
+            document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
+            const targetSec = document.getElementById('sec-' + sectionId);
+            if(targetSec) targetSec.classList.remove('hidden');
             
-            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-
-            // Refresh data when switching tabs
-            if(tabId === 'home') loadFeelings();
-            if(tabId === 'devotion') loadSharings();
-            if(tabId === 'prayer') loadPrayers();
-            if(tabId === 'profile') { loadUserProfile(); loadProfileHistory(); }
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blush', 'font-bold');
+                if (btn.dataset.target === sectionId) {
+                    btn.classList.add('text-blush', 'font-bold');
+                }
+            });
         }
 
         function getLocalMidnight() {
@@ -412,125 +93,152 @@
             d.setHours(0, 0, 0, 0);
             return d.toISOString();
         }
-        
-        function updateDateBadge() {
-            const badge = document.getElementById('current-date-badge');
-            if(badge) {
+
+        function updateDateUI() {
+            const dateBadge = document.getElementById('current-date-badge');
+            if (dateBadge) {
                 const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-                badge.innerText = new Date().toLocaleDateString('id-ID', options);
+                dateBadge.innerText = new Date().toLocaleDateString('id-ID', options);
             }
         }
 
         async function updateGreeting() {
-            if(!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if(user) {
-                const fullName = user.user_metadata?.full_name || 'Teman';
-                const firstName = fullName.split(' ')[0]; // Ambil kata pertama
-                document.getElementById('greeting-text').innerHTML = `Hallo <span class="text-rosewood">${firstName}</span>,`;
-                updateDateBadge();
+            const userName = await getUserDisplayName();
+            const firstName = userName.split(' ')[0]; 
+            const greetingEl = document.getElementById('home-greeting');
+            if (greetingEl) {
+                greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
             }
         }
 
-        // =========================================================
+        // =========================================================================
         // 3. MODUL AUTENTIKASI
-        // =========================================================
-        function toggleAuthMode() {
-            const loginForm = document.getElementById('login-form');
-            const regForm = document.getElementById('register-form');
-            loginForm.classList.toggle('hidden');
-            regForm.classList.toggle('hidden');
-        }
-
+        // =========================================================================
         async function checkSession() {
-            if(!supabaseClient) {
-                // Fallback untuk UI test jika config supabase salah
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                switchTab('home');
-                return;
-            }
-
+            if (!supabaseClient) return;
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'PASSWORD_RECOVERY') {
+                    setTimeout(() => {
+                        showToast("Silakan atur password baru di menu Profile.");
+                        showMainApp(); navigate('profile');
+                    }, 500);
+                }
+            });
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                updateGreeting();
-                loadUserProfile();
-                switchTab('home');
+            if (session) showMainApp();
+        }
+
+        function showMainApp() {
+            document.getElementById('login-view').classList.add('hidden');
+            const mainView = document.getElementById('main-view');
+            mainView.classList.remove('hidden'); mainView.classList.add('flex');
+            
+            navigate('home');
+            updateDateUI();
+            updateGreeting(); 
+            loadUserProfile();
+            loadFeelings(); 
+            initBible();
+            loadSharings();
+            loadUserJournals();
+            loadPrayers();
+        }
+
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            const title = document.getElementById('auth-title');
+            const subtitle = document.getElementById('auth-subtitle');
+            const btn = document.getElementById('auth-btn');
+            const toggleText = document.getElementById('auth-toggle-text');
+            const forgotLink = document.getElementById('forgot-password-link');
+            const errorMsg = document.getElementById('auth-error-message');
+
+            if(errorMsg) errorMsg.classList.add('hidden');
+
+            if (isLoginMode) {
+                title.innerText = "Welcome Back"; subtitle.innerText = "Login to your Bible Community"; btn.innerText = "Login";
+                toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
+                if(forgotLink) forgotLink.classList.remove('hidden');
             } else {
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('main-app').classList.add('hidden');
+                title.innerText = "Buat Akun Baru"; subtitle.innerText = "Bergabung dengan Komunitas Alkitab"; btn.innerText = "Register";
+                toggleText.innerHTML = 'Sudah punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>';
+                if(forgotLink) forgotLink.classList.add('hidden');
             }
         }
 
-        async function handleAuth(e, type) {
-            e.preventDefault();
-            if(!supabaseClient) return showToast("Supabase belum dikonfigurasi.", true);
+        function toggleForgotPassword() {
+            const standardAuth = document.getElementById('standard-auth-container');
+            const forgotAuth = document.getElementById('forgot-password-container');
+            if (standardAuth.classList.contains('hidden')) {
+                standardAuth.classList.remove('hidden'); forgotAuth.classList.add('hidden');
+            } else {
+                standardAuth.classList.add('hidden'); forgotAuth.classList.remove('hidden');
+                const currentEmail = document.getElementById('auth-email').value;
+                if (currentEmail) document.getElementById('forgot-email-input').value = currentEmail;
+            }
+        }
 
-            const btn = document.getElementById(`btn-${type}`);
-            const originalText = btn.innerText;
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Loading...';
-            btn.disabled = true;
+        async function handleAuth(event) {
+            if (event) event.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const btn = document.getElementById('auth-btn');
+            const errorMsg = document.getElementById('auth-error-message');
+            const successMsg = document.getElementById('auth-success-message');
+            const originalBtnText = btn.innerText;
+
+            btn.innerText = 'Mohon tunggu...'; btn.disabled = true;
+            errorMsg.classList.add('hidden'); successMsg.classList.add('hidden');
 
             try {
-                if (type === 'login') {
-                    const email = document.getElementById('login-email').value;
-                    const password = document.getElementById('login-password').value;
-                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
-                    showToast("Berhasil login!");
-                } else {
-                    const name = document.getElementById('reg-name').value;
-                    const email = document.getElementById('reg-email').value;
-                    const password = document.getElementById('reg-password').value;
-                    const { error } = await supabaseClient.auth.signUp({
-                        email, password, options: { data: { full_name: name } }
-                    });
-                    if (error) throw error;
-                    showToast("Akun berhasil dibuat! Silakan cek email (jika konfirmasi aktif) atau langsung login.");
-                    toggleAuthMode();
-                }
-                checkSession();
+                let result;
+                if (isLoginMode) result = await supabaseClient.auth.signInWithPassword({ email, password });
+                else result = await supabaseClient.auth.signUp({ email, password });
+
+                if (result.error) throw result.error;
+
+                if (!isLoginMode) {
+                    successMsg.innerText = "Pendaftaran berhasil! Segera masuk..."; successMsg.classList.remove('hidden');
+                    setTimeout(() => showMainApp(), 1200);
+                } else showMainApp();
             } catch (error) {
-                showToast(error.message, true);
+                errorMsg.innerText = error.message.includes("Invalid login") ? "Email atau password salah." : error.message;
+                errorMsg.classList.remove('hidden');
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                btn.innerText = originalBtnText; btn.disabled = false;
             }
         }
 
-        async function handleLogout() {
-            if(!supabaseClient) return;
-            await supabaseClient.auth.signOut();
-            window.location.reload();
+        async function handleForgotPasswordSubmit(event) {
+            if (event) event.preventDefault();
+            const email = document.getElementById('forgot-email-input').value;
+            const btn = document.getElementById('forgot-submit-btn');
+            const errorMsg = document.getElementById('forgot-error-message');
+            const successMsg = document.getElementById('forgot-success-message');
+
+            btn.innerText = 'Mengirim...'; btn.disabled = true;
+            try {
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+                if (error) throw error;
+                successMsg.innerHTML = `Link reset telah dikirim ke email Anda.`; successMsg.classList.remove('hidden');
+            } catch (error) { errorMsg.innerText = error.message; errorMsg.classList.remove('hidden'); } 
+            finally { btn.innerText = 'Kirim Link Reset'; btn.disabled = false; }
         }
 
+        async function logout() {
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            document.getElementById('main-view').classList.remove('flex'); document.getElementById('main-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden'); document.getElementById('auth-password').value = '';
+        }
 
-        // =========================================================
-        // 4. MODUL PROFIL & AVATAR
-        // =========================================================
-        function updateAvatarUI(email, fullName, avatarUrl) {
-            const initial = (fullName || email || 'U').charAt(0).toUpperCase();
-            
-            // Header Avatar
-            document.getElementById('header-avatar').src = avatarUrl || '';
-            document.getElementById('header-avatar').classList.toggle('hidden', !avatarUrl);
-            document.getElementById('header-avatar').onerror = function() { this.classList.add('hidden'); };
-
-            // Profile Page Avatar
-            const profileAvatarText = document.getElementById('profile-avatar-text');
-            const profileAvatarImg = document.getElementById('profile-avatar-img');
-            
-            document.getElementById('display-name-title').innerText = fullName;
-            profileAvatarText.innerText = initial;
-            
-            if (avatarUrl) {
-                profileAvatarImg.src = avatarUrl;
-                profileAvatarImg.classList.remove('hidden');
-            } else {
-                profileAvatarImg.classList.add('hidden');
-            }
+        // =========================================================================
+        // 4. MODUL PROFIL USER & AVATAR
+        // =========================================================================
+        async function getUserDisplayName() {
+            if (!supabaseClient) return "User";
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+            return user ? user.email.split('@')[0] : "User";
         }
 
         async function loadUserProfile() {
@@ -539,10 +247,29 @@
             if (user) {
                 document.getElementById('profile-email').value = user.email;
                 const fullName = user.user_metadata?.full_name || '';
-                document.getElementById('profile-name').value = fullName;
-                
                 const avatarUrl = user.user_metadata?.avatar_url || '';
+                document.getElementById('profile-name').value = fullName;
                 updateAvatarUI(user.email, fullName, avatarUrl);
+            }
+        }
+
+        function updateAvatarUI(email, fullName, avatarUrl) {
+            const displayName = fullName || email.split('@')[0];
+            const nameTitle = document.getElementById('display-name-title');
+            if(nameTitle) nameTitle.innerText = displayName;
+            
+            const initial = displayName.charAt(0).toUpperCase();
+            const avatarText = document.getElementById('profile-avatar-text');
+            const avatarImg = document.getElementById('profile-avatar-img');
+            
+            if(avatarText) avatarText.innerText = initial;
+            if(avatarImg) {
+                if(avatarUrl) {
+                    avatarImg.src = avatarUrl;
+                    avatarImg.classList.remove('hidden');
+                } else {
+                    avatarImg.classList.add('hidden');
+                }
             }
         }
 
@@ -550,163 +277,187 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            // Validasi ukuran maksimal 2MB
             if (file.size > 2 * 1024 * 1024) {
-                showToast("Ukuran foto maksimal 2MB", true);
+                showToast("Ukuran foto maksimal 2MB");
                 return;
             }
 
-            const btnText = document.getElementById('profile-avatar-text');
+            const avatarText = document.getElementById('profile-avatar-text');
             const imgEl = document.getElementById('profile-avatar-img');
-            const originalText = btnText.innerText;
+            const originalText = avatarText.innerHTML;
             
-            btnText.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl text-rosewood"></i>';
+            avatarText.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i>';
             if(imgEl) imgEl.classList.add('hidden');
 
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) throw new Error("Belum login");
+                if (!user) throw new Error("Silakan login kembali.");
 
+                // Upload foto ke bucket 'avatars' dengan nama file sesuai user.id
                 const filePath = user.id; 
-
                 const { error: uploadError } = await supabaseClient.storage
                     .from('avatars')
                     .upload(filePath, file, { upsert: true, cacheControl: '0' });
 
                 if (uploadError) throw uploadError;
 
+                // Ambil Public URL untuk disimpan di metadata profile
                 const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${user.id}?t=${new Date().getTime()}`;
                 
+                // Update ke Auth Meta
                 const { error: updateError } = await supabaseClient.auth.updateUser({ 
                     data: { avatar_url: newAvatarUrl } 
                 });
-                
                 if(updateError) throw updateError;
 
-                if(imgEl) {
-                    imgEl.src = newAvatarUrl;
-                    imgEl.classList.remove('hidden');
-                }
-                
-                // Update UI lain yang butuh gambar baru
-                loadUserProfile(); 
+                updateAvatarUI(user.email, user.user_metadata?.full_name, newAvatarUrl);
                 showToast("Foto profil berhasil diperbarui!");
                 
-                // Refresh list di belakang layar
-                loadFeelings(); loadSharings(); loadPrayers(); loadProfileHistory();
+                // Segarkan data lainnya jika user mengecek feed
+                loadFeelings(); loadSharings(); loadPrayers();
             } catch (error) {
-                showToast("Gagal upload: " + error.message, true);
+                showToast("Gagal upload foto: " + error.message);
             } finally {
-                if(btnText.innerHTML.includes('spinner')) btnText.innerHTML = originalText;
+                if(avatarText.innerHTML.includes('spinner')) avatarText.innerHTML = originalText;
                 event.target.value = ''; 
             }
         }
 
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            if(!supabaseClient) return;
-            const name = document.getElementById('profile-name').value;
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerText;
-            btn.innerHTML = 'Menyimpan...';
-
+        async function handleProfileUpdate(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('update-profile-btn');
+            const newName = document.getElementById('profile-name').value;
+            
+            btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
-                const { error } = await supabaseClient.auth.updateUser({ data: { full_name: name } });
+                const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
                 if (error) throw error;
-                showToast("Profile berhasil diperbarui!");
-                updateGreeting();
-                loadUserProfile();
-            } catch (error) {
-                showToast(error.message, true);
-            } finally {
-                btn.innerHTML = originalText;
-            }
+                const avatarUrl = data.user.user_metadata?.avatar_url || '';
+                updateAvatarUI(data.user.email, newName, avatarUrl); 
+                updateGreeting(); 
+                showToast("Profil diperbarui!");
+            } catch (error) { showToast(error.message); } 
+            finally { btn.innerText = 'Simpan Profile'; btn.disabled = false; }
         }
 
-        async function handlePasswordUpdate(e) {
-            e.preventDefault();
-            if(!supabaseClient) return;
-            const password = document.getElementById('profile-password').value;
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerText;
-            btn.innerHTML = 'Menyimpan...';
-
+        async function handlePasswordChange(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('update-password-btn');
+            const newPassword = document.getElementById('profile-new-password').value;
+            btn.innerText = 'Memperbarui...'; btn.disabled = true;
             try {
-                const { error } = await supabaseClient.auth.updateUser({ password: password });
+                const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
                 if (error) throw error;
-                showToast("Password berhasil diubah!");
-                document.getElementById('profile-password').value = '';
-            } catch (error) {
-                showToast(error.message, true);
-            } finally {
-                btn.innerHTML = originalText;
-            }
+                document.getElementById('profile-new-password').value = ''; showToast("Password berhasil diubah!");
+            } catch (error) { showToast(error.message); } 
+            finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
         }
 
-
-        // =========================================================
-        // 5. MODUL FEED EMOSI (FEELINGS)
-        // =========================================================
-        const emojiMap = { 'Happy': '😁', 'Peaceful': '😌', 'Excited': '🤩', 'In Love': '🥰', 'Flat': '😐', 'Sad': '😢', 'Anxious': '🥺', 'Angry': '😡', 'Tired': '😩', 'Sleepy': '🥱' };
-
-        async function submitFeeling(emojiName) {
+        async function loadUserJournals() {
             if (!supabaseClient) return;
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return showToast("Silakan login dulu.", true);
+            if (!user) return;
+            try {
+                const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`);
+                if (!res.ok) throw new Error("Gagal load jurnal");
+                const data = await res.json();
+                const listEl = document.getElementById('profile-journal-list');
+                if(!listEl) return; listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal. Mulailah menulis di menu Devotion.</p>'; return;
+                }
+                
+                data.forEach(item => {
+                    const dateObj = new Date(item.created_at);
+                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty"><span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span><p class="text-sm text-midnight">${item.text}</p></div>`;
+                });
+            } catch (error) {}
+        }
 
-            let reason = prompt(`Mengapa Anda merasa ${emojiName} hari ini? (Boleh dikosongkan)`);
-            if (reason === null) return; 
+        // =========================================================================
+        // 5. MODUL HOME & FEELINGS
+        // =========================================================================
+        function selectFeeling(btn, feeling, emoji) {
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const msgEl = document.getElementById('feeling-message'); msgEl.classList.remove('hidden');
+            const messages = {
+                'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini.',
+                'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu.',
+                'Excited': 'Luar biasa! Biarlah antusiasme dan semangatmu hari ini memuliakan nama-Nya.',
+                'In Love': 'Kasih karunia Tuhan senantiasa mengelilingimu. Bagikan kasih itu kepada sesama!',
+                'Flat': 'Di saat hari terasa datar, ketahuilah bahwa penyertaan Tuhan selalu setia dan tak pernah berubah.',
+                'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya dalam doa.',
+                'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
+                'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
+                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.',
+                'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya (Mazmur 127:2). Jangan memaksakan diri!'
+            };
+            msgEl.innerText = messages[feeling];
+            document.getElementById('selected-feeling-value').value = feeling; document.getElementById('selected-emoji-value').value = emoji;
+            document.getElementById('feeling-input-area').classList.remove('hidden'); document.getElementById('feeling-reason').focus();
+        }
 
-            const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
-            const avatarUrl = user.user_metadata?.avatar_url || '';
-            const emojiIcon = emojiMap[emojiName] || '😶';
+        async function postFeeling(event) {
+            if (event) event.preventDefault();
+            const feeling = document.getElementById('selected-feeling-value').value;
+            const emoji = document.getElementById('selected-emoji-value').value;
+            const reason = document.getElementById('feeling-reason').value;
+            if (!feeling || !emoji) { showToast("Pilih emoji dulu!"); return false; }
+
+            const userName = await getUserDisplayName();
+            let userId = null;
+            let avatarUrl = '';
+            if (supabaseClient) { 
+                const { data: { user } } = await supabaseClient.auth.getUser(); 
+                if (user) {
+                    userId = user.id;
+                    avatarUrl = user.user_metadata?.avatar_url || '';
+                } 
+            }
+
+            const submitBtn = document.getElementById('feeling-submit-btn'); const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengirim...'; submitBtn.disabled = true;
 
             try {
                 const res = await fetch('/api/feelings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        feeling: emojiName, 
-                        emoji: emojiIcon, 
-                        reason: reason,
-                        user_name: fullName, 
-                        user_id: user.id, 
-                        since: getLocalMidnight(),
-                        avatar_url: avatarUrl
-                    })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, avatar_url: avatarUrl, local_midnight: getLocalMidnight() })
                 });
-
-                if (!res.ok) throw new Error(await res.text());
-                showToast(`Perasaan ${emojiName} berhasil dibagikan!`);
+                if (!res.ok) {
+                    const errText = await res.text();
+                    let errMsg = `Server Error ${res.status}`;
+                    try { const errJson = JSON.parse(errText); if (errJson.error) errMsg = errJson.error; } catch (e) { errMsg = errText.substring(0,50); }
+                    throw new Error(errMsg);
+                }
+                showToast("Perasaan berhasil dibagikan!");
+                document.getElementById('feeling-reason').value = ''; document.getElementById('feeling-input-area').classList.add('hidden'); document.getElementById('feeling-message').classList.add('hidden');
                 loadFeelings();
-            } catch (error) {
-                showToast("Gagal menyimpannya: Cek koneksi atau Backend", true);
-                console.error(error);
-            }
+            } catch (error) { showToast("Error: " + error.message); } 
+            finally { submitBtn.innerHTML = originalText; submitBtn.disabled = false; }
         }
 
         async function loadFeelings() {
-            const listEl = document.getElementById('community-feelings-list');
-            listEl.innerHTML = '<div class="text-center p-4"><i class="ph ph-spinner animate-spin text-2xl text-sage"></i></div>';
             try {
-                const res = await fetch(`/api/feelings?since=${getLocalMidnight()}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error("Gagal mengambil data dari server");
+                const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
+                if (!res.ok) return;
                 const data = await res.json();
+                const listEl = document.getElementById('community-feelings-list'); if(!listEl) return; listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada yang membagikan perasaan hari ini.</p>'; return; }
 
-                if (!data || data.length === 0) { 
-                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada yang membagikan perasaan hari ini.</p>'; 
-                    return; 
-                }
-
-                listEl.innerHTML = '';
                 data.forEach(item => {
                     const timeString = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     const initial = (item.user_name || 'U').charAt(0).toUpperCase();
-                    
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-3 rounded-xl border border-misty flex items-start gap-3 animate-fade-in-up">
                             <div class="w-10 h-10 shrink-0 rounded-full bg-white border border-misty flex items-center justify-center text-2xl shadow-sm">${item.emoji}</div>
                             <div class="flex-grow min-w-0">
-                                <div class="flex justify-between items-baseline mb-0.5">
+                                <div class="flex justify-between items-baseline mb-1">
                                     <div class="flex items-center gap-1.5 overflow-hidden">
                                         <div class="w-5 h-5 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-[10px] shadow-sm relative overflow-hidden shrink-0">
                                             <span class="absolute">${initial}</span>
@@ -716,88 +467,75 @@
                                     </div>
                                     <span class="text-[10px] text-sage whitespace-nowrap">${timeString}</span>
                                 </div>
-                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block shadow-sm mt-1">
+                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block shadow-sm">
                                     Merasa <b class="text-rosewood">${item.feeling}</b> ${item.reason ? `<span class="italic text-sage ml-1">- "${item.reason}"</span>` : ''}
                                 </div>
                             </div>
                         </div>`;
                 });
-            } catch (error) {
-                listEl.innerHTML = `<p class="text-xs text-rosewood text-center bg-blush p-2 rounded">Tidak dapat memuat list: Backend mungkin sedang offline.</p>`;
+            } catch (error) {}
+        }
+
+        // =========================================================================
+        // 6. MODUL ALKITAB & AYAT HARIAN
+        // =========================================================================
+        const dailyVerses = [{ text: "Sebab Allah begitu mengasihi dunia ini...", reference: "Yohanes 3:16" }, { text: "Percayalah kepada TUHAN dengan segenap hatimu...", reference: "Amsal 3:5" }];
+        const dailyDevotionsList = [{ title: "Menghidupkan Kasih yang Tulus", reference: "Kolose 3:12-14", theme: "Kasih & Persaudaraan", content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan...", application: "Adakah seseorang yang hari ini perlu Anda ampuni?" }];
+
+        function loadDailyVerse() {
+            const v = dailyVerses[0]; const container = document.getElementById('daily-verse-container');
+            if (container) container.innerHTML = `<h3 class="font-bold text-rosewood mb-2">Ayat Harian</h3><p class="text-sm italic mb-2">"${v.text}"</p><span class="text-xs font-semibold text-sage">— ${v.reference} (TB)</span>`;
+        }
+
+        function loadDailyDevotion() {
+            const d = dailyDevotionsList[0]; const container = document.getElementById('daily-devotion-card');
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span><span class="text-xs text-sage">${new Date().toLocaleDateString('id-ID')}</span></div>
+                    <h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3><p class="text-xs font-semibold text-sage mb-4">${d.reference}</p>
+                    <div class="prose text-sm text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty"><p>${d.content}</p></div>
+                    <div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty"><h4 class="text-xs font-bold text-rosewood uppercase mb-1">Aplikasi Hari Ini</h4><p class="text-sm italic text-midnight">${d.application}</p></div>`;
             }
         }
 
-
-        // =========================================================
-        // 6. MODUL SHARING KOMUNITAS & RIWAYAT JURNAL
-        // =========================================================
-        async function shareToCommunity() {
-            const input = document.getElementById('devotion-input');
-            const text = input.value.trim();
-            if (!text) return showToast("Tuliskan sesuatu dulu.", true);
-
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return showToast("Silakan login dulu.", true);
-
-            const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
-            const avatarUrl = user.user_metadata?.avatar_url || '';
-
-            const btn = document.querySelector('#sec-devotion button');
-            const ogText = btn.innerText;
-            btn.innerHTML = 'Membagikan...';
-
+        const bibleBooks = [{ id: 1, name_id: "Kejadian", chapters: 50 }, { id: 40, name_id: "Matius", chapters: 28 }, { id: 43, name_id: "Yohanes", chapters: 21 }, { id: 19, name_id: "Mazmur", chapters: 150 }];
+        function initBible() {
+            const bookSelect = document.getElementById('bible-book-select'); bookSelect.innerHTML = '';
+            bibleBooks.forEach(b => { const opt = document.createElement('option'); opt.value = b.id; opt.innerText = b.name_id; bookSelect.appendChild(opt); });
+            updateChapterOptions(); fetchBibleChapter();
+        }
+        function updateChapterOptions() {
+            const bookId = parseInt(document.getElementById('bible-book-select').value); const chapterSelect = document.getElementById('bible-chapter-select'); chapterSelect.innerHTML = '';
+            const selectedBook = bibleBooks.find(b => b.id === bookId);
+            for (let i = 1; i <= (selectedBook ? selectedBook.chapters : 1); i++) { const opt = document.createElement('option'); opt.value = i; opt.innerText = `Pasal ${i}`; chapterSelect.appendChild(opt); }
+        }
+        async function fetchBibleChapter() {
+            const version = document.getElementById('bible-version-select').value; const bookId = document.getElementById('bible-book-select').value; const chapter = document.getElementById('bible-chapter-select').value || 1;
+            const contentContainer = document.getElementById('bible-content'); contentContainer.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-2xl"></i></div>';
             try {
-                const res = await fetch('/api/sharing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        text, 
-                        user_name: fullName, 
-                        user_id: user.id,
-                        avatar_url: avatarUrl
-                    })
-                });
-                
-                if (!res.ok) {
-                    const errText = await res.text();
-                    throw new Error(errText);
-                }
-                
-                input.value = '';
-                showToast("Berhasil dibagikan ke komunitas!");
-                loadSharings();
-                loadProfileHistory();
-            } catch (error) {
-                showToast("Gagal: " + (error.message || "Kesalahan Server"), true);
-                console.error(error);
-            } finally {
-                btn.innerHTML = ogText;
-            }
+                const res = await fetch(`https://bolls.life/get-chapter/${version}/${bookId}/${chapter}/`); const data = await res.json();
+                let html = '<div class="space-y-3">'; data.forEach(v => { html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; }); html += '</div>';
+                contentContainer.innerHTML = html;
+            } catch (error) { contentContainer.innerHTML = `<p class="text-center text-red-600">Gagal memuat Alkitab.</p>`; }
         }
 
+        // =========================================================================
+        // 7. MODUL SHARING (KOMUNITAS)
+        // =========================================================================
         async function loadSharings() {
-            const listEl = document.getElementById('community-sharing-list');
-            if(!listEl) return;
-            listEl.innerHTML = '<div class="text-center"><i class="ph ph-spinner animate-spin text-2xl text-sage"></i></div>';
             try {
-                // today=true AND since=midnight untuk mereset harian
-                const res = await fetch(`/api/sharing?today=true&since=${getLocalMidnight()}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error("Gagal load dari server");
+                const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
+                if (!res.ok) return;
                 const data = await res.json();
-
-                if (!data || data.length === 0) { 
-                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini. Jadilah yang pertama memberkati yang lain!</p>'; 
-                    return; 
-                }
-
-                listEl.innerHTML = '';
+                const listEl = document.getElementById('sharing-list'); if(!listEl) return; listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini. Jadilah yang pertama memberkati yang lain!</p>'; return; }
+                
                 data.forEach(item => {
                     const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     const initial = (item.user_name || 'U').charAt(0).toUpperCase();
-                    
                     listEl.innerHTML += `
-                        <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 animate-fade-in-up">
+                        <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-2">
                                     <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm shadow-sm relative overflow-hidden">
@@ -808,229 +546,318 @@
                                 </div>
                                 <span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span>
                             </div>
-                            <div class="pl-10"><p class="text-sm text-midnight leading-relaxed">${item.text}</p></div>
+                            <div class="pl-10"><p class="text-sm text-midnight">${item.text}</p></div>
                         </div>`;
                 });
-            } catch (error) {
-                listEl.innerHTML = `<p class="text-xs text-rosewood text-center">Gagal memuat: Backend Offline</p>`;
-            }
+            } catch (error) {}
         }
 
-        async function loadProfileHistory() {
-            const listEl = document.getElementById('profile-history-list');
-            if(!listEl || !supabaseClient) return;
-            
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return;
-
-            listEl.innerHTML = '<div class="text-center"><i class="ph ph-spinner animate-spin text-2xl text-sage"></i></div>';
-            
-            try {
-                // Ambil semua riwayat tanpa batasan hari
-                const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error("Gagal mengambil data riwayat");
-                const data = await res.json();
-
-                if (!data || data.length === 0) { 
-                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal.</p>'; 
-                    return; 
+        async function postSharing(event) {
+            if (event) event.preventDefault();
+            const text = document.getElementById('sharing-input').value;
+            const userName = await getUserDisplayName();
+            let userId = null;
+            let avatarUrl = '';
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) {
+                    userId = user.id;
+                    avatarUrl = user.user_metadata?.avatar_url || '';
                 }
-
-                listEl.innerHTML = '';
-                data.forEach(item => {
-                    const dateObj = new Date(item.created_at);
-                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    
-                    listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty text-sm">
-                            <div class="flex justify-between items-center mb-2 border-b border-misty pb-2">
-                                <span class="font-bold text-rosewood text-xs uppercase tracking-wide">Jurnal Renungan</span>
-                                <span class="text-[10px] text-sage">${dateStr} • ${timeStr}</span>
-                            </div>
-                            <p class="text-midnight leading-relaxed">${item.text}</p>
-                        </div>`;
-                });
-            } catch (error) {
-                listEl.innerHTML = `<p class="text-xs text-rosewood text-center">Gagal memuat riwayat.</p>`;
             }
-        }
-
-
-        // =========================================================
-        // 7. MODUL DOA
-        // =========================================================
-        async function submitPrayer() {
-            const input = document.getElementById('prayer-input');
-            const text = input.value.trim();
-            if (!text) return showToast("Tuliskan pokok doa dulu.", true);
-
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return showToast("Silakan login dulu.", true);
-
-            const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
-            const avatarUrl = user.user_metadata?.avatar_url || '';
-
-            const btn = document.querySelector('#sec-prayer button');
-            const ogText = btn.innerText;
-            btn.innerHTML = 'Mengirim...';
+            
+            const submitBtn = document.querySelector('#sec-devotion button[type="submit"]');
+            submitBtn.innerHTML = 'Membagikan...'; submitBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/prayers', {
+                const res = await fetch('/api/sharing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        text, 
-                        user_name: fullName, 
-                        user_id: user.id,
-                        avatar_url: avatarUrl
-                    })
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
                 });
-                if (!res.ok) throw new Error(await res.text());
-                input.value = '';
-                showToast("Pokok doa berhasil dikirim!");
-                loadPrayers();
+                
+                if (!res.ok) {
+                    const errText = await res.text();
+                    let errMsg = `Server Error ${res.status}`;
+                    try { 
+                        const errJson = JSON.parse(errText); 
+                        if (errJson.error) errMsg = errJson.error; 
+                    } catch (e) { errMsg = `Error: ${errText.substring(0,50)}`; }
+                    throw new Error(errMsg);
+                }
+                
+                document.getElementById('sharing-input').value = '';
+                loadSharings(); 
+                loadUserJournals(); 
+                showToast("Sharing berhasil dibagikan!");
             } catch (error) {
-                showToast("Gagal: " + (error.message || "Server Error"), true);
+                showToast("Gagal: " + error.message);
             } finally {
-                btn.innerHTML = ogText;
+                submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
             }
         }
 
+        // =========================================================================
+        // 8. MODUL PRAYER
+        // =========================================================================
         async function loadPrayers() {
-            const listEl = document.getElementById('prayer-list');
-            if(!listEl) return;
-            listEl.innerHTML = '<div class="text-center col-span-2"><i class="ph ph-spinner animate-spin text-2xl text-sage"></i></div>';
             try {
-                // Mengambil doa untuk hari ini (jika mau reset tiap hari)
-                // Jika ingin tidak reset, hilangkan ?since=...
-                const res = await fetch(`/api/prayers?since=${getLocalMidnight()}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error("Gagal mengambil data dari server");
+                const res = await fetch(`/api/prayers?_t=${new Date().getTime()}`); if (!res.ok) return;
                 const data = await res.json();
-
-                if (!data || data.length === 0) { 
-                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center col-span-2">Belum ada pokok doa untuk hari ini.</p>'; 
-                    return; 
-                }
-
-                listEl.innerHTML = '';
+                const listEl = document.getElementById('prayer-list'); if(!listEl) return; listEl.innerHTML = '';
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2">Belum ada pokok doa.</p>'; return; }
+                
                 data.forEach(item => {
                     const count = item.intercessors?.length || 0;
                     const initial = (item.user_name || 'U').charAt(0).toUpperCase();
-
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between animate-fade-in-up">
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between">
                             <div class="flex items-center gap-2 mb-2">
-                                <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs relative overflow-hidden shrink-0 border border-misty">
+                                <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs relative overflow-hidden">
                                     <span class="absolute">${initial}</span>
                                     <img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'">
                                 </div>
-                                <span class="font-bold text-sm text-rosewood truncate">${item.user_name || 'User'}</span>
+                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
                             </div>
-                            <p class="text-sm text-midnight pl-9 mb-3 leading-snug">${item.text}</p>
+                            <p class="text-sm text-midnight pl-9 mb-3">${item.text}</p>
                             <div class="pl-9 pt-3 border-t border-misty border-opacity-50">
-                                <button type="button" onclick="togglePray('${item.id}')" class="text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition flex items-center gap-1">
-                                    <i class="ph ph-hands-praying"></i> Berdoa (${count})
-                                </button>
+                                <button type="button" onclick="togglePray('${item.id}')" class="text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition"><i class="ph ph-hands-praying"></i> Berdoa (${count})</button>
                             </div>
                         </div>`;
                 });
-            } catch (error) {
-                listEl.innerHTML = `<p class="text-xs text-rosewood text-center col-span-2">Gagal memuat: Backend Offline</p>`;
+            } catch (error) {}
+        }
+
+        async function postPrayer(event) {
+            if (event) event.preventDefault();
+            const text = document.getElementById('prayer-input').value;
+            const userName = await getUserDisplayName(); 
+            let userId = null;
+            let avatarUrl = '';
+            if (supabaseClient) { 
+                const { data: { user } } = await supabaseClient.auth.getUser(); 
+                if (user) {
+                    userId = user.id;
+                    avatarUrl = user.user_metadata?.avatar_url || '';
+                } 
             }
+            
+            const submitBtn = document.querySelector('#sec-prayer button[type="submit"]');
+            submitBtn.innerHTML = 'Mengirim...'; submitBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/prayers', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(()=>({}));
+                    throw new Error(errData.error || `Server Error ${res.status}`);
+                }
+                document.getElementById('prayer-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
+            } catch (error) { showToast("Gagal: " + error.message); } 
+            finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
         }
 
         async function togglePray(prayerId) {
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return showToast("Silakan login dulu.", true);
-
+            const userName = await getUserDisplayName(); let userId = null;
+            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
             try {
-                const res = await fetch(`/api/prayers/${prayerId}/pray`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        user_id: user.id, 
-                        user_name: user.user_metadata?.full_name || 'User' 
-                    })
-                });
-                if (!res.ok) throw new Error("Gagal mengupdate");
-                showToast("Anda ikut mendoakan ini.");
+                await fetch(`/api/prayers/${prayerId}/pray`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_name: userName }) });
                 loadPrayers();
-            } catch (error) {
-                showToast("Gagal: Koneksi bermasalah", true);
-            }
+            } catch (error) {}
         }
-
-
-        // =========================================================
-        // 8. MODUL ALKITAB (API BOLLS.LIFE)
-        // =========================================================
-        async function loadBooks() {
-            const translation = document.getElementById('bible-translation').value;
-            const bookSelect = document.getElementById('bible-book');
-            try {
-                const response = await fetch(`https://bolls.life/get-books/${translation}/`);
-                const books = await response.json();
-                bookSelect.innerHTML = '<option value="">Pilih Kitab</option>';
-                books.forEach(b => {
-                    bookSelect.innerHTML += `<option value="${b.bookid}">${b.name}</option>`;
-                });
-            } catch(e) { console.error("Error loading books:", e); }
-        }
-
-        async function loadChapters() {
-            const translation = document.getElementById('bible-translation').value;
-            const bookId = document.getElementById('bible-book').value;
-            const chapterSelect = document.getElementById('bible-chapter');
-            
-            if(!bookId) return;
-
-            try {
-                const response = await fetch(`https://bolls.life/get-chapters/${translation}/${bookId}/`);
-                const chapters = await response.json();
-                chapterSelect.innerHTML = '<option value="">Pilih Pasal</option>';
-                // bolls.life returns the max chapter number
-                for(let i = 1; i <= chapters; i++) {
-                    chapterSelect.innerHTML += `<option value="${i}">Pasal ${i}</option>`;
-                }
-            } catch(e) { console.error("Error loading chapters:", e); }
-        }
-
-        async function loadVerses() {
-            const translation = document.getElementById('bible-translation').value;
-            const bookId = document.getElementById('bible-book').value;
-            const chapter = document.getElementById('bible-chapter').value;
-            const content = document.getElementById('bible-content');
-
-            if(!bookId || !chapter) return;
-            content.innerHTML = '<div class="text-center text-sage my-8"><i class="ph ph-spinner animate-spin text-2xl"></i> Memuat...</div>';
-
-            try {
-                const response = await fetch(`https://bolls.life/get-text/${translation}/${bookId}/${chapter}/`);
-                const verses = await response.json();
-                content.innerHTML = '';
-                verses.forEach(v => {
-                    content.innerHTML += `
-                        <p class="mb-2">
-                            <sup class="text-sage text-[10px] font-bold mr-1">${v.verse}</sup> 
-                            <span>${v.text}</span>
-                        </p>`;
-                });
-            } catch(e) {
-                content.innerHTML = '<p class="text-rosewood text-center mt-4">Gagal memuat teks Alkitab.</p>';
-            }
-        }
-
-
-        // =========================================================
-        // 9. INITIALIZATION
-        // =========================================================
-        window.onload = () => {
-            checkSession();
-            loadBooks(); // Preload bible books
-        };
     </script>
+
+    <!-- TAMPILAN LOGIN & REGISTER -->
+    <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
+            <div id="standard-auth-container" class="transition-opacity duration-300">
+                <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
+                <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
+                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
+                
+                <form method="POST" onsubmit="return handleAuth(event)">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-semibold">Password</label>
+                            <button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button>
+                        </div>
+                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold">Login</button>
+                </form>
+                <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold">Daftar sekarang</button></p>
+            </div>
+            
+            <div id="forgot-password-container" class="hidden transition-opacity duration-300">
+                <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
+                <p class="text-center text-sage text-sm mb-6">Masukkan email untuk link reset.</p>
+                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
+                
+                <form method="POST" onsubmit="return handleForgotPasswordSubmit(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold mb-4">Kirim Link Reset</button>
+                </form>
+                <p class="text-center text-xs text-sage mt-2">Ingat password? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold">Kembali ke Login</button></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLIKASI UTAMA (SETELAH LOGIN) -->
+    <div id="main-view" class="hidden flex-col min-h-screen">
+        
+        <!-- HEADER & NAVIGASI -->
+        <header class="bg-midnight text-white px-4 sm:px-6 py-3 shadow-md">
+            <div class="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
+                <div class="flex justify-between w-full sm:w-auto">
+                    <div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i> Bible Community</div>
+                    <button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button>
+                </div>
+                <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                    <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold px-2 py-1">Home</button>
+                    <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty px-2 py-1">Bible</button>
+                    <button type="button" data-target="devotion" onclick="navigate('devotion')" class="nav-btn text-misty px-2 py-1">Devotion</button>
+                    <button type="button" data-target="prayer" onclick="navigate('prayer')" class="nav-btn text-misty px-2 py-1">Prayer</button>
+                    <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty px-2 py-1">Profile</button>
+                </nav>
+                <div class="hidden sm:flex justify-end"><button type="button" onclick="logout()" class="text-misty hover:text-blush transition flex items-center gap-1"><i class="ph ph-sign-out text-lg"></i> Logout</button></div>
+            </div>
+        </header>
+
+        <!-- AREA KONTEN -->
+        <main class="flex-grow p-4 sm:p-6 max-w-4xl mx-auto w-full">
+            
+            <!-- SECTION: HOME -->
+            <section id="sec-home" class="content-section space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6 border-b border-misty pb-4">
+                        <h2 id="home-greeting" class="text-xl font-bold text-rosewood">How was your feeling today?</h2>
+                        <div id="current-date-badge" class="text-xs font-bold bg-rosewood text-white px-4 py-1.5 rounded-full self-start sm:self-auto shadow-sm whitespace-nowrap">Hari, Tanggal</div>
+                    </div>
+                    
+                    <form id="feeling-form" onsubmit="return postFeeling(event)">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
+                            <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Peaceful', '😌')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😌</span><span class="text-xs mt-1">Peaceful</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Excited', '🤩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🤩</span><span class="text-xs mt-1">Excited</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'In Love', '🥰')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥰</span><span class="text-xs mt-1">In Love</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Flat', '😐')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😐</span><span class="text-xs mt-1">Flat</span></button>
+                            
+                            <button type="button" onclick="selectFeeling(this, 'Sad', '😢')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😢</span><span class="text-xs mt-1">Sad</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Anxious', '😟')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😟</span><span class="text-xs mt-1">Anxious</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Angry', '😠')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😠</span><span class="text-xs mt-1">Angry</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Tired', '😩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😩</span><span class="text-xs mt-1">Tired</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Sleepy', '🥱')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥱</span><span class="text-xs mt-1">Sleepy</span></button>
+                        </div>
+
+                        <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty mb-4"></div>
+
+                        <div id="feeling-input-area" class="hidden animate-fade-in-up">
+                            <input type="hidden" id="selected-feeling-value"> <input type="hidden" id="selected-emoji-value">
+                            <label class="block text-xs font-semibold text-sage mb-1 mt-2">Ceritakan sedikit perasaanmu? (Opsional)</label>
+                            <input type="text" id="feeling-reason" placeholder="Contoh: Senang karena baru saja..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-vanilla mb-3">
+                            <button type="submit" id="feeling-submit-btn" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition flex items-center justify-center gap-1.5 w-full sm:w-auto shadow-sm"><i class="ph ph-share-network text-lg"></i> Bagikan Perasaan</button>
+                        </div>
+                    </form>
+
+                    <div class="mt-8 pt-6 border-t border-misty">
+                        <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini</h3>
+                        <div id="community-feelings-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
+                    </div>
+                </div>
+                <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
+            </section>
+
+            <!-- SECTION: BIBLE -->
+            <section id="sec-bible" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                        <select id="bible-version-select" onchange="fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"><option value="TB">TB (Indonesia)</option><option value="NIV">NIV (English)</option></select>
+                        <select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
+                        <select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
+                    </div>
+                    <div class="border border-misty rounded-xl p-5 bg-vanilla"><div id="bible-content" class="min-h-[300px]"></div></div>
+                </div>
+            </section>
+
+            <!-- SECTION: DEVOTION -->
+            <section id="sec-devotion" class="content-section hidden space-y-6">
+                <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h3 class="text-lg font-bold text-rosewood mb-4">Sharing Komunitas (Hari Ini)</h3>
+                    <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
+                        <textarea id="sharing-input" rows="3" required placeholder="Tulis wawasan saat teduh..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Bagikan ke Komunitas</button>
+                    </form>
+                    <div id="sharing-list" class="space-y-0"></div>
+                </div>
+            </section>
+
+            <!-- SECTION: PRAYER -->
+            <section id="sec-prayer" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                    <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
+                    <form onsubmit="return postPrayer(event)" class="mb-6">
+                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood"></textarea>
+                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Kirim Pokok Doa</button>
+                    </form>
+                    <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </section>
+
+            <!-- SECTION: PROFILE -->
+            <section id="sec-profile" class="content-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
+                    
+                    <div class="flex flex-col items-center mb-6">
+                        <!-- Avatar Upload Box -->
+                        <div class="relative group cursor-pointer mb-2" onclick="document.getElementById('avatar-upload').click()" title="Klik untuk mengubah foto profil (Maks 2MB)">
+                            <div class="w-24 h-24 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-4xl overflow-hidden relative border-2 border-misty shadow-sm">
+                                <span id="profile-avatar-text">U</span>
+                                <img id="profile-avatar-img" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10" onerror="this.classList.add('hidden')" />
+                                <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-200 z-20">
+                                    <i class="ph ph-camera text-white text-3xl"></i>
+                                </div>
+                            </div>
+                            <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="uploadAvatar(event)">
+                        </div>
+                        <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
+                        <p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 2MB)</p>
+                    </div>
+
+                    <form onsubmit="return handleProfileUpdate(event)">
+                        <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3 focus:outline-none focus:border-rosewood" placeholder="Nama Lengkap">
+                        <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm mb-3 cursor-not-allowed">
+                        <button type="submit" id="update-profile-btn" class="bg-rosewood text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm w-full">Simpan Profile</button>
+                    </form>
+                    
+                    <hr class="border-misty my-6">
+                    
+                    <form onsubmit="return handlePasswordChange(event)">
+                        <input type="password" id="profile-new-password" required minlength="6" placeholder="Password Baru" class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3 focus:outline-none focus:border-rosewood">
+                        <button type="submit" id="update-password-btn" class="bg-midnight text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm w-full">Ubah Password</button>
+                    </form>
+                    
+                    <div class="mt-8 pt-6 border-t border-misty">
+                        <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Riwayat Jurnal & Sharing</h3>
+                        <div id="profile-journal-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">&copy; 2026 Perkantas Jabar. All rights reserved.</footer>
+    </div>
 </body>
 </html>
