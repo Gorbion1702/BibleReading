@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Tambahan library Cropper.js untuk fitur Crop Foto -->
+    <!-- Library Cropper.js untuk fitur Potong Foto -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -25,11 +25,7 @@
     </script>
     <style>
         .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
-        
-        /* Tambahan CSS agar kotak pemotong (crop) terlihat bulat seperti profil */
-        .cropper-view-box, .cropper-face {
-            border-radius: 50%;
-        }
+        .cropper-view-box, .cropper-face { border-radius: 50%; } /* Bentuk crop bulat */
     </style>
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
@@ -54,6 +50,9 @@
         }
 
         let isLoginMode = true;
+        
+        // Objek global untuk menyimpan teks postingan agar mudah diedit
+        window.postDataMap = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
             let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
@@ -242,9 +241,9 @@
         }
 
         // =========================================================================
-        // 4. MODUL PROFIL USER & AVATAR
+        // 4. MODUL PROFIL USER & UPLOAD AVATAR
         // =========================================================================
-        let cropperInstance = null; // Variabel global untuk menyimpan pengaturan crop
+        let cropperInstance = null;
 
         async function getUserDisplayName() {
             if (!supabaseClient) return "User";
@@ -285,16 +284,13 @@
             }
         }
 
-        // FUNGSI BARU: Membaca file dan memunculkan pop-up Crop
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Kita longgarkan batas awal sebelum dicrop menjadi 5MB
             if (file.size > 5 * 1024 * 1024) {
                 showToast("Ukuran foto awal terlalu besar (Maksimal 5MB)");
-                event.target.value = '';
-                return;
+                event.target.value = ''; return;
             }
 
             const reader = new FileReader();
@@ -302,15 +298,13 @@
                 const imageEl = document.getElementById('crop-image');
                 imageEl.src = e.target.result;
                 
-                // Tampilkan Modal/Popup Crop
                 document.getElementById('crop-modal').classList.remove('hidden');
                 document.getElementById('crop-modal').classList.add('flex');
 
-                // Inisialisasi plugin Cropper.js
                 if (cropperInstance) cropperInstance.destroy();
                 cropperInstance = new Cropper(imageEl, {
-                    aspectRatio: 1, // Memaksa area crop berbentuk kotak 1:1 (menjadi bulat karena CSS)
-                    viewMode: 1,    // Membatasi crop box tidak keluar dari gambar asli
+                    aspectRatio: 1, 
+                    viewMode: 1, 
                     dragMode: 'move',
                     autoCropArea: 0.9,
                     restore: false,
@@ -325,15 +319,13 @@
             reader.readAsDataURL(file);
         }
 
-        // FUNGSI BARU: Menutup popup crop jika batal
         function closeCropModal() {
             document.getElementById('crop-modal').classList.add('hidden');
             document.getElementById('crop-modal').classList.remove('flex');
             if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-            document.getElementById('avatar-upload').value = ''; // Reset input
+            document.getElementById('avatar-upload').value = ''; 
         }
 
-        // FUNGSI BARU: Mengeksekusi pemotongan gambar
         function applyCrop() {
             if (!cropperInstance) return;
             
@@ -342,24 +334,18 @@
             btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Menyimpan...';
             btn.disabled = true;
 
-            // Dapatkan hasil crop dengan resolusi maksimal 400x400 (sangat ringan)
             const canvas = cropperInstance.getCroppedCanvas({
-                width: 400,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
+                width: 400, height: 400,
+                imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
             });
 
-            // Ubah menjadi file biner (Blob) berektensi JPEG untuk diupload
             canvas.toBlob(async (blob) => {
-                await processUploadAvatar(blob); // Lempar ke fungsi upload
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                await processUploadAvatar(blob);
+                btn.innerHTML = originalText; btn.disabled = false;
                 closeCropModal();
-            }, 'image/jpeg', 0.85); // Kompresi kualitas 85%
+            }, 'image/jpeg', 0.85); 
         }
 
-        // FUNGSI LAMA YG DIUBAH: Mengupload hasil crop (Blob) ke Supabase
         async function processUploadAvatar(fileBlob) {
             const avatarText = document.getElementById('profile-avatar-text');
             const imgEl = document.getElementById('profile-avatar-img');
@@ -372,29 +358,22 @@
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) throw new Error("Silakan login kembali.");
 
-                const filePath = user.id + ".jpg"; // Paksa ekstensi jadi jpg agar seragam
-                
+                const filePath = user.id + ".jpg"; 
                 const { error: uploadError } = await supabaseClient.storage
                     .from('avatars')
-                    .upload(filePath, fileBlob, { 
-                        upsert: true, 
-                        cacheControl: '0',
-                        contentType: 'image/jpeg' 
-                    });
+                    .upload(filePath, fileBlob, { upsert: true, cacheControl: '0', contentType: 'image/jpeg' });
 
                 if (uploadError) throw uploadError;
 
                 const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}?t=${new Date().getTime()}`;
                 
-                const { error: updateError } = await supabaseClient.auth.updateUser({ 
-                    data: { avatar_url: newAvatarUrl } 
-                });
+                const { error: updateError } = await supabaseClient.auth.updateUser({ data: { avatar_url: newAvatarUrl } });
                 if(updateError) throw updateError;
 
                 updateAvatarUI(user.email, user.user_metadata?.full_name, newAvatarUrl);
                 showToast("Foto profil berhasil diperbarui!");
                 
-                loadFeelings(); loadSharings(); loadPrayers();
+                loadFeelings(); loadSharings(); loadPrayers(); loadUserJournals();
             } catch (error) {
                 showToast("Gagal upload foto: " + error.message);
                 if(avatarText.innerHTML.includes('spinner')) avatarText.innerHTML = originalText;
@@ -431,6 +410,9 @@
             finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
         }
 
+        // =========================================================================
+        // 5. FITUR JURNAL PRIBADI (DI HALAMAN PROFIL)
+        // =========================================================================
         async function loadUserJournals() {
             if (!supabaseClient) return;
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -447,16 +429,28 @@
                 }
                 
                 data.forEach(item => {
+                    window.postDataMap[item.id] = item.text; // Simpan teks untuk fungsi edit
                     const dateObj = new Date(item.created_at);
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                     const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty"><span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span><p class="text-sm text-midnight">${item.text}</p></div>`;
+                    
+                    listEl.innerHTML += `
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty relative group">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-bold text-sage uppercase tracking-wider">${dateStr} • ${timeStr}</span>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="editSharing('${item.id}')" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-base"></i></button>
+                                    <button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-500 transition" title="Hapus"><i class="ph ph-trash text-base"></i></button>
+                                </div>
+                            </div>
+                            <p class="text-sm text-midnight whitespace-pre-wrap">${item.text}</p>
+                        </div>`;
                 });
             } catch (error) {}
         }
 
         // =========================================================================
-        // 5. MODUL HOME & FEELINGS
+        // 6. MODUL HOME & FEELINGS
         // =========================================================================
         function selectFeeling(btn, feeling, emoji) {
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
@@ -491,10 +485,7 @@
             let avatarUrl = '';
             if (supabaseClient) { 
                 const { data: { user } } = await supabaseClient.auth.getUser(); 
-                if (user) {
-                    userId = user.id;
-                    avatarUrl = user.user_metadata?.avatar_url || '';
-                } 
+                if (user) { userId = user.id; avatarUrl = user.user_metadata?.avatar_url || ''; } 
             }
 
             const submitBtn = document.getElementById('feeling-submit-btn'); const originalText = submitBtn.innerHTML;
@@ -554,7 +545,7 @@
         }
 
         // =========================================================================
-        // 6. MODUL ALKITAB & AYAT HARIAN
+        // 7. MODUL ALKITAB & AYAT HARIAN
         // =========================================================================
         const dailyVerses = [{ text: "Sebab Allah begitu mengasihi dunia ini...", reference: "Yohanes 3:16" }, { text: "Percayalah kepada TUHAN dengan segenap hatimu...", reference: "Amsal 3:5" }];
         const dailyDevotionsList = [{ title: "Menghidupkan Kasih yang Tulus", reference: "Kolose 3:12-14", theme: "Kasih & Persaudaraan", content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan...", application: "Adakah seseorang yang hari ini perlu Anda ampuni?" }];
@@ -597,10 +588,17 @@
         }
 
         // =========================================================================
-        // 7. MODUL SHARING (KOMUNITAS)
+        // 8. MODUL SHARING (KOMUNITAS) & EDIT/HAPUS
         // =========================================================================
         async function loadSharings() {
             try {
+                // Ambil ID User yang sedang login
+                let currentUserId = null;
+                if (supabaseClient) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) currentUserId = user.id;
+                }
+
                 const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
                 if (!res.ok) return;
                 const data = await res.json();
@@ -609,8 +607,20 @@
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini. Jadilah yang pertama memberkati yang lain!</p>'; return; }
                 
                 data.forEach(item => {
+                    window.postDataMap[item.id] = item.text; // Simpan teks untuk opsi Edit
+                    
                     const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     const initial = (item.user_name || 'U').charAt(0).toUpperCase();
+                    
+                    // Cek jika postingan ini punya user yang sedang login, tampilkan tombol aksi
+                    const isOwner = currentUserId && (currentUserId === item.user_id);
+                    const actionButtons = isOwner ? `
+                        <div class="flex gap-2 ml-3 border-l border-misty pl-3">
+                            <button type="button" onclick="editSharing('${item.id}')" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-sm"></i></button>
+                            <button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-500 transition" title="Hapus"><i class="ph ph-trash text-sm"></i></button>
+                        </div>
+                    ` : '';
+
                     listEl.innerHTML += `
                         <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
                             <div class="flex items-center justify-between mb-2">
@@ -621,9 +631,12 @@
                                     </div>
                                     <span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span>
                                 </div>
-                                <span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span>
+                                <div class="flex items-center">
+                                    <span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span>
+                                    ${actionButtons}
+                                </div>
                             </div>
-                            <div class="pl-10"><p class="text-sm text-midnight">${item.text}</p></div>
+                            <div class="pl-10"><p class="text-sm text-midnight whitespace-pre-wrap">${item.text}</p></div>
                         </div>`;
                 });
             } catch (error) {}
@@ -633,14 +646,10 @@
             if (event) event.preventDefault();
             const text = document.getElementById('sharing-input').value;
             const userName = await getUserDisplayName();
-            let userId = null;
-            let avatarUrl = '';
+            let userId = null; let avatarUrl = '';
             if (supabaseClient) {
                 const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) {
-                    userId = user.id;
-                    avatarUrl = user.user_metadata?.avatar_url || '';
-                }
+                if (user) { userId = user.id; avatarUrl = user.user_metadata?.avatar_url || ''; }
             }
             
             const submitBtn = document.querySelector('#sec-devotion button[type="submit"]');
@@ -648,34 +657,61 @@
 
             try {
                 const res = await fetch('/api/sharing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
                 });
-                
-                if (!res.ok) {
-                    const errText = await res.text();
-                    let errMsg = `Server Error ${res.status}`;
-                    try { 
-                        const errJson = JSON.parse(errText); 
-                        if (errJson.error) errMsg = errJson.error; 
-                    } catch (e) { errMsg = `Error: ${errText.substring(0,50)}`; }
-                    throw new Error(errMsg);
-                }
+                if (!res.ok) throw new Error("Gagal menyimpan ke database");
                 
                 document.getElementById('sharing-input').value = '';
-                loadSharings(); 
-                loadUserJournals(); 
-                showToast("Sharing berhasil dibagikan!");
-            } catch (error) {
-                showToast("Gagal: " + error.message);
-            } finally {
-                submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false;
+                loadSharings(); loadUserJournals(); showToast("Sharing berhasil dibagikan!");
+            } catch (error) { showToast("Gagal: " + error.message); } 
+            finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
+        }
+
+        async function editSharing(id) {
+            const currentText = window.postDataMap[id];
+            const newText = prompt("Edit wawasan/jurnal Anda:", currentText);
+            if (newText === null || newText.trim() === "" || newText === currentText) return;
+
+            let currentUserId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) currentUserId = user.id;
             }
+
+            try {
+                const res = await fetch(`/api/sharing/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: newText, user_id: currentUserId })
+                });
+                if (!res.ok) throw new Error("Gagal mengedit. Pastikan ini adalah postingan Anda.");
+                
+                showToast("Berhasil diperbarui!");
+                loadSharings(); loadUserJournals();
+            } catch (error) { showToast(error.message); }
+        }
+
+        async function deleteSharing(id) {
+            if (!confirm("Apakah Anda yakin ingin menghapus postingan ini secara permanen?")) return;
+            
+            let currentUserId = null;
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) currentUserId = user.id;
+            }
+
+            try {
+                const res = await fetch(`/api/sharing/${id}?user_id=${currentUserId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error("Gagal menghapus. Pastikan ini adalah postingan Anda.");
+                
+                showToast("Postingan berhasil dihapus!");
+                loadSharings(); loadUserJournals();
+            } catch (error) { showToast(error.message); }
         }
 
         // =========================================================================
-        // 8. MODUL PRAYER
+        // 9. MODUL PRAYER
         // =========================================================================
         async function loadPrayers() {
             try {
@@ -696,7 +732,7 @@
                                 </div>
                                 <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
                             </div>
-                            <p class="text-sm text-midnight pl-9 mb-3">${item.text}</p>
+                            <p class="text-sm text-midnight pl-9 mb-3 whitespace-pre-wrap">${item.text}</p>
                             <div class="pl-9 pt-3 border-t border-misty border-opacity-50">
                                 <button type="button" onclick="togglePray('${item.id}')" class="text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition"><i class="ph ph-hands-praying"></i> Berdoa (${count})</button>
                             </div>
@@ -709,14 +745,10 @@
             if (event) event.preventDefault();
             const text = document.getElementById('prayer-input').value;
             const userName = await getUserDisplayName(); 
-            let userId = null;
-            let avatarUrl = '';
+            let userId = null; let avatarUrl = '';
             if (supabaseClient) { 
                 const { data: { user } } = await supabaseClient.auth.getUser(); 
-                if (user) {
-                    userId = user.id;
-                    avatarUrl = user.user_metadata?.avatar_url || '';
-                } 
+                if (user) { userId = user.id; avatarUrl = user.user_metadata?.avatar_url || ''; } 
             }
             
             const submitBtn = document.querySelector('#sec-prayer button[type="submit"]');
@@ -727,10 +759,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
                 });
-                if (!res.ok) {
-                    const errData = await res.json().catch(()=>({}));
-                    throw new Error(errData.error || `Server Error ${res.status}`);
-                }
+                if (!res.ok) throw new Error("Gagal menyimpan ke database");
                 document.getElementById('prayer-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
             } catch (error) { showToast("Gagal: " + error.message); } 
             finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
@@ -907,11 +936,10 @@
                                     <i class="ph ph-camera text-white text-3xl"></i>
                                 </div>
                             </div>
-                            <!-- Ubah onchange dari uploadAvatar menjadi handleFileSelect -->
                             <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="handleFileSelect(event)">
                         </div>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
-                        <p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto</p>
+                        <p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 2MB)</p>
                     </div>
 
                     <form onsubmit="return handleProfileUpdate(event)">
@@ -945,7 +973,6 @@
                 <h3 class="font-bold text-rosewood text-lg">Sesuaikan Foto</h3>
                 <button type="button" onclick="closeCropModal()" class="text-sage hover:text-rosewood transition"><i class="ph ph-x text-2xl"></i></button>
             </div>
-            <!-- Area Gambar Cropper -->
             <div class="bg-gray-100 flex justify-center items-center h-[350px] w-full overflow-hidden relative">
                 <img id="crop-image" class="max-w-full max-h-full block">
             </div>
