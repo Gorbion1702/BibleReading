@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Library Cropper.js untuk Potong Foto -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -30,13 +29,11 @@
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
 
-    <!-- KOMPONEN TOAST -->
     <div id="toast-banner" class="fixed top-5 right-5 z-[9999] hidden transition-all duration-300 transform translate-y-[-20px] opacity-0 bg-midnight text-blush px-4 py-3 rounded-xl shadow-lg border border-misty text-sm flex items-center gap-2 max-w-sm">
         <i class="ph ph-info text-lg text-rosewood flex-shrink-0"></i>
         <span id="toast-message" class="break-words">Notifikasi</span>
     </div>
 
-    <!-- SCRIPT UTAMA -->
     <script>
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
@@ -50,7 +47,6 @@
         window.postDataMap = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Pembersih URL
             setTimeout(() => {
                 let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                 if (window.location.hash || window.location.search) {
@@ -93,6 +89,18 @@
             return d.toISOString();
         }
 
+        // FUNGSI BARU: Mencari Hari Senin terdekat (ke belakang) jam 00:00
+        function getLocalMondayMidnight() {
+            const d = new Date();
+            const day = d.getDay(); 
+            // getDay: Minggu=0, Senin=1, Selasa=2 ...
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const monday = new Date(d.setDate(diff));
+            monday.setHours(0, 0, 0, 0);
+            return monday.toISOString();
+        }
+
         function updateDateUI() {
             const dateBadge = document.getElementById('current-date-badge');
             if (dateBadge) {
@@ -107,6 +115,7 @@
             const greetingEl = document.getElementById('home-greeting');
             if (greetingEl) greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
         }
+
 
         // --- AUTH ---
         async function checkSession() {
@@ -337,7 +346,7 @@
 
                 updateAvatarUI(user.email, user.user_metadata?.full_name, newAvatarUrl);
                 showToast("Foto profil berhasil diperbarui!");
-                loadFeelings(); loadSharings(); loadPrayers(); loadUserJournals();
+                loadFeelings(); loadSharings(); loadPrayers();
             } catch (error) {
                 showToast("Gagal upload foto: " + error.message);
                 if(avatarText.innerHTML.includes('spinner')) avatarText.innerHTML = originalText;
@@ -374,8 +383,7 @@
             finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
         }
 
-
-        // --- JURNAL PRIBADI (DI PROFIL) ---
+        // --- JURNAL PRIBADI ---
         async function loadUserJournals() {
             if (!supabaseClient) return;
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -396,7 +404,6 @@
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                     const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     
-                    // Bersih tanpa icon edit/hapus
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-4 rounded-xl border border-misty">
                             <span class="text-[10px] font-bold text-sage block uppercase tracking-wider mb-2">${dateStr} • ${timeStr}</span>
@@ -569,7 +576,7 @@
                         <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 animate-fade-in-up">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm shadow-sm relative overflow-hidden">
+                                    <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm shadow-sm relative overflow-hidden shrink-0">
                                         <span class="absolute">${initial}</span>
                                         <img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'">
                                     </div>
@@ -654,10 +661,12 @@
                     if (user) currentUserId = user.id;
                 }
 
-                const res = await fetch(`/api/prayers?_t=${new Date().getTime()}`); if (!res.ok) return;
+                // Kirim parameter since dengan tanggal Senin jam 00:00 minggu ini
+                const res = await fetch(`/api/prayers?since=${getLocalMondayMidnight()}&_t=${new Date().getTime()}`); 
+                if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('prayer-list'); if(!listEl) return; listEl.innerHTML = '';
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2 text-center">Belum ada pokok doa.</p>'; return; }
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2 text-center">Belum ada pokok doa untuk minggu ini.</p>'; return; }
                 
                 data.forEach(item => {
                     const intercessors = item.intercessors || [];
@@ -672,14 +681,23 @@
                     
                     const btnLabel = hasPrayed ? `<i class="ph-fill ph-hands-praying"></i> Sedang Mendoakan (${count})` : `<i class="ph ph-hands-praying"></i> Berdoa (${count})`;
 
+                    // Format Tanggal (Senin, 23.44)
+                    const dateObj = new Date(item.created_at);
+                    const dayStr = dateObj.toLocaleDateString('id-ID', { weekday: 'long' });
+                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const displayTime = `${dayStr}, ${timeStr}`;
+
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between animate-fade-in-up">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs relative overflow-hidden">
-                                    <span class="absolute">${initial}</span>
-                                    <img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 overflow-hidden pr-2">
+                                    <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs relative overflow-hidden shrink-0">
+                                        <span class="absolute">${initial}</span>
+                                        <img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'">
+                                    </div>
+                                    <span class="font-bold text-sm text-rosewood truncate">${item.user_name || 'Anonymous'}</span>
                                 </div>
-                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'Anonymous'}</span>
+                                <span class="text-[10px] text-sage whitespace-nowrap">${displayTime}</span>
                             </div>
                             <p class="text-sm text-midnight pl-9 mb-3 whitespace-pre-wrap">${item.text}</p>
                             <div class="pl-9 pt-3 border-t border-misty border-opacity-50">
@@ -703,7 +721,6 @@
                 const { data: { user } } = await supabaseClient.auth.getUser(); 
                 if (user) userId = user.id; 
                 
-                // Jika customName tidak kosong, gunakan namanya. Dan baru boleh pakai avatar.
                 if (customName !== "") {
                     finalName = customName;
                     if (user) finalAvatar = user.user_metadata?.avatar_url || '';
@@ -890,7 +907,7 @@
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
                     <form onsubmit="return postPrayer(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                        <input type="text" id="prayer-name-input" placeholder="Nama (Opsional, kosongkan untuk Anonymous)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-white">
+                        <input type="text" id="prayer-name-input" placeholder="Nama pemohon doa (Opsional, kosongkan jika untuk sendiri)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-white">
                         <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa secara detail..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-white"></textarea>
                         <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Kirim Pokok Doa</button>
                     </form>

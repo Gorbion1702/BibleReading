@@ -52,7 +52,6 @@ app.get('/api/sharing', async (req, res) => {
         const { today, user_id, local_midnight } = req.query;
         let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
         
-        // Perbaikan: gunakan local_midnight dari frontend
         if (today === 'true' && local_midnight) {
             query = query.gte('created_at', local_midnight);
         }
@@ -101,7 +100,14 @@ app.delete('/api/sharing/:id', async (req, res) => {
 // --- PRAYER ---
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('prayers').select('*').order('created_at', { ascending: false });
+        const { since } = req.query; // Menangkap filter zona waktu (Senin jam 00:00)
+        let query = supabase.from('prayers').select('*').order('created_at', { ascending: false });
+        
+        if (since) {
+            query = query.gte('created_at', since);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -128,12 +134,11 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
 
         let intercessors = prayerData.intercessors || [];
         
-        // Logika Toggle: Cancel jika sudah ada, Tambah jika belum
         const userIndex = intercessors.findIndex(u => u.user_id === user_id);
         if (userIndex > -1) {
-            intercessors.splice(userIndex, 1);
+            intercessors.splice(userIndex, 1); // Cancel doa
         } else {
-            intercessors.push({ user_id, user_name });
+            intercessors.push({ user_id, user_name }); // Tambah doa
         }
         
         const { data, error } = await supabase.from('prayers').update({ intercessors }).eq('id', id).select();
