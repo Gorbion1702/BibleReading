@@ -15,16 +15,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.get('/api/feelings', async (req, res) => {
     try {
-        const { local_midnight } = req.query; // Menerima parameter jam 00:00 lokal dari frontend
+        const { since } = req.query; 
         let query = supabase.from('feelings').select('*').order('created_at', { ascending: false });
         
-        // Filter menggunakan zona waktu lokal dari frontend
-        if (local_midnight) {
-            query = query.gte('created_at', local_midnight);
+        if (since) {
+            query = query.gte('created_at', since);
         }
 
         const { data, error } = await query;
-        if (error) return res.status(500).json({ error: error.message });
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -33,36 +32,32 @@ app.get('/api/feelings', async (req, res) => {
 
 app.post('/api/feelings', async (req, res) => {
     try {
-        const { feeling, emoji, reason, user_name, user_id, local_midnight } = req.body;
+        const { feeling, emoji, reason, user_name, user_id, since, avatar_url } = req.body;
         
-        let checkQuery = supabase.from('feelings').select('*');
-        if (user_id) checkQuery = checkQuery.eq('user_id', user_id);
-        else checkQuery = checkQuery.eq('user_name', user_name);
+        let checkQuery = supabase.from('feelings').select('*').eq('user_id', user_id);
 
-        if (local_midnight) {
-            checkQuery = checkQuery.gte('created_at', local_midnight);
-        } else {
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-            checkQuery = checkQuery.gte('created_at', startOfDay.toISOString());
+        if (since) {
+            checkQuery = checkQuery.gte('created_at', since);
         }
 
         const { data: existingData } = await checkQuery;
 
         if (existingData && existingData.length > 0) {
+            // Update jika hari ini sudah pernah isi
             const { data, error } = await supabase
                 .from('feelings')
-                .update({ feeling, emoji, reason, created_at: new Date().toISOString() })
+                .update({ feeling, emoji, reason, avatar_url, created_at: new Date().toISOString() })
                 .eq('id', existingData[0].id)
                 .select();
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) throw error;
             return res.status(200).json(data);
         } else {
+            // Insert baru jika belum ada
             const { data, error } = await supabase
                 .from('feelings')
-                .insert([{ feeling, emoji, reason, user_name, user_id }])
+                .insert([{ feeling, emoji, reason, user_name, user_id, avatar_url }])
                 .select();
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) throw error;
             return res.status(200).json(data);
         }
     } catch (error) {
@@ -75,25 +70,19 @@ app.post('/api/feelings', async (req, res) => {
 
 app.get('/api/sharing', async (req, res) => {
     try {
-        const { today, user_id, local_midnight } = req.query;
+        const { today, user_id, since } = req.query;
         let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
 
-        // Jika diminta data hari ini saja (untuk feed komunitas)
-        if (today === 'true' && local_midnight) {
-            query = query.gte('created_at', local_midnight);
-        } else if (today === 'true') {
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-            query = query.gte('created_at', startOfDay.toISOString());
+        if (today === 'true' && since) {
+            query = query.gte('created_at', since);
         }
 
-        // Jika diminta berdasarkan user (untuk riwayat di profile)
         if (user_id) {
             query = query.eq('user_id', user_id);
         }
 
         const { data, error } = await query;
-        if (error) return res.status(500).json({ error: error.message });
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -102,9 +91,11 @@ app.get('/api/sharing', async (req, res) => {
 
 app.post('/api/sharing', async (req, res) => {
     try {
-        const { text, user_name, user_id } = req.body;
-        const { data, error } = await supabase.from('sharings').insert([{ text, user_name, user_id }]).select();
-        if (error) return res.status(500).json({ error: error.message });
+        const { text, user_name, user_id, avatar_url } = req.body;
+        const { data, error } = await supabase.from('sharings')
+            .insert([{ text, user_name, user_id, avatar_url }])
+            .select();
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -116,8 +107,16 @@ app.post('/api/sharing', async (req, res) => {
 
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('prayers').select('*').order('created_at', { ascending: false });
-        if (error) return res.status(500).json({ error: error.message });
+        const { since } = req.query;
+        let query = supabase.from('prayers').select('*').order('created_at', { ascending: false });
+        
+        // Fitur reset otomatis jika parameter since dikirim dari frontend
+        if (since) {
+            query = query.gte('created_at', since);
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -126,9 +125,11 @@ app.get('/api/prayers', async (req, res) => {
 
 app.post('/api/prayers', async (req, res) => {
     try {
-        const { text, user_name, user_id } = req.body;
-        const { data, error } = await supabase.from('prayers').insert([{ text, user_name, user_id }]).select();
-        if (error) return res.status(500).json({ error: error.message });
+        const { text, user_name, user_id, avatar_url } = req.body;
+        const { data, error } = await supabase.from('prayers')
+            .insert([{ text, user_name, user_id, avatar_url }])
+            .select();
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -143,11 +144,11 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
         const { data: prayerData } = await supabase.from('prayers').select('intercessors').eq('id', id).single();
         let intercessors = prayerData.intercessors || [];
         
-        const userExists = intercessors.some(u => u.user_id === user_id || u.user_name === user_name);
+        const userExists = intercessors.some(u => u.user_id === user_id);
         if (!userExists) intercessors.push({ user_id, user_name });
         
         const { data, error } = await supabase.from('prayers').update({ intercessors }).eq('id', id).select();
-        if (error) return res.status(500).json({ error: error.message });
+        if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
