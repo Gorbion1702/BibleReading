@@ -277,7 +277,6 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Validasi ukuran maksimal 2MB
             if (file.size > 2 * 1024 * 1024) {
                 showToast("Ukuran foto maksimal 2MB");
                 return;
@@ -294,7 +293,6 @@
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) throw new Error("Silakan login kembali.");
 
-                // Upload foto ke bucket 'avatars' dengan nama file sesuai user.id
                 const filePath = user.id; 
                 const { error: uploadError } = await supabaseClient.storage
                     .from('avatars')
@@ -302,10 +300,8 @@
 
                 if (uploadError) throw uploadError;
 
-                // Ambil Public URL untuk disimpan di metadata profile
                 const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${user.id}?t=${new Date().getTime()}`;
                 
-                // Update ke Auth Meta
                 const { error: updateError } = await supabaseClient.auth.updateUser({ 
                     data: { avatar_url: newAvatarUrl } 
                 });
@@ -314,7 +310,6 @@
                 updateAvatarUI(user.email, user.user_metadata?.full_name, newAvatarUrl);
                 showToast("Foto profil berhasil diperbarui!");
                 
-                // Segarkan data lainnya jika user mengecek feed
                 loadFeelings(); loadSharings(); loadPrayers();
             } catch (error) {
                 showToast("Gagal upload foto: " + error.message);

@@ -15,11 +15,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.get('/api/feelings', async (req, res) => {
     try {
-        const { since } = req.query; 
+        // Mendukung parameter since atau local_midnight agar tidak error
+        const timeFilter = req.query.since || req.query.local_midnight; 
         let query = supabase.from('feelings').select('*').order('created_at', { ascending: false });
         
-        if (since) {
-            query = query.gte('created_at', since);
+        if (timeFilter) {
+            query = query.gte('created_at', timeFilter);
         }
 
         const { data, error } = await query;
@@ -32,12 +33,12 @@ app.get('/api/feelings', async (req, res) => {
 
 app.post('/api/feelings', async (req, res) => {
     try {
-        const { feeling, emoji, reason, user_name, user_id, since, avatar_url } = req.body;
+        const { feeling, emoji, reason, user_name, user_id, local_midnight, avatar_url } = req.body;
         
         let checkQuery = supabase.from('feelings').select('*').eq('user_id', user_id);
 
-        if (since) {
-            checkQuery = checkQuery.gte('created_at', since);
+        if (local_midnight) {
+            checkQuery = checkQuery.gte('created_at', local_midnight);
         }
 
         const { data: existingData } = await checkQuery;
@@ -70,11 +71,13 @@ app.post('/api/feelings', async (req, res) => {
 
 app.get('/api/sharing', async (req, res) => {
     try {
-        const { today, user_id, since } = req.query;
+        const { today, user_id, since, local_midnight } = req.query;
+        const timeFilter = since || local_midnight;
+
         let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
 
-        if (today === 'true' && since) {
-            query = query.gte('created_at', since);
+        if (today === 'true' && timeFilter) {
+            query = query.gte('created_at', timeFilter);
         }
 
         if (user_id) {
@@ -107,14 +110,7 @@ app.post('/api/sharing', async (req, res) => {
 
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { since } = req.query;
         let query = supabase.from('prayers').select('*').order('created_at', { ascending: false });
-        
-        // Fitur reset otomatis jika parameter since dikirim dari frontend
-        if (since) {
-            query = query.gte('created_at', since);
-        }
-        
         const { data, error } = await query;
         if (error) throw error;
         res.status(200).json(data);
