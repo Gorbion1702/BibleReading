@@ -429,20 +429,14 @@
                 }
                 
                 data.forEach(item => {
-                    window.postDataMap[item.id] = item.text; // Simpan teks untuk fungsi edit
                     const dateObj = new Date(item.created_at);
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                     const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     
+                    // Versi bersih tanpa tombol edit/hapus untuk halaman Profile
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty relative group">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-[10px] font-bold text-sage uppercase tracking-wider">${dateStr} • ${timeStr}</span>
-                                <div class="flex gap-2">
-                                    <button type="button" onclick="editSharing('${item.id}')" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-base"></i></button>
-                                    <button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-500 transition" title="Hapus"><i class="ph ph-trash text-base"></i></button>
-                                </div>
-                            </div>
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty">
+                            <span class="text-[10px] font-bold text-sage block uppercase tracking-wider mb-2">${dateStr} • ${timeStr}</span>
                             <p class="text-sm text-midnight whitespace-pre-wrap">${item.text}</p>
                         </div>`;
                 });
@@ -757,7 +751,7 @@
             try {
                 const res = await fetch('/api/prayers', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatarUrl: avatarUrl })
                 });
                 if (!res.ok) throw new Error("Gagal menyimpan ke database");
                 document.getElementById('prayer-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
