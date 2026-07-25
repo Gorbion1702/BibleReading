@@ -55,13 +55,12 @@
         window.postDataMap = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
-            let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            if (window.location.hash && !window.location.hash.includes('access_token')) {
-                cleanUrl += window.location.hash;
-            }
-            if (window.location.search || window.location.href.includes('?') || (window.location.hash && !window.location.hash.includes('access_token'))) {
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
+            // Pembersih URL yang lebih tangguh: Hapus semua simbol /# atau /? setelah loading selesai
+            setTimeout(() => {
+                if (window.location.href.includes('#') || window.location.href.includes('?')) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 1000); // Jeda 1 detik agar Supabase punya waktu membaca token reset password (jika ada)
 
             document.addEventListener('submit', (e) => e.preventDefault(), true);
 
