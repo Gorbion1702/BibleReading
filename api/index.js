@@ -121,11 +121,24 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
     try {
         const { id } = req.params;
         const { user_id, user_name } = req.body;
-        const { data: prayerData } = await supabase.from('prayers').select('intercessors').eq('id', id).single();
+        
+        if (!user_id) throw new Error("User ID diperlukan untuk berdoa");
+
+        const { data: prayerData, error: fetchError } = await supabase.from('prayers').select('intercessors').eq('id', id).single();
+        if (fetchError) throw fetchError;
+
         let intercessors = prayerData.intercessors || [];
         
-        const userExists = intercessors.some(u => u.user_id === user_id);
-        if (!userExists) intercessors.push({ user_id, user_name });
+        // Logika Toggle: Cari apakah user sudah ada di dalam array intercessors
+        const userIndex = intercessors.findIndex(u => u.user_id === user_id);
+        
+        if (userIndex > -1) {
+            // Jika sudah ada -> Berarti user ingin BATALKAN (Cancel) doa
+            intercessors.splice(userIndex, 1);
+        } else {
+            // Jika belum ada -> Tambahkan user ke daftar pendoa
+            intercessors.push({ user_id, user_name });
+        }
         
         const { data, error } = await supabase.from('prayers').update({ intercessors }).eq('id', id).select();
         if (error) throw error;

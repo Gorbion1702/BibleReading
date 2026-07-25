@@ -57,8 +57,9 @@
         window.addEventListener('DOMContentLoaded', () => {
             // Pembersih URL yang lebih tangguh: Hapus semua simbol /# atau /? setelah loading selesai
             setTimeout(() => {
-                if (window.location.href.includes('#') || window.location.href.includes('?')) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                if (window.location.hash || window.location.search) {
+                    window.history.replaceState({}, document.title, cleanUrl);
                 }
             }, 1000); // Jeda 1 detik agar Supabase punya waktu membaca token reset password (jika ada)
 
@@ -708,14 +709,34 @@
         // =========================================================================
         async function loadPrayers() {
             try {
+                // Ambil ID User yang sedang login untuk mengecek apakah dia sudah berdoa
+                let currentUserId = null;
+                if (supabaseClient) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) currentUserId = user.id;
+                }
+
                 const res = await fetch(`/api/prayers?_t=${new Date().getTime()}`); if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('prayer-list'); if(!listEl) return; listEl.innerHTML = '';
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2">Belum ada pokok doa.</p>'; return; }
                 
                 data.forEach(item => {
-                    const count = item.intercessors?.length || 0;
+                    const intercessors = item.intercessors || [];
+                    const count = intercessors.length;
                     const initial = (item.user_name || 'U').charAt(0).toUpperCase();
+                    
+                    // Cek apakah user yang sedang login ada di daftar pendoa (intercessors)
+                    const hasPrayed = currentUserId && intercessors.some(u => u.user_id === currentUserId);
+                    
+                    // Jika sudah ditekan, ubah warna tombol jadi solid (rosewood text-white)
+                    const btnClass = hasPrayed 
+                        ? "text-xs bg-rosewood text-white px-3 py-1.5 rounded-lg font-semibold shadow-sm transition" 
+                        : "text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition";
+                    
+                    // Ubah label agar lebih jelas
+                    const btnLabel = hasPrayed ? `<i class="ph-fill ph-hands-praying"></i> Sedang Mendoakan (${count})` : `<i class="ph ph-hands-praying"></i> Berdoa (${count})`;
+
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between">
                             <div class="flex items-center gap-2 mb-2">
@@ -727,7 +748,7 @@
                             </div>
                             <p class="text-sm text-midnight pl-9 mb-3 whitespace-pre-wrap">${item.text}</p>
                             <div class="pl-9 pt-3 border-t border-misty border-opacity-50">
-                                <button type="button" onclick="togglePray('${item.id}')" class="text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition"><i class="ph ph-hands-praying"></i> Berdoa (${count})</button>
+                                <button type="button" onclick="togglePray('${item.id}')" class="${btnClass}">${btnLabel}</button>
                             </div>
                         </div>`;
                 });
@@ -737,7 +758,11 @@
         async function postPrayer(event) {
             if (event) event.preventDefault();
             const text = document.getElementById('prayer-input').value;
-            const userName = await getUserDisplayName(); 
+            
+            // Mengambil input nama opsional
+            let customName = document.getElementById('prayer-name-input').value.trim();
+            const userName = customName ? customName : await getUserDisplayName(); 
+            
             let userId = null; let avatarUrl = '';
             if (supabaseClient) { 
                 const { data: { user } } = await supabaseClient.auth.getUser(); 
@@ -750,10 +775,16 @@
             try {
                 const res = await fetch('/api/prayers', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatarUrl: avatarUrl })
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl })
                 });
                 if (!res.ok) throw new Error("Gagal menyimpan ke database");
-                document.getElementById('prayer-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
+                
+                // Bersihkan inputan
+                document.getElementById('prayer-input').value = ''; 
+                document.getElementById('prayer-name-input').value = ''; 
+                
+                loadPrayers(); 
+                showToast("Pokok doa dikirim!");
             } catch (error) { showToast("Gagal: " + error.message); } 
             finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
         }
@@ -907,8 +938,11 @@
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <form onsubmit="return postPrayer(event)" class="mb-6">
-                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood"></textarea>
+                    <form onsubmit="return postPrayer(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
+                        <!-- Input Nama Pemohon Opsional -->
+                        <input type="text" id="prayer-name-input" placeholder="Nama pemohon doa (Opsional, kosongkan jika untuk sendiri)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm">
+                        
+                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa secara detail..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm"></textarea>
                         <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Kirim Pokok Doa</button>
                     </form>
                     <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
