@@ -7,6 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Tambahan library Cropper.js untuk fitur Crop Foto -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -20,6 +25,11 @@
     </script>
     <style>
         .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
+        
+        /* Tambahan CSS agar kotak pemotong (crop) terlihat bulat seperti profil */
+        .cropper-view-box, .cropper-face {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
@@ -234,6 +244,8 @@
         // =========================================================================
         // 4. MODUL PROFIL USER & AVATAR
         // =========================================================================
+        let cropperInstance = null; // Variabel global untuk menyimpan pengaturan crop
+
         async function getUserDisplayName() {
             if (!supabaseClient) return "User";
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -273,15 +285,82 @@
             }
         }
 
-        async function uploadAvatar(event) {
+        // FUNGSI BARU: Membaca file dan memunculkan pop-up Crop
+        function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (file.size > 2 * 1024 * 1024) {
-                showToast("Ukuran foto maksimal 2MB");
+            // Kita longgarkan batas awal sebelum dicrop menjadi 5MB
+            if (file.size > 5 * 1024 * 1024) {
+                showToast("Ukuran foto awal terlalu besar (Maksimal 5MB)");
+                event.target.value = '';
                 return;
             }
 
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageEl = document.getElementById('crop-image');
+                imageEl.src = e.target.result;
+                
+                // Tampilkan Modal/Popup Crop
+                document.getElementById('crop-modal').classList.remove('hidden');
+                document.getElementById('crop-modal').classList.add('flex');
+
+                // Inisialisasi plugin Cropper.js
+                if (cropperInstance) cropperInstance.destroy();
+                cropperInstance = new Cropper(imageEl, {
+                    aspectRatio: 1, // Memaksa area crop berbentuk kotak 1:1 (menjadi bulat karena CSS)
+                    viewMode: 1,    // Membatasi crop box tidak keluar dari gambar asli
+                    dragMode: 'move',
+                    autoCropArea: 0.9,
+                    restore: false,
+                    guides: false,
+                    center: false,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false,
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // FUNGSI BARU: Menutup popup crop jika batal
+        function closeCropModal() {
+            document.getElementById('crop-modal').classList.add('hidden');
+            document.getElementById('crop-modal').classList.remove('flex');
+            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+            document.getElementById('avatar-upload').value = ''; // Reset input
+        }
+
+        // FUNGSI BARU: Mengeksekusi pemotongan gambar
+        function applyCrop() {
+            if (!cropperInstance) return;
+            
+            const btn = document.getElementById('btn-apply-crop');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Menyimpan...';
+            btn.disabled = true;
+
+            // Dapatkan hasil crop dengan resolusi maksimal 400x400 (sangat ringan)
+            const canvas = cropperInstance.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+
+            // Ubah menjadi file biner (Blob) berektensi JPEG untuk diupload
+            canvas.toBlob(async (blob) => {
+                await processUploadAvatar(blob); // Lempar ke fungsi upload
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                closeCropModal();
+            }, 'image/jpeg', 0.85); // Kompresi kualitas 85%
+        }
+
+        // FUNGSI LAMA YG DIUBAH: Mengupload hasil crop (Blob) ke Supabase
+        async function processUploadAvatar(fileBlob) {
             const avatarText = document.getElementById('profile-avatar-text');
             const imgEl = document.getElementById('profile-avatar-img');
             const originalText = avatarText.innerHTML;
@@ -293,14 +372,19 @@
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) throw new Error("Silakan login kembali.");
 
-                const filePath = user.id; 
+                const filePath = user.id + ".jpg"; // Paksa ekstensi jadi jpg agar seragam
+                
                 const { error: uploadError } = await supabaseClient.storage
                     .from('avatars')
-                    .upload(filePath, file, { upsert: true, cacheControl: '0' });
+                    .upload(filePath, fileBlob, { 
+                        upsert: true, 
+                        cacheControl: '0',
+                        contentType: 'image/jpeg' 
+                    });
 
                 if (uploadError) throw uploadError;
 
-                const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${user.id}?t=${new Date().getTime()}`;
+                const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}?t=${new Date().getTime()}`;
                 
                 const { error: updateError } = await supabaseClient.auth.updateUser({ 
                     data: { avatar_url: newAvatarUrl } 
@@ -313,9 +397,7 @@
                 loadFeelings(); loadSharings(); loadPrayers();
             } catch (error) {
                 showToast("Gagal upload foto: " + error.message);
-            } finally {
                 if(avatarText.innerHTML.includes('spinner')) avatarText.innerHTML = originalText;
-                event.target.value = ''; 
             }
         }
 
@@ -817,7 +899,7 @@
                     
                     <div class="flex flex-col items-center mb-6">
                         <!-- Avatar Upload Box -->
-                        <div class="relative group cursor-pointer mb-2" onclick="document.getElementById('avatar-upload').click()" title="Klik untuk mengubah foto profil (Maks 2MB)">
+                        <div class="relative group cursor-pointer mb-2" onclick="document.getElementById('avatar-upload').click()" title="Klik untuk mengubah foto profil">
                             <div class="w-24 h-24 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-4xl overflow-hidden relative border-2 border-misty shadow-sm">
                                 <span id="profile-avatar-text">U</span>
                                 <img id="profile-avatar-img" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10" onerror="this.classList.add('hidden')" />
@@ -825,10 +907,11 @@
                                     <i class="ph ph-camera text-white text-3xl"></i>
                                 </div>
                             </div>
-                            <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="uploadAvatar(event)">
+                            <!-- Ubah onchange dari uploadAvatar menjadi handleFileSelect -->
+                            <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="handleFileSelect(event)">
                         </div>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
-                        <p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 2MB)</p>
+                        <p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto</p>
                     </div>
 
                     <form onsubmit="return handleProfileUpdate(event)">
@@ -854,5 +937,24 @@
         
         <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">&copy; 2026 Perkantas Jabar. All rights reserved.</footer>
     </div>
+
+    <!-- MODAL / POPUP UNTUK CROP FOTO -->
+    <div id="crop-modal" class="fixed inset-0 bg-midnight bg-opacity-80 z-[10000] hidden flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl animate-fade-in-up">
+            <div class="p-4 border-b border-misty flex justify-between items-center bg-vanilla">
+                <h3 class="font-bold text-rosewood text-lg">Sesuaikan Foto</h3>
+                <button type="button" onclick="closeCropModal()" class="text-sage hover:text-rosewood transition"><i class="ph ph-x text-2xl"></i></button>
+            </div>
+            <!-- Area Gambar Cropper -->
+            <div class="bg-gray-100 flex justify-center items-center h-[350px] w-full overflow-hidden relative">
+                <img id="crop-image" class="max-w-full max-h-full block">
+            </div>
+            <div class="p-4 border-t border-misty flex justify-end gap-3 bg-vanilla">
+                <button type="button" onclick="closeCropModal()" class="px-5 py-2.5 rounded-lg text-sm font-bold text-sage hover:bg-misty hover:bg-opacity-30 transition">Batal</button>
+                <button type="button" onclick="applyCrop()" id="btn-apply-crop" class="px-5 py-2.5 rounded-lg text-sm font-bold bg-rosewood text-white shadow-sm hover:bg-opacity-90 transition flex items-center gap-2">Terapkan Foto</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
