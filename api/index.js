@@ -7,8 +7,9 @@ app.use(cors());
 app.use(express.json());
 
 const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
-// Gunakan SERVICE_ROLE_KEY (didapat di dashboard Supabase) agar server bisa melihat semua data user
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY; 
+// Fallback sistem: Jika di Vercel tidak ada SERVICE_KEY, gunakan Anon Key agar server tidak crash (Error 500).
+const FALLBACK_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || FALLBACK_KEY; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 function getWIBDateString(dateInput) {
@@ -186,7 +187,7 @@ app.get('/api/cron/reminder', async (req, res) => {
             return res.status(500).json({ message: "Token Fonnte belum disetting di Vercel." });
         }
 
-        // 1. Ambil semua akun pengguna di sistem
+        // 1. Ambil semua akun pengguna (Perlu Service Role Key)
         const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
         if (authError) throw authError;
 
@@ -209,11 +210,8 @@ app.get('/api/cron/reminder', async (req, res) => {
 
             // Jika dia BELUM sharing dan PUNYA nomor WA, kirim pesan!
             if (!hasShared && phone) {
+                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Community agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
                 
-                // Format pesan pengingat yang ramah
-                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Community.\n\nKlik link ini untuk menulis jurnalmu: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
-                
-                // Kirim perintah ke Fonnte (Gateway WA)
                 await fetch('https://api.fonnte.com/send', {
                     method: 'POST',
                     headers: { 'Authorization': FONNTE_TOKEN },
