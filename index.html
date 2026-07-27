@@ -225,7 +225,8 @@
 
         function handleAvatarSelect(event) {
             const file = event.target.files[0]; if (!file) return;
-            if (file.size > 2 * 1024 * 1024) { showToast("Gagal: Ukuran foto maksimal 2MB."); event.target.value = ''; return; }
+            // LIMIT DIUBAH MENJADI 10MB
+            if (file.size > 10 * 1024 * 1024) { showToast("Gagal: Ukuran foto maksimal 10MB."); event.target.value = ''; return; }
             if (!file.type.startsWith('image/')) { showToast("Gagal: Harus berupa file gambar."); event.target.value = ''; return; }
 
             const reader = new FileReader();
@@ -408,7 +409,8 @@
             const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
             input.onchange = async (e) => {
                 const file = e.target.files[0]; if (!file) return;
-                if (file.size > 2 * 1024 * 1024) { showToast("Maksimal 2MB"); return; }
+                // LIMIT DIUBAH MENJADI 10MB
+                if (file.size > 10 * 1024 * 1024) { showToast("Maksimal 10MB"); return; }
                 const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
                 try {
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
@@ -447,7 +449,7 @@
                 if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
-                const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+                const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                 document.getElementById('sharing-header-title').innerText = `Sharing Komunitas (${dateStr})`;
 
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini.</p>'; return; }
@@ -690,7 +692,7 @@
                             <div class="absolute inset-0 bg-midnight bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300"><i class="ph ph-camera text-2xl text-white"></i></div>
                         </button>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
-                        <p class="text-xs text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 2MB)</p>
+                        <p class="text-xs text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 10MB)</p>
                     </div>
                     
                     <form onsubmit="return handleProfileUpdate(event)">
