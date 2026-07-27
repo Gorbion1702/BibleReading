@@ -279,8 +279,10 @@
             if (user) {
                 document.getElementById('profile-email').value = user.email;
                 const fullName = user.user_metadata?.full_name || '';
+                const phone = user.user_metadata?.phone || '';
                 const avatarUrl = user.user_metadata?.avatar_url || null;
                 document.getElementById('profile-name').value = fullName;
+                document.getElementById('profile-phone').value = phone;
                 updateAvatarUI(user.email, fullName, avatarUrl);
             }
         }
@@ -388,10 +390,14 @@
             if (event) event.preventDefault();
             const btn = document.getElementById('update-profile-btn');
             const newName = document.getElementById('profile-name').value;
+            const newPhone = document.getElementById('profile-phone').value; // Mengambil data input WA
             
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
-                const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
+                // Simpan nama DAN nomor telepon
+                const { data, error } = await supabaseClient.auth.updateUser({ 
+                    data: { full_name: newName, phone: newPhone } 
+                });
                 if (error) throw error;
                 const avatarUrl = data.user.user_metadata?.avatar_url || null;
                 updateAvatarUI(data.user.email, newName, avatarUrl); 
@@ -1040,6 +1046,8 @@
                     
                     <form onsubmit="return handleProfileUpdate(event)">
                         <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3 focus:outline-none focus:border-rosewood" placeholder="Nama Lengkap">
+                        <!-- TAMBAHAN: Input Nomor Telepon -->
+                        <input type="tel" id="profile-phone" class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3 focus:outline-none focus:border-rosewood" placeholder="No. WhatsApp (Contoh: 081234567890)">
                         <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm mb-3 cursor-not-allowed">
                         <button type="submit" id="update-profile-btn" class="bg-rosewood text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm w-full">Simpan Profile</button>
                     </form>

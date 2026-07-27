@@ -7,8 +7,9 @@ app.use(cors());
 app.use(express.json());
 
 const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Gunakan SERVICE_ROLE_KEY (didapat di dashboard Supabase) agar server bisa melihat semua data user
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY; 
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 function getWIBDateString(dateInput) {
     const d = new Date(dateInput);
@@ -67,7 +68,7 @@ app.get('/api/leaderboard', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// --- FEELINGS, SHARING, PRAYER, STREAK (Keep existing) ---
+// --- FEELINGS ---
 app.get('/api/feelings', async (req, res) => {
     try {
         const { local_midnight } = req.query; 
@@ -95,6 +96,7 @@ app.post('/api/feelings', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// --- SHARING ---
 app.get('/api/sharing', async (req, res) => {
     try {
         const { today, user_id, local_midnight } = req.query;
@@ -132,6 +134,7 @@ app.delete('/api/sharing/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// --- PRAYERS ---
 app.get('/api/prayers', async (req, res) => {
     try {
         const { since } = req.query; 
@@ -164,6 +167,7 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// --- STREAK API ---
 app.get('/api/streak/:user_id', async (req, res) => {
     try {
         const streak = await calculateUserStreak(req.params.user_id);
@@ -171,6 +175,59 @@ app.get('/api/streak/:user_id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/api/cron/reminder', async (req, res) => { res.status(200).json({ message: "Sistem Reminder terpanggil." }); });
+// =========================================================================
+// CRON JOB: PENGINGAT WHATSAPP OTOMATIS (Jam 18:00 WIB)
+// =========================================================================
+app.get('/api/cron/reminder', async (req, res) => {
+    try {
+        const FONNTE_TOKEN = process.env.FONNTE_TOKEN; // Token dari panel Fonnte
+        
+        if (!FONNTE_TOKEN) {
+            return res.status(500).json({ message: "Token Fonnte belum disetting di Vercel." });
+        }
+
+        // 1. Ambil semua akun pengguna di sistem
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) throw authError;
+
+        // 2. Cari tahu siapa yang sudah sharing hari ini
+        const todayStr = getWIBDateString(new Date());
+        const { data: sharings, error: shareError } = await supabase.from('sharings').select('user_id, created_at');
+        if (shareError) throw shareError;
+        
+        const usersWhoSharedToday = sharings
+            .filter(s => getWIBDateString(s.created_at) === todayStr)
+            .map(s => s.user_id);
+
+        let messagesSent = 0;
+
+        // 3. Cek satu per satu user
+        for (const user of users) {
+            const hasShared = usersWhoSharedToday.includes(user.id);
+            const phone = user.user_metadata?.phone; // Nomor WA dari form profile
+            const name = user.user_metadata?.full_name || 'Teman';
+
+            // Jika dia BELUM sharing dan PUNYA nomor WA, kirim pesan!
+            if (!hasShared && phone) {
+                
+                // Format pesan pengingat yang ramah
+                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Community.\n\nKlik link ini untuk menulis jurnalmu: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+                
+                // Kirim perintah ke Fonnte (Gateway WA)
+                await fetch('https://api.fonnte.com/send', {
+                    method: 'POST',
+                    headers: { 'Authorization': FONNTE_TOKEN },
+                    body: new URLSearchParams({ target: phone, message: waMessage })
+                });
+
+                messagesSent++;
+            }
+        }
+
+        res.status(200).json({ message: `Berhasil mengeksekusi Cron. Mengirim ${messagesSent} pesan WA.` });
+    } catch (error) { 
+        res.status(500).json({ error: error.message }); 
+    }
+});
 
 module.exports = app;
