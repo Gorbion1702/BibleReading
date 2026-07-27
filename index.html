@@ -104,6 +104,16 @@
             const greetingEl = document.getElementById('home-greeting'); if (greetingEl) { greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`; }
         }
 
+        function renderLoading(containerId, message = "Memuat data...") {
+            const el = document.getElementById(containerId);
+            if(el) el.innerHTML = `<div class="text-center py-6 text-sage flex flex-col items-center justify-center gap-2"><i class="ph ph-spinner animate-spin text-3xl"></i><span class="text-xs">${message}</span></div>`;
+        }
+
+        function renderError(containerId, errorMsg) {
+            const el = document.getElementById(containerId);
+            if(el) el.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center"><p class="text-sm font-bold text-red-600 mb-1">Gagal memuat data</p><p class="text-xs text-red-500">${errorMsg}</p></div>`;
+        }
+
         // 3. AUTH
         async function checkSession() {
             if (!supabaseClient) return;
@@ -196,8 +206,12 @@
             if (!supabaseClient) return; const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
                 document.getElementById('profile-email').value = user.email;
-                const fullName = user.user_metadata?.full_name || ''; const phone = user.user_metadata?.phone || ''; const avatarUrl = user.user_metadata?.avatar_url || null;
-                document.getElementById('profile-name').value = fullName; document.getElementById('profile-phone').value = phone;
+                const fullName = user.user_metadata?.full_name || ''; 
+                const phone = user.user_metadata?.phone || ''; 
+                const avatarUrl = user.user_metadata?.avatar_url || null;
+                
+                document.getElementById('profile-name').value = fullName; 
+                document.getElementById('profile-phone').value = phone;
                 updateAvatarUI(user.email, fullName, avatarUrl);
             }
         }
@@ -256,7 +270,7 @@
                 if (updateError) throw updateError;
 
                 updateAvatarUI(user.email, user.user_metadata?.full_name || '', publicUrl); showToast("Foto profil berhasil diperbarui!");
-                closeCropperModal(); loadFeelings(); loadSharings(); loadPrayers(); 
+                closeCropperModal(); loadFeelings(); loadSharings(); loadPrayers(); loadLeaderboard();
             } catch (error) { showToast("Gagal menyimpan foto: " + error.message); } 
             finally { btn.innerHTML = 'Simpan Foto'; btn.disabled = false; }
         }
@@ -281,26 +295,55 @@
             } catch (error) { showToast(error.message); } finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
         }
 
+        // --- FUNGSI EDIT / DELETE SHARING ---
+        async function deleteSharing(id) {
+            if(!confirm("Apakah Anda yakin ingin menghapus sharing ini?")) return;
+            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
+            try {
+                const res = await fetch(`/api/sharing/${id}?user_id=${userId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error("Gagal menghapus.");
+                showToast("Berhasil dihapus!"); loadSharings(); loadUserJournals();
+            } catch(e) { showToast(e.message); }
+        }
+
+        async function editSharing(id, oldText) {
+            const newText = prompt("Edit teks sharing:", oldText);
+            if(newText === null || newText.trim() === "" || newText === oldText) return;
+            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
+            try {
+                const res = await fetch(`/api/sharing/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: newText, user_id: userId }) });
+                if (!res.ok) throw new Error("Gagal mengedit.");
+                showToast("Berhasil diedit!"); loadSharings(); loadUserJournals();
+            } catch(e) { showToast(e.message); }
+        }
+
         async function loadUserJournals() {
+            renderLoading('profile-journal-list', 'Memuat riwayat jurnal...');
             if (!supabaseClient) return; const { data: { user } } = await supabaseClient.auth.getUser(); if (!user) return;
             const listEl = document.getElementById('profile-journal-list'); if(!listEl) return;
             try {
                 const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal.</p>'; return; }
                 
                 data.forEach(item => {
                     const dateObj = new Date(item.created_at); const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }); const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    
+                    let actionBtns = '';
+                    if (item.user_id === user.id) { 
+                        actionBtns = `<div class="flex items-center gap-2"><button type="button" onclick="editSharing('${item.id}', decodeURIComponent('${encodeURIComponent(item.text)}'))" class="text-sage hover:text-rosewood transition"><i class="ph ph-pencil-simple text-base"></i></button><button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-600 transition"><i class="ph ph-trash text-base"></i></button></div>`;
+                    }
+
                     let mediaHtml = '';
-                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty"><img src="${item.media_url}" class="w-full h-auto object-contain"></div>`; } 
+                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-gray-50"><img src="${item.media_url}" class="w-full h-auto object-contain max-h-96"></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
-                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up"><span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div>`;
+                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-bold text-sage block uppercase tracking-wider">${dateStr} • ${timeStr}</span>${actionBtns}</div><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div>`;
                 });
-            } catch (error) { listEl.innerHTML = `<p class="text-xs text-red-500 bg-red-50 p-3 rounded-xl border border-red-200 text-center">Gagal memuat jurnal: ${error.message}</p>`; }
+            } catch (error) { renderError('profile-journal-list', error.message); }
         }
 
         // 5. FEELINGS & LEADERBOARD
@@ -323,7 +366,7 @@
 
             try {
                 const res = await fetch('/api/feelings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, local_midnight: getLocalMidnight(), avatar_url: avatarUrl }) });
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 showToast("Perasaan berhasil dibagikan!");
                 document.getElementById('feeling-reason').value = ''; document.getElementById('feeling-input-area').classList.add('hidden'); document.getElementById('feeling-message').classList.add('hidden');
                 document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected')); loadFeelings();
@@ -331,10 +374,11 @@
         }
 
         async function loadFeelings() {
+            renderLoading('community-feelings-list');
             const listEl = document.getElementById('community-feelings-list'); if(!listEl) return;
             try {
                 const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada yang membagikan perasaan hari ini.</p>'; return; }
@@ -344,23 +388,24 @@
                     const avatarContent = item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`;
                     listEl.innerHTML += `<div class="bg-vanilla p-3 rounded-xl border border-misty flex items-start gap-3 animate-fade-in-up"><div class="w-10 h-10 shrink-0 rounded-full bg-white border border-misty flex items-center justify-center text-2xl shadow-sm relative overflow-hidden"><div class="absolute inset-0 opacity-20 z-0">${avatarContent}</div><span class="relative z-10 drop-shadow-md">${item.emoji}</span></div><div class="flex-grow min-w-0"><div class="flex justify-between items-baseline mb-0.5"><div class="flex items-center gap-1.5 truncate"><div class="w-4 h-4 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div><span class="font-bold text-rosewood text-sm truncate pr-2">${item.user_name || 'User'}</span></div><span class="text-[10px] text-sage whitespace-nowrap">${timeString}</span></div><div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block shadow-sm mt-1">Merasa <b class="text-rosewood">${item.feeling}</b> ${item.reason ? `<span class="italic text-sage ml-1">- "${item.reason}"</span>` : ''}</div></div></div>`;
                 });
-            } catch (error) { listEl.innerHTML = `<p class="text-xs text-red-500 bg-red-50 p-3 rounded-xl border border-red-200 text-center">Gagal memuat perasaan: ${error.message}</p>`; }
+            } catch (error) { renderError('community-feelings-list', error.message); }
         }
         
         async function loadLeaderboard() {
+            renderLoading('leaderboard-list');
             const listEl = document.getElementById('leaderboard-list'); if(!listEl) return;
             try {
                 const res = await fetch(`/api/leaderboard?_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center bg-vanilla p-3 rounded-xl border border-misty">Belum ada data streak. Mulai sharing hari ini!</p>'; return; }
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center bg-vanilla p-3 rounded-xl border border-misty">Belum ada data streak.</p>'; return; }
 
                 data.forEach(u => {
                     const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : (u.user_name || 'U').charAt(0).toUpperCase();
                     listEl.innerHTML += `<div class="flex flex-col items-center gap-1 min-w-[70px] shrink-0 animate-fade-in-up"><div class="w-14 h-14 rounded-full bg-blush flex items-center justify-center font-bold text-rosewood text-xl shadow-sm border border-misty overflow-hidden">${avatarContent}</div><span class="text-xs font-bold text-midnight truncate w-full text-center">${u.user_name.split(' ')[0]}</span><span class="text-[10px] font-bold bg-rosewood text-white px-2 py-0.5 rounded-full shadow-sm">${u.streak} 🔥</span></div>`;
                 });
-            } catch (error) { listEl.innerHTML = `<p class="text-xs text-red-500 italic w-full text-center py-2">Gagal memuat skor: ${error.message}</p>`; }
+            } catch (error) { renderError('leaderboard-list', error.message); }
         }
 
         // 6. BIBLE
@@ -441,10 +486,13 @@
         function clearMediaAttach() { currentShareMediaUrl = null; currentShareMediaType = null; document.getElementById('sharing-media-preview').innerHTML = ''; }
 
         async function loadSharings() {
+            renderLoading('sharing-list');
+            let currentUserId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
+            
             const listEl = document.getElementById('sharing-list'); if(!listEl) return;
             try {
                 const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
                 const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -455,14 +503,20 @@
                 data.forEach(item => {
                     const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     const avatarContent = item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-sm">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`;
+                    
+                    let actionBtns = '';
+                    if (item.user_id === currentUserId && currentUserId) {
+                        actionBtns = `<div class="flex items-center gap-2 mr-3"><button type="button" onclick="editSharing('${item.id}', decodeURIComponent('${encodeURIComponent(item.text)}'))" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-base"></i></button><button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-600 transition" title="Hapus"><i class="ph ph-trash text-base"></i></button></div>`;
+                    }
+
                     let mediaHtml = '';
-                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty"><img src="${item.media_url}" class="w-full h-auto object-contain"></div>`; } 
+                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-gray-50"><img src="${item.media_url}" class="w-full h-auto object-contain max-h-96"></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
-                    listEl.innerHTML += `<div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blush overflow-hidden border border-misty shrink-0">${avatarContent}</div><span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span></div><span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span></div><div class="pl-10"><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div></div>`;
+                    listEl.innerHTML += `<div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blush overflow-hidden border border-misty shrink-0">${avatarContent}</div><span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span></div><div class="flex items-center">${actionBtns}<span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span></div></div><div class="pl-10"><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div></div>`;
                 });
-            } catch (error) { listEl.innerHTML = `<p class="text-xs text-red-500 bg-red-50 p-3 rounded-xl border border-red-200 text-center">Gagal memuat sharing: ${error.message}</p>`; }
+            } catch (error) { renderError('sharing-list', error.message); }
         }
 
         async function postSharing(event) {
@@ -475,34 +529,61 @@
 
             try {
                 const res = await fetch('/api/sharing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl, media_url: currentShareMediaUrl, media_type: currentShareMediaType }) });
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 document.getElementById('sharing-input').value = ''; clearMediaAttach();
                 loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); showToast("Sharing berhasil dibagikan!");
             } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
         }
 
-        // 8. PRAYERS (ANONYMOUS & RESET)
+        // 8. PRAYERS (ANONYMOUS, RESET & EDIT/DELETE)
+        async function deletePrayer(id) {
+            if(!confirm("Apakah Anda yakin ingin menghapus pokok doa ini?")) return;
+            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
+            try {
+                const res = await fetch(`/api/prayers/${id}?user_id=${userId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error("Gagal menghapus.");
+                showToast("Doa berhasil dihapus!"); loadPrayers();
+            } catch(e) { showToast(e.message); }
+        }
+
+        async function editPrayer(id, oldText) {
+            const newText = prompt("Edit pokok doa:", oldText);
+            if(newText === null || newText.trim() === "" || newText === oldText) return;
+            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
+            try {
+                const res = await fetch(`/api/prayers/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: newText, user_id: userId }) });
+                if (!res.ok) throw new Error("Gagal mengedit.");
+                showToast("Doa berhasil diedit!"); loadPrayers();
+            } catch(e) { showToast(e.message); }
+        }
+
         async function loadPrayers() {
+            renderLoading('prayer-list');
+            let currentUserId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
+            
             const listEl = document.getElementById('prayer-list'); if(!listEl) return;
             try {
                 const res = await fetch(`/api/prayers?since=${getRecentMondayMidnight()}&_t=${new Date().getTime()}`); 
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2 text-center bg-vanilla p-4 rounded-xl border border-misty">Belum ada pokok doa minggu ini.</p>'; return; }
                 
-                let currentUserId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-
                 data.forEach(item => {
                     const intercessors = item.intercessors || []; const count = intercessors.length; const hasPrayed = intercessors.some(u => u.user_id === currentUserId);
                     const btnClass = hasPrayed ? "bg-rosewood text-white shadow-inner" : "bg-blush text-rosewood shadow-sm hover:bg-rosewood hover:text-white";
                     const btnText = hasPrayed ? `Sedang Mendoakan (${count})` : `Berdoa (${count})`;
                     const isAnon = item.user_name === 'Anonymous';
                     const avatarContent = isAnon ? '<div class="w-full h-full flex items-center justify-center font-bold text-xs text-rosewood">A</div>' : (item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`);
-                    const dateObj = new Date(item.created_at); const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'long' }); const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const dateObj = new Date(item.created_at); const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'short' }); const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div><span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span></div><span class="text-[10px] text-sage">${dayName}, ${timeStr}</span></div><p class="text-sm text-midnight mb-4 break-words whitespace-pre-wrap mt-1">${item.text}</p><div class="pt-3 border-t border-misty border-opacity-50"><button type="button" id="btn-pray-${item.id}" onclick="togglePray('${item.id}')" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition ${btnClass}"><i class="ph ph-hands-praying"></i> ${btnText}</button></div></div>`;
+                    let actionBtns = '';
+                    if (item.user_id === currentUserId && currentUserId) {
+                        actionBtns = `<div class="flex items-center gap-2 mr-2"><button type="button" onclick="editPrayer('${item.id}', decodeURIComponent('${encodeURIComponent(item.text)}'))" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-base"></i></button><button type="button" onclick="deletePrayer('${item.id}')" class="text-sage hover:text-red-600 transition" title="Hapus"><i class="ph ph-trash text-base"></i></button></div>`;
+                    }
+
+                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div><span class="font-bold text-sm text-rosewood truncate max-w-[120px]">${item.user_name || 'User'}</span></div><div class="flex items-center">${actionBtns}<span class="text-[10px] text-sage whitespace-nowrap">${dayName}, ${timeStr}</span></div></div><p class="text-sm text-midnight mb-4 break-words whitespace-pre-wrap mt-1">${item.text}</p><div class="pt-3 border-t border-misty border-opacity-50"><button type="button" id="btn-pray-${item.id}" onclick="togglePray('${item.id}')" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition ${btnClass}"><i class="ph ph-hands-praying"></i> ${btnText}</button></div></div>`;
                 });
-            } catch (error) { listEl.innerHTML = `<p class="text-xs text-red-500 bg-red-50 p-3 rounded-xl border border-red-200 text-center w-full col-span-2">Gagal memuat doa: ${error.message}</p>`; }
+            } catch (error) { renderError('prayer-list', error.message); }
         }
 
         async function postPrayer(event) {
@@ -515,7 +596,7 @@
 
             try {
                 const res = await fetch('/api/prayers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: reqName, user_id: userId, avatar_url: avatarUrl }) });
-                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 document.getElementById('prayer-input').value = ''; document.getElementById('prayer-name-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
             } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
         }
@@ -530,7 +611,7 @@
             
             try {
                 const res = await fetch(`/api/prayers/${prayerId}/pray`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_name: userName }) });
-                if(!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                if(!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 loadPrayers();
             } catch (error) { showToast("Error: " + error.message); btn.innerHTML = originalHtml; btn.disabled = false; }
         }
@@ -617,7 +698,7 @@
 
                     <div class="mt-8 pt-6 border-t border-misty">
                         <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini</h3>
-                        <div id="community-feelings-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
+                        <div id="community-feelings-list" class="space-y-3"></div>
                     </div>
                 </div>
                 
@@ -625,9 +706,7 @@
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-fire text-lg"></i> Leaderboard Streak</h3>
-                    <div id="leaderboard-list" class="flex gap-4 overflow-x-auto pb-2">
-                        <div class="text-center w-full py-2 text-sage"><i class="ph ph-spinner animate-spin text-xl"></i></div>
-                    </div>
+                    <div id="leaderboard-list" class="flex gap-4 overflow-x-auto pb-2"></div>
                 </div>
             </section>
 
@@ -690,7 +769,7 @@
                             <div class="absolute inset-0 bg-midnight bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300"><i class="ph ph-camera text-2xl text-white"></i></div>
                         </button>
                         <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
-                        <p class="text-xs text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 10MB)</p>
+                        <p class="text-xs text-sage mt-1 mb-5">Klik gambar di atas untuk mengubah foto (Maks 10MB)</p>
                     </div>
                     
                     <form onsubmit="return handleProfileUpdate(event)">
@@ -707,7 +786,7 @@
                     
                     <div class="mt-8 pt-6 border-t border-misty">
                         <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Riwayat Jurnal & Sharing</h3>
-                        <div id="profile-journal-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
+                        <div id="profile-journal-list" class="space-y-3"></div>
                     </div>
                 </div>
             </section>

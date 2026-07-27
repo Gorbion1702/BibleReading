@@ -7,7 +7,6 @@ app.use(cors());
 app.use(express.json());
 
 const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
-// Fallback sistem: Jika di Vercel tidak ada SERVICE_KEY, gunakan Anon Key agar server tidak crash (Error 500).
 const FALLBACK_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || FALLBACK_KEY; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -119,8 +118,9 @@ app.post('/api/sharing', async (req, res) => {
 
 app.put('/api/sharing/:id', async (req, res) => {
     try {
-        const { id } = req.params; const { text, user_id, media_url, media_type } = req.body; 
-        const { data, error } = await supabase.from('sharings').update({ text, media_url, media_type }).eq('id', id).eq('user_id', user_id).select();
+        const { id } = req.params; const { text, user_id } = req.body; 
+        // Hanya update text agar media (foto/youtube) yang sudah ada tidak terhapus
+        const { data, error } = await supabase.from('sharings').update({ text }).eq('id', id).eq('user_id', user_id).select();
         if (error) throw error; if (data.length === 0) throw new Error("Akses ditolak.");
         res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -154,6 +154,24 @@ app.post('/api/prayers', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+app.put('/api/prayers/:id', async (req, res) => {
+    try {
+        const { id } = req.params; const { text, user_id } = req.body;
+        const { data, error } = await supabase.from('prayers').update({ text }).eq('id', id).eq('user_id', user_id).select();
+        if (error) throw error; if (data.length === 0) throw new Error("Akses ditolak.");
+        res.status(200).json(data);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/api/prayers/:id', async (req, res) => {
+    try {
+        const { id } = req.params; const { user_id } = req.query;
+        const { data, error } = await supabase.from('prayers').delete().eq('id', id).eq('user_id', user_id).select();
+        if (error) throw error; if (data.length === 0) throw new Error("Akses ditolak.");
+        res.status(200).json(data);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 app.post('/api/prayers/:id/pray', async (req, res) => {
     try {
         const { id } = req.params; const { user_id, user_name } = req.body;
@@ -176,9 +194,7 @@ app.get('/api/streak/:user_id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// =========================================================================
-// CRON JOB: PENGINGAT WHATSAPP OTOMATIS
-// =========================================================================
+// --- CRON JOB: PENGINGAT WHATSAPP OTOMATIS ---
 app.get('/api/cron/reminder', async (req, res) => {
     try {
         const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
@@ -206,7 +222,6 @@ app.get('/api/cron/reminder', async (req, res) => {
             const name = user.user_metadata?.full_name || 'Teman';
 
             if (!hasShared && phone) {
-                // Pesan WhatsApp diubah menyesuaikan nama komunitas baru
                 const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
                 
                 await fetch('https://api.fonnte.com/send', {
