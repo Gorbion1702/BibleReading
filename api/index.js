@@ -67,8 +67,12 @@ app.get('/api/sharing', async (req, res) => {
 
 app.post('/api/sharing', async (req, res) => {
     try {
-        const { text, user_name, user_id, avatar_url } = req.body;
-        const { data, error } = await supabase.from('sharings').insert([{ text, user_name, user_id, avatar_url }]).select();
+        // Menerima data media (media_url dan media_type)
+        const { text, user_name, user_id, avatar_url, media_url, media_type } = req.body;
+        const { data, error } = await supabase
+            .from('sharings')
+            .insert([{ text, user_name, user_id, avatar_url, media_url, media_type }])
+            .select();
         if (error) throw error;
         res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -77,8 +81,12 @@ app.post('/api/sharing', async (req, res) => {
 app.put('/api/sharing/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { text, user_id } = req.body;
-        const { data, error } = await supabase.from('sharings').update({ text }).eq('id', id).eq('user_id', user_id).select();
+        const { text, user_id, media_url, media_type } = req.body; // Boleh update media juga
+        const { data, error } = await supabase
+            .from('sharings')
+            .update({ text, media_url, media_type })
+            .eq('id', id).eq('user_id', user_id)
+            .select();
         if (error) throw error;
         if (data.length === 0) throw new Error("Akses ditolak atau postingan tidak ditemukan.");
         res.status(200).json(data);
@@ -100,12 +108,9 @@ app.delete('/api/sharing/:id', async (req, res) => {
 // --- PRAYER ---
 app.get('/api/prayers', async (req, res) => {
     try {
-        const { since } = req.query; // Menangkap filter zona waktu (Senin jam 00:00)
+        const { since } = req.query; 
         let query = supabase.from('prayers').select('*').order('created_at', { ascending: false });
-        
-        if (since) {
-            query = query.gte('created_at', since);
-        }
+        if (since) query = query.gte('created_at', since);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -136,9 +141,9 @@ app.post('/api/prayers/:id/pray', async (req, res) => {
         
         const userIndex = intercessors.findIndex(u => u.user_id === user_id);
         if (userIndex > -1) {
-            intercessors.splice(userIndex, 1); // Cancel doa
+            intercessors.splice(userIndex, 1); 
         } else {
-            intercessors.push({ user_id, user_name }); // Tambah doa
+            intercessors.push({ user_id, user_name }); 
         }
         
         const { data, error } = await supabase.from('prayers').update({ intercessors }).eq('id', id).select();
