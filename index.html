@@ -8,7 +8,8 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <!-- Cropper.js untuk fitur Crop Foto -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <script>
@@ -24,29 +25,38 @@
     </script>
     <style>
         .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
-        .cropper-view-box, .cropper-face { border-radius: 50%; }
     </style>
-    
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                let currentUrl = window.location.href;
-                if (currentUrl.endsWith('/#') || currentUrl.endsWith('/?') || currentUrl.endsWith('#')) {
-                    let cleanUrl = currentUrl.replace(/\/?#$/, '').replace(/\/\?$/, '');
-                    window.history.replaceState({}, document.title, cleanUrl);
-                }
-            }, 1000);
-        });
-    </script>
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
 
+    <!-- KOMPONEN TOAST / NOTIFIKASI -->
     <div id="toast-banner" class="fixed top-5 right-5 z-[9999] hidden transition-all duration-300 transform translate-y-[-20px] opacity-0 bg-midnight text-blush px-4 py-3 rounded-xl shadow-lg border border-misty text-sm flex items-center gap-2 max-w-sm">
         <i class="ph ph-info text-lg text-rosewood flex-shrink-0"></i>
         <span id="toast-message" class="break-words">Notifikasi</span>
     </div>
 
+    <!-- MODAL CROP FOTO PROFIL -->
+    <div id="cropper-modal" class="fixed inset-0 bg-midnight bg-opacity-80 z-[10000] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-misty flex justify-between items-center bg-vanilla">
+                <h3 class="font-bold text-rosewood">Sesuaikan Foto</h3>
+                <button type="button" onclick="closeCropperModal()" class="text-sage hover:text-rosewood"><i class="ph ph-x text-xl font-bold"></i></button>
+            </div>
+            <div class="flex-grow p-4 bg-gray-100 flex items-center justify-center min-h-[300px]">
+                <div class="max-w-full max-h-full"><img id="cropper-image" src="" alt="Gambar untuk dicrop" class="max-w-full hidden"></div>
+            </div>
+            <div class="p-4 border-t border-misty bg-vanilla flex gap-3 justify-end">
+                <button type="button" onclick="closeCropperModal()" class="px-4 py-2 text-sm font-bold text-sage hover:text-midnight">Batal</button>
+                <button type="button" onclick="saveCroppedImage()" id="btn-save-crop" class="px-5 py-2 text-sm font-bold bg-rosewood text-white rounded-lg shadow-sm">Simpan Foto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT UTAMA -->
     <script>
+        // =========================================================================
+        // 1. SETUP & INISIALISASI GLOBAL
+        // =========================================================================
         const SUPABASE_URL = 'https://srmaojepdzxmgeefzbsc.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
         
@@ -56,16 +66,26 @@
         }
 
         let isLoginMode = true;
-        window.postDataMap = {}; 
-        let cropperInstance = null;
 
         window.addEventListener('DOMContentLoaded', () => {
+            // Pembersih URL Paksa (Menghilangkan /# atau /? setelah login)
+            setTimeout(() => {
+                let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                if (window.location.search || window.location.hash) {
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            }, 1000);
+
             document.addEventListener('submit', (e) => e.preventDefault(), true);
+
             loadDailyVerse();
             loadDailyDevotion();
             checkSession();
         });
 
+        // =========================================================================
+        // 2. UTILITAS & UI
+        // =========================================================================
         function showToast(message) {
             const toast = document.getElementById('toast-banner');
             const msg = document.getElementById('toast-message');
@@ -84,47 +104,46 @@
             
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('text-blush', 'font-bold');
-                if (btn.dataset.target === sectionId) btn.classList.add('text-blush', 'font-bold');
+                if (btn.dataset.target === sectionId) {
+                    btn.classList.add('text-blush', 'font-bold');
+                }
             });
         }
 
         function getLocalMidnight() {
-            const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString();
-        }
-
-        function getLocalMondayMidnight() {
             const d = new Date();
-            const day = d.getDay(); 
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(d.setDate(diff));
-            monday.setHours(0, 0, 0, 0);
-            return monday.toISOString();
+            d.setHours(0, 0, 0, 0);
+            return d.toISOString();
         }
 
         function updateDateUI() {
-            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            const dateStr = new Date().toLocaleDateString('id-ID', options);
-            
-            const dateBadgeHome = document.getElementById('current-date-badge');
-            if (dateBadgeHome) dateBadgeHome.innerText = dateStr;
-
-            const dateBadgeSharing = document.getElementById('sharing-date-badge');
-            if (dateBadgeSharing) dateBadgeSharing.innerText = dateStr;
+            const dateBadge = document.getElementById('current-date-badge');
+            if (dateBadge) {
+                const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+                dateBadge.innerText = new Date().toLocaleDateString('id-ID', options);
+            }
         }
 
         async function updateGreeting() {
             const userName = await getUserDisplayName();
-            const firstName = userName.split(' ')[0]; 
+            const firstName = userName.split(' ')[0];
             const greetingEl = document.getElementById('home-greeting');
-            if (greetingEl) greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
+            if (greetingEl) {
+                greetingEl.innerText = `Hallo ${firstName}, bagaimana perasaan kamu hari ini?`;
+            }
         }
 
-        // --- AUTH ---
+        // =========================================================================
+        // 3. MODUL AUTENTIKASI
+        // =========================================================================
         async function checkSession() {
             if (!supabaseClient) return;
             supabaseClient.auth.onAuthStateChange((event, session) => {
                 if (event === 'PASSWORD_RECOVERY') {
-                    setTimeout(() => { showToast("Silakan atur password baru di menu Profile."); showMainApp(); navigate('profile'); }, 500);
+                    setTimeout(() => {
+                        showToast("Silakan atur password baru di menu Profile.");
+                        showMainApp(); navigate('profile');
+                    }, 500);
                 }
             });
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -136,15 +155,28 @@
             const mainView = document.getElementById('main-view');
             mainView.classList.remove('hidden'); mainView.classList.add('flex');
             
-            navigate('home'); updateDateUI(); updateGreeting(); loadUserProfile(); 
-            loadFeelings(); initBible(); loadSharings(); loadUserJournals(); loadPrayers();
+            navigate('home');
+            updateDateUI();
+            updateGreeting(); 
+            loadUserProfile();
+            loadFeelings(); 
+            initBible();
+            loadSharings();
+            loadUserJournals();
+            loadPrayers();
+            loadUserStreak(); // Load Streak saat login
+            loadLeaderboard(); // Load Leaderboard
         }
 
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
-            const title = document.getElementById('auth-title'); const subtitle = document.getElementById('auth-subtitle');
-            const btn = document.getElementById('auth-btn'); const toggleText = document.getElementById('auth-toggle-text');
-            const forgotLink = document.getElementById('forgot-password-link'); const errorMsg = document.getElementById('auth-error-message');
+            const title = document.getElementById('auth-title');
+            const subtitle = document.getElementById('auth-subtitle');
+            const btn = document.getElementById('auth-btn');
+            const toggleText = document.getElementById('auth-toggle-text');
+            const forgotLink = document.getElementById('forgot-password-link');
+            const errorMsg = document.getElementById('auth-error-message');
+
             if(errorMsg) errorMsg.classList.add('hidden');
 
             if (isLoginMode) {
@@ -159,8 +191,10 @@
         }
 
         function toggleForgotPassword() {
-            const standardAuth = document.getElementById('standard-auth-container'); const forgotAuth = document.getElementById('forgot-password-container');
-            if (standardAuth.classList.contains('hidden')) { standardAuth.classList.remove('hidden'); forgotAuth.classList.add('hidden');
+            const standardAuth = document.getElementById('standard-auth-container');
+            const forgotAuth = document.getElementById('forgot-password-container');
+            if (standardAuth.classList.contains('hidden')) {
+                standardAuth.classList.remove('hidden'); forgotAuth.classList.add('hidden');
             } else {
                 standardAuth.classList.add('hidden'); forgotAuth.classList.remove('hidden');
                 const currentEmail = document.getElementById('auth-email').value;
@@ -170,29 +204,46 @@
 
         async function handleAuth(event) {
             if (event) event.preventDefault();
-            const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
-            const btn = document.getElementById('auth-btn'); const errorMsg = document.getElementById('auth-error-message'); const successMsg = document.getElementById('auth-success-message');
-            const originalBtnText = btn.innerText; btn.innerText = 'Mohon tunggu...'; btn.disabled = true; errorMsg.classList.add('hidden'); successMsg.classList.add('hidden');
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const btn = document.getElementById('auth-btn');
+            const errorMsg = document.getElementById('auth-error-message');
+            const successMsg = document.getElementById('auth-success-message');
+            const originalBtnText = btn.innerText;
+
+            btn.innerText = 'Mohon tunggu...'; btn.disabled = true;
+            errorMsg.classList.add('hidden'); successMsg.classList.add('hidden');
 
             try {
                 let result;
                 if (isLoginMode) result = await supabaseClient.auth.signInWithPassword({ email, password });
                 else result = await supabaseClient.auth.signUp({ email, password });
+
                 if (result.error) throw result.error;
 
-                if (!isLoginMode) { successMsg.innerText = "Pendaftaran berhasil! Segera masuk..."; successMsg.classList.remove('hidden'); setTimeout(() => showMainApp(), 1200);
+                if (!isLoginMode) {
+                    successMsg.innerText = "Pendaftaran berhasil! Segera masuk..."; successMsg.classList.remove('hidden');
+                    setTimeout(() => showMainApp(), 1200);
                 } else showMainApp();
-            } catch (error) { errorMsg.innerText = error.message.includes("Invalid login") ? "Email atau password salah." : error.message; errorMsg.classList.remove('hidden');
-            } finally { btn.innerText = originalBtnText; btn.disabled = false; }
+            } catch (error) {
+                errorMsg.innerText = error.message.includes("Invalid login") ? "Email atau password salah." : error.message;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                btn.innerText = originalBtnText; btn.disabled = false;
+            }
         }
 
         async function handleForgotPasswordSubmit(event) {
             if (event) event.preventDefault();
-            const email = document.getElementById('forgot-email-input').value; const btn = document.getElementById('forgot-submit-btn');
-            const errorMsg = document.getElementById('forgot-error-message'); const successMsg = document.getElementById('forgot-success-message');
+            const email = document.getElementById('forgot-email-input').value;
+            const btn = document.getElementById('forgot-submit-btn');
+            const errorMsg = document.getElementById('forgot-error-message');
+            const successMsg = document.getElementById('forgot-success-message');
+
             btn.innerText = 'Mengirim...'; btn.disabled = true;
             try {
-                const { error } = await supabaseClient.auth.resetPasswordForEmail(email); if (error) throw error;
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+                if (error) throw error;
                 successMsg.innerHTML = `Link reset telah dikirim ke email Anda.`; successMsg.classList.remove('hidden');
             } catch (error) { errorMsg.innerText = error.message; errorMsg.classList.remove('hidden'); } 
             finally { btn.innerText = 'Kirim Link Reset'; btn.disabled = false; }
@@ -204,12 +255,22 @@
             document.getElementById('login-view').classList.remove('hidden'); document.getElementById('auth-password').value = '';
         }
 
-        // --- PROFILE, AVATAR, & STREAK ---
+        // =========================================================================
+        // 4. MODUL PROFIL USER, STREAK & AVATAR
+        // =========================================================================
+        let cropper = null;
+
         async function getUserDisplayName() {
             if (!supabaseClient) return "User";
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
             return user ? user.email.split('@')[0] : "User";
+        }
+        
+        async function getUserAvatarUrl() {
+            if (!supabaseClient) return null;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            return user?.user_metadata?.avatar_url || null;
         }
 
         async function loadUserProfile() {
@@ -218,30 +279,10 @@
             if (user) {
                 document.getElementById('profile-email').value = user.email;
                 const fullName = user.user_metadata?.full_name || '';
-                const avatarUrl = user.user_metadata?.avatar_url || '';
+                const avatarUrl = user.user_metadata?.avatar_url || null;
                 document.getElementById('profile-name').value = fullName;
                 updateAvatarUI(user.email, fullName, avatarUrl);
-                
-                // Fetch & Update Streak
-                loadUserStreak(user.id);
             }
-        }
-
-        async function loadUserStreak(userId) {
-            try {
-                const res = await fetch(`/api/streak/${userId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const streakCount = data.streak || 0;
-                    document.getElementById('profile-streak-count').innerText = streakCount;
-                    
-                    // Efek visual jika streak bagus
-                    const icon = document.getElementById('streak-icon');
-                    if(streakCount >= 7) { icon.innerText = '🔥'; icon.classList.add('animate-pulse'); }
-                    else if(streakCount >= 3) { icon.innerText = '🔥'; }
-                    else { icon.innerText = '🌱'; icon.classList.remove('animate-pulse');}
-                }
-            } catch (error) {}
         }
 
         function updateAvatarUI(email, fullName, avatarUrl) {
@@ -249,119 +290,184 @@
             const nameTitle = document.getElementById('display-name-title');
             if(nameTitle) nameTitle.innerText = displayName;
             
-            const initial = displayName.charAt(0).toUpperCase();
-            const avatarText = document.getElementById('profile-avatar-text');
-            const avatarImg = document.getElementById('profile-avatar-img');
-            
-            if(avatarText) avatarText.innerText = initial;
-            if(avatarImg) {
-                if(avatarUrl) { avatarImg.src = avatarUrl; avatarImg.classList.remove('hidden'); } 
-                else { avatarImg.classList.add('hidden'); }
+            const avatarContainer = document.getElementById('profile-avatar-container');
+            if (avatarUrl) {
+                avatarContainer.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="w-full h-full object-cover">`;
+            } else {
+                const initial = displayName.charAt(0).toUpperCase();
+                avatarContainer.innerHTML = initial;
             }
         }
+        
+        // --- STREAK LOGIC ---
+        async function loadUserStreak() {
+            if (!supabaseClient) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+            try {
+                const res = await fetch(`/api/streak/${user.id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const streakBadge = document.getElementById('profile-streak-badge');
+                if (streakBadge) {
+                    if (data.streak > 0) {
+                        streakBadge.innerHTML = `<i class="ph ph-fire text-lg"></i> ${data.streak} Hari Streak`;
+                        streakBadge.classList.remove('hidden');
+                    } else {
+                        streakBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) { console.error("Gagal memuat streak"); }
+        }
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0]; if (!file) return;
-            if (file.size > 5 * 1024 * 1024) { showToast("Ukuran foto maksimal 5MB"); event.target.value = ''; return; }
+        // --- CROPPER LOGIC ---
+        function triggerAvatarUpload() { document.getElementById('avatar-upload-input').click(); }
+
+        function handleAvatarSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { showToast("Gagal: Ukuran foto maksimal 2MB."); event.target.value = ''; return; }
+            if (!file.type.startsWith('image/')) { showToast("Gagal: Harus berupa file gambar (JPG/PNG)."); event.target.value = ''; return; }
+
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const imageEl = document.getElementById('crop-image'); imageEl.src = e.target.result;
-                document.getElementById('crop-modal').classList.remove('hidden'); document.getElementById('crop-modal').classList.add('flex');
-                if (cropperInstance) cropperInstance.destroy();
-                cropperInstance = new Cropper(imageEl, { aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: 0.9, restore: false, guides: false, center: false, highlight: false, cropBoxMovable: true, cropBoxResizable: true, toggleDragModeOnDblclick: false });
+            reader.onload = (e) => {
+                const imageEl = document.getElementById('cropper-image');
+                imageEl.src = e.target.result;
+                document.getElementById('cropper-modal').classList.remove('hidden');
+                document.getElementById('cropper-modal').classList.add('flex');
+                
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(imageEl, { aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: 1, restore: false, guides: true, center: true, highlight: false, cropBoxMovable: true, cropBoxResizable: true, toggleDragModeOnDblclick: false });
             };
             reader.readAsDataURL(file);
+            event.target.value = ''; 
         }
 
-        function closeCropModal() {
-            document.getElementById('crop-modal').classList.add('hidden'); document.getElementById('crop-modal').classList.remove('flex');
-            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-            document.getElementById('avatar-upload').value = ''; 
+        function closeCropperModal() {
+            document.getElementById('cropper-modal').classList.add('hidden');
+            document.getElementById('cropper-modal').classList.remove('flex');
+            if (cropper) { cropper.destroy(); cropper = null; }
         }
 
-        function applyCrop() {
-            if (!cropperInstance) return;
-            const btn = document.getElementById('btn-apply-crop'); const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Menyimpan...'; btn.disabled = true;
-
-            const canvas = cropperInstance.getCroppedCanvas({ width: 400, height: 400, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
-            canvas.toBlob(async (blob) => {
-                await processUploadAvatar(blob);
-                btn.innerHTML = originalText; btn.disabled = false; closeCropModal();
-            }, 'image/jpeg', 0.85); 
-        }
-
-        async function processUploadAvatar(fileBlob) {
-            const avatarText = document.getElementById('profile-avatar-text'); const imgEl = document.getElementById('profile-avatar-img');
-            const originalText = avatarText.innerHTML; avatarText.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i>'; if(imgEl) imgEl.classList.add('hidden');
+        async function saveCroppedImage() {
+            if (!cropper || !supabaseClient) return;
+            const btn = document.getElementById('btn-save-crop');
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Menyimpan...'; btn.disabled = true;
 
             try {
-                const { data: { user } } = await supabaseClient.auth.getUser(); if (!user) throw new Error("Silakan login kembali.");
-                const filePath = user.id + ".jpg"; 
-                const { error: uploadError } = await supabaseClient.storage.from('avatars').upload(filePath, fileBlob, { upsert: true, cacheControl: '0', contentType: 'image/jpeg' });
+                const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+                
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) throw new Error("User tidak ditemukan.");
+
+                const fileName = `${user.id}-${Date.now()}.jpg`;
+                
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
                 if (uploadError) throw uploadError;
 
-                const newAvatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}?t=${new Date().getTime()}`;
-                const { error: updateError } = await supabaseClient.auth.updateUser({ data: { avatar_url: newAvatarUrl } });
-                if(updateError) throw updateError;
+                const { data: publicUrlData } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
+                const publicUrl = publicUrlData.publicUrl;
 
-                updateAvatarUI(user.email, user.user_metadata?.full_name, newAvatarUrl); showToast("Foto profil berhasil diperbarui!");
-                loadFeelings(); loadSharings(); loadPrayers();
-            } catch (error) { showToast("Gagal: " + error.message); if(avatarText.innerHTML.includes('spinner')) avatarText.innerHTML = originalText; }
+                const { error: updateError } = await supabaseClient.auth.updateUser({ data: { avatar_url: publicUrl } });
+                if (updateError) throw updateError;
+
+                const fullName = user.user_metadata?.full_name || '';
+                updateAvatarUI(user.email, fullName, publicUrl);
+                showToast("Foto profil berhasil diperbarui!");
+                closeCropperModal();
+                loadFeelings(); loadSharings(); loadPrayers(); // Refresh feeds
+            } catch (error) {
+                showToast("Gagal menyimpan foto: " + error.message);
+            } finally {
+                btn.innerHTML = 'Simpan Foto'; btn.disabled = false;
+            }
         }
 
         async function handleProfileUpdate(event) {
             if (event) event.preventDefault();
-            const btn = document.getElementById('update-profile-btn'); const newName = document.getElementById('profile-name').value;
+            const btn = document.getElementById('update-profile-btn');
+            const newName = document.getElementById('profile-name').value;
+            
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
-                const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } }); if (error) throw error;
-                const avatarUrl = data.user.user_metadata?.avatar_url || ''; updateAvatarUI(data.user.email, newName, avatarUrl); updateGreeting(); showToast("Profil diperbarui!");
-            } catch (error) { showToast(error.message); } finally { btn.innerText = 'Simpan Profile'; btn.disabled = false; }
+                const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
+                if (error) throw error;
+                const avatarUrl = data.user.user_metadata?.avatar_url || null;
+                updateAvatarUI(data.user.email, newName, avatarUrl); 
+                updateGreeting(); 
+                showToast("Profil diperbarui!");
+            } catch (error) { showToast(error.message); } 
+            finally { btn.innerText = 'Simpan Profile'; btn.disabled = false; }
         }
 
         async function handlePasswordChange(event) {
             if (event) event.preventDefault();
-            const btn = document.getElementById('update-password-btn'); const newPassword = document.getElementById('profile-new-password').value;
+            const btn = document.getElementById('update-password-btn');
+            const newPassword = document.getElementById('profile-new-password').value;
             btn.innerText = 'Memperbarui...'; btn.disabled = true;
             try {
-                const { error } = await supabaseClient.auth.updateUser({ password: newPassword }); if (error) throw error;
+                const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+                if (error) throw error;
                 document.getElementById('profile-new-password').value = ''; showToast("Password berhasil diubah!");
-            } catch (error) { showToast(error.message); } finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
+            } catch (error) { showToast(error.message); } 
+            finally { btn.innerText = 'Ubah Password'; btn.disabled = false; }
         }
 
-        // --- JURNAL PRIBADI ---
         async function loadUserJournals() {
             if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser(); if (!user) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
             try {
-                const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`); if (!res.ok) return;
+                const res = await fetch(`/api/sharing?user_id=${user.id}&_t=${new Date().getTime()}`);
+                if (!res.ok) throw new Error("Gagal load jurnal");
                 const data = await res.json();
-                const listEl = document.getElementById('profile-journal-list'); if(!listEl) return; listEl.innerHTML = '';
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal. Mulailah menulis di menu Devotion.</p>'; return; }
+                const listEl = document.getElementById('profile-journal-list');
+                if(!listEl) return; listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada riwayat jurnal. Mulailah menulis di menu Devotion.</p>'; return;
+                }
                 
                 data.forEach(item => {
                     const dateObj = new Date(item.created_at);
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                     const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    let mediaHtml = generateMediaEmbedHtml(item.media_type, item.media_url);
+                    
+                    let mediaHtml = '';
+                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty max-h-64"><img src="${item.media_url}" class="w-full h-full object-cover"></div>`; } 
+                    else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
+                    else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty animate-fade-in-up">
-                            <span class="text-[10px] font-bold text-sage block uppercase tracking-wider mb-2">${dateStr} • ${timeStr}</span>
-                            <p class="text-sm text-midnight whitespace-pre-wrap">${item.text}</p>
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up">
+                            <span class="text-[10px] font-bold text-sage mb-2 block uppercase tracking-wider">${dateStr} • ${timeStr}</span>
+                            <p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>
                             ${mediaHtml}
                         </div>`;
                 });
             } catch (error) {}
         }
 
-
-        // --- FEELINGS ---
+        // =========================================================================
+        // 5. MODUL HOME & FEELINGS
+        // =========================================================================
         function selectFeeling(btn, feeling, emoji) {
-            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
             const msgEl = document.getElementById('feeling-message'); msgEl.classList.remove('hidden');
-            const messages = { 'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu.', 'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hatimu.', 'Excited': 'Luar biasa! Biarlah antusiasme dan semangatmu hari ini memuliakan nama-Nya.', 'In Love': 'Kasih karunia Tuhan senantiasa mengelilingimu. Bagikan kasih itu!', 'Flat': 'Di saat hari terasa datar, ketahuilah bahwa penyertaan Tuhan selalu setia.', 'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya.', 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu.', 'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu.', 'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat...', 'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya. Jangan memaksakan diri!' };
+            const messages = {
+                'Happy': 'Puji Tuhan! Kiranya sukacita-Nya terus mengalir dalam hidupmu hari ini.',
+                'Peaceful': 'Damai sejahtera Allah yang melampaui segala akal memelihara hati dan pikiranmu.',
+                'Excited': 'Luar biasa! Biarlah antusiasme dan semangatmu hari ini memuliakan nama-Nya.',
+                'In Love': 'Kasih karunia Tuhan senantiasa mengelilingimu. Bagikan kasih itu kepada sesama!',
+                'Flat': 'Di saat hari terasa datar, ketahuilah bahwa penyertaan Tuhan selalu setia dan tak pernah berubah.',
+                'Sad': 'Tuhan dekat dengan mereka yang patah hati. Mari datang kepada-Nya dalam doa.',
+                'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu (1 Petrus 5:7).',
+                'Angry': 'Tarik napas panjang. Biarkan kasih Tuhan meredakan kemarahan di hatimu hari ini.',
+                'Tired': 'Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.',
+                'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya (Mazmur 127:2). Jangan memaksakan diri!'
+            };
             msgEl.innerText = messages[feeling];
             document.getElementById('selected-feeling-value').value = feeling; document.getElementById('selected-emoji-value').value = emoji;
             document.getElementById('feeling-input-area').classList.remove('hidden'); document.getElementById('feeling-reason').focus();
@@ -369,53 +475,109 @@
 
         async function postFeeling(event) {
             if (event) event.preventDefault();
-            const feeling = document.getElementById('selected-feeling-value').value; const emoji = document.getElementById('selected-emoji-value').value;
+            const feeling = document.getElementById('selected-feeling-value').value;
+            const emoji = document.getElementById('selected-emoji-value').value;
             const reason = document.getElementById('feeling-reason').value;
             if (!feeling || !emoji) { showToast("Pilih emoji dulu!"); return false; }
 
-            const userName = await getUserDisplayName(); let userId = null; let avatarUrl = '';
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) { userId = user.id; avatarUrl = user.user_metadata?.avatar_url || ''; } }
+            const userName = await getUserDisplayName();
+            const avatarUrl = await getUserAvatarUrl();
+            let userId = null;
+            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
 
-            const submitBtn = document.getElementById('feeling-submit-btn'); const originalText = submitBtn.innerHTML; submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengirim...'; submitBtn.disabled = true;
+            const submitBtn = document.getElementById('feeling-submit-btn'); const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengirim...'; submitBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/feelings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, avatar_url: avatarUrl, local_midnight: getLocalMidnight() }) });
-                if (!res.ok) throw new Error("Server Error");
-                showToast("Perasaan berhasil dibagikan!"); document.getElementById('feeling-reason').value = ''; document.getElementById('feeling-input-area').classList.add('hidden'); document.getElementById('feeling-message').classList.add('hidden');
+                const res = await fetch('/api/feelings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feeling, emoji, reason, user_name: userName, user_id: userId, local_midnight: getLocalMidnight(), avatar_url: avatarUrl })
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(()=>({}));
+                    throw new Error(errData.error || `Server Error ${res.status}`);
+                }
+                showToast("Perasaan berhasil dibagikan!");
+                document.getElementById('feeling-reason').value = ''; document.getElementById('feeling-input-area').classList.add('hidden'); document.getElementById('feeling-message').classList.add('hidden');
+                document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
                 loadFeelings();
-            } catch (error) { showToast("Error: " + error.message); } finally { submitBtn.innerHTML = originalText; submitBtn.disabled = false; }
+            } catch (error) { showToast("Error: " + error.message); } 
+            finally { submitBtn.innerHTML = originalText; submitBtn.disabled = false; }
         }
 
         async function loadFeelings() {
             try {
-                const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`); if (!res.ok) return;
+                const res = await fetch(`/api/feelings?local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
+                if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('community-feelings-list'); if(!listEl) return; listEl.innerHTML = '';
+                
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada yang membagikan perasaan hari ini.</p>'; return; }
 
                 data.forEach(item => {
                     const timeString = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    const initial = (item.user_name || 'U').charAt(0).toUpperCase();
+                    const avatarContent = item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`;
+
                     listEl.innerHTML += `
                         <div class="bg-vanilla p-3 rounded-xl border border-misty flex items-start gap-3 animate-fade-in-up">
-                            <div class="w-10 h-10 shrink-0 rounded-full bg-white border border-misty flex items-center justify-center text-2xl shadow-sm">${item.emoji}</div>
+                            <div class="w-10 h-10 shrink-0 rounded-full bg-white border border-misty flex items-center justify-center text-2xl shadow-sm relative overflow-hidden">
+                                <div class="absolute inset-0 opacity-20 z-0">${avatarContent}</div>
+                                <span class="relative z-10 drop-shadow-md">${item.emoji}</span>
+                            </div>
                             <div class="flex-grow min-w-0">
-                                <div class="flex justify-between items-baseline mb-1">
-                                    <div class="flex items-center gap-1.5 overflow-hidden">
-                                        <div class="w-5 h-5 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-[10px] shadow-sm relative overflow-hidden shrink-0"><span class="absolute">${initial}</span><img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'"></div>
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <div class="flex items-center gap-1.5 truncate">
+                                        <div class="w-4 h-4 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div>
                                         <span class="font-bold text-rosewood text-sm truncate pr-2">${item.user_name || 'User'}</span>
                                     </div>
                                     <span class="text-[10px] text-sage whitespace-nowrap">${timeString}</span>
                                 </div>
-                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block shadow-sm">Merasa <b class="text-rosewood">${item.feeling}</b> ${item.reason ? `<span class="italic text-sage ml-1">- "${item.reason}"</span>` : ''}</div>
+                                <div class="text-xs text-midnight bg-white px-2.5 py-1.5 rounded-lg border border-misty inline-block shadow-sm mt-1">
+                                    Merasa <b class="text-rosewood">${item.feeling}</b> ${item.reason ? `<span class="italic text-sage ml-1">- "${item.reason}"</span>` : ''}
+                                </div>
                             </div>
                         </div>`;
                 });
             } catch (error) {}
         }
+        
+        async function loadLeaderboard() {
+            try {
+                const res = await fetch(`/api/leaderboard?_t=${new Date().getTime()}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const listEl = document.getElementById('leaderboard-list'); 
+                if(!listEl) return; 
+                listEl.innerHTML = '';
+                
+                if (!data || data.length === 0) { 
+                    listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center bg-vanilla p-3 rounded-xl border border-misty">Belum ada data streak. Mulai sharing hari ini!</p>'; 
+                    return; 
+                }
 
+                data.forEach(u => {
+                    const avatarContent = u.avatar_url 
+                        ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` 
+                        : (u.user_name || 'U').charAt(0).toUpperCase();
+                        
+                    listEl.innerHTML += `
+                        <div class="flex flex-col items-center gap-1 min-w-[70px] shrink-0 animate-fade-in-up">
+                            <div class="w-14 h-14 rounded-full bg-blush flex items-center justify-center font-bold text-rosewood text-xl shadow-sm border border-misty overflow-hidden">
+                                ${avatarContent}
+                            </div>
+                            <span class="text-xs font-bold text-midnight truncate w-full text-center">${u.user_name.split(' ')[0]}</span>
+                            <span class="text-[10px] font-bold bg-rosewood text-white px-2 py-0.5 rounded-full shadow-sm">${u.streak} 🔥</span>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Gagal memuat leaderboard");
+            }
+        }
 
-        // --- BIBLE & DEVOTION ---
+        // =========================================================================
+        // 6. MODUL ALKITAB & AYAT HARIAN
+        // =========================================================================
         const dailyVerses = [{ text: "Sebab Allah begitu mengasihi dunia ini...", reference: "Yohanes 3:16" }];
         const dailyDevotionsList = [{ title: "Menghidupkan Kasih yang Tulus", reference: "Kolose 3:12-14", theme: "Kasih & Persaudaraan", content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan...", application: "Adakah seseorang yang hari ini perlu Anda ampuni?" }];
 
@@ -427,8 +589,9 @@
         function loadDailyDevotion() {
             const d = dailyDevotionsList[0]; const container = document.getElementById('daily-devotion-card');
             if (container) {
+                const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' });
                 container.innerHTML = `
-                    <div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span><span class="text-xs text-sage">${new Date().toLocaleDateString('id-ID')}</span></div>
+                    <div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span><span class="text-xs font-semibold text-sage">${dateStr}</span></div>
                     <h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3><p class="text-xs font-semibold text-sage mb-4">${d.reference}</p>
                     <div class="prose text-sm text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty"><p>${d.content}</p></div>
                     <div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty"><h4 class="text-xs font-bold text-rosewood uppercase mb-1">Aplikasi Hari Ini</h4><p class="text-sm italic text-midnight">${d.application}</p></div>`;
@@ -438,10 +601,12 @@
         const bibleBooks = [{ id: 1, name_id: "Kejadian", chapters: 50 }, { id: 40, name_id: "Matius", chapters: 28 }, { id: 43, name_id: "Yohanes", chapters: 21 }, { id: 19, name_id: "Mazmur", chapters: 150 }];
         function initBible() {
             const bookSelect = document.getElementById('bible-book-select'); bookSelect.innerHTML = '';
-            bibleBooks.forEach(b => { const opt = document.createElement('option'); opt.value = b.id; opt.innerText = b.name_id; bookSelect.appendChild(opt); }); updateChapterOptions(); fetchBibleChapter();
+            bibleBooks.forEach(b => { const opt = document.createElement('option'); opt.value = b.id; opt.innerText = b.name_id; bookSelect.appendChild(opt); });
+            updateChapterOptions(); fetchBibleChapter();
         }
         function updateChapterOptions() {
-            const bookId = parseInt(document.getElementById('bible-book-select').value); const chapterSelect = document.getElementById('bible-chapter-select'); chapterSelect.innerHTML = ''; const selectedBook = bibleBooks.find(b => b.id === bookId);
+            const bookId = parseInt(document.getElementById('bible-book-select').value); const chapterSelect = document.getElementById('bible-chapter-select'); chapterSelect.innerHTML = '';
+            const selectedBook = bibleBooks.find(b => b.id === bookId);
             for (let i = 1; i <= (selectedBook ? selectedBook.chapters : 1); i++) { const opt = document.createElement('option'); opt.value = i; opt.innerText = `Pasal ${i}`; chapterSelect.appendChild(opt); }
         }
         async function fetchBibleChapter() {
@@ -449,118 +614,97 @@
             const contentContainer = document.getElementById('bible-content'); contentContainer.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-2xl"></i></div>';
             try {
                 const res = await fetch(`https://bolls.life/get-chapter/${version}/${bookId}/${chapter}/`); const data = await res.json();
-                let html = '<div class="space-y-3">'; data.forEach(v => { html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; }); html += '</div>'; contentContainer.innerHTML = html;
+                let html = '<div class="space-y-3">'; data.forEach(v => { html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; }); html += '</div>';
+                contentContainer.innerHTML = html;
             } catch (error) { contentContainer.innerHTML = `<p class="text-center text-red-600">Gagal memuat Alkitab.</p>`; }
         }
 
-        // --- SHARING MEDIA UTILS ---
-        function clearSharingMedia() {
-            document.getElementById('sharing-media-url').value = ''; document.getElementById('sharing-media-type').value = '';
-            document.getElementById('sharing-attachment-preview').innerHTML = ''; document.getElementById('sharing-attachment-preview').classList.add('hidden');
-            document.getElementById('sharing-image-input').value = '';
+        // =========================================================================
+        // 7. MODUL SHARING (KOMUNITAS) + MEDIA
+        // =========================================================================
+        let currentShareMediaUrl = null;
+        let currentShareMediaType = null;
+
+        function attachImage() {
+            const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                if (file.size > 2 * 1024 * 1024) { showToast("Maksimal 2MB"); return; }
+                const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
+                try {
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { upsert: true });
+                    if (error) throw error;
+                    const { data } = supabaseClient.storage.from('sharing_media').getPublicUrl(fileName);
+                    currentShareMediaUrl = data.publicUrl; currentShareMediaType = 'image';
+                    document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2"><img src="${data.publicUrl}" class="h-24 rounded border border-misty"><button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">x</button></div>`;
+                    showToast("Foto dilampirkan");
+                } catch(err) { showToast("Gagal upload foto"); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
+            };
+            input.click();
         }
 
-        function setSharingMedia(type, url, displayHtml) {
-            document.getElementById('sharing-media-type').value = type; document.getElementById('sharing-media-url').value = url;
-            const previewBox = document.getElementById('sharing-attachment-preview');
-            previewBox.innerHTML = `<div class="relative inline-block border border-misty rounded-xl p-2 bg-white shadow-sm mt-2">
-                <button type="button" onclick="clearSharingMedia()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md hover:bg-red-600"><i class="ph ph-x"></i></button>
-                ${displayHtml}
-            </div>`;
-            previewBox.classList.remove('hidden');
-        }
-
-        function getYouTubeEmbedUrl(url) {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/; const match = url.match(regExp);
-            return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
-        }
-
-        function getSpotifyEmbedUrl(url) {
-            const match = url.match(/spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
-            return match ? `https://open.spotify.com/embed/${match[1]}/${match[2]}` : null;
-        }
-
-        function promptSharingLink(type) {
-            const link = prompt(`Masukkan link ${type} (URL):`);
-            if (!link || link.trim() === "") return;
+        function attachLink(type) {
+            const url = prompt(`Masukkan link ${type === 'youtube' ? 'YouTube' : 'Spotify (Track/Episode)'}:`);
+            if (!url) return;
             
+            let embedUrl = url;
             if (type === 'youtube') {
-                const embedUrl = getYouTubeEmbedUrl(link);
-                if (embedUrl) setSharingMedia('youtube', embedUrl, `<div class="flex items-center gap-2 text-red-600 text-sm font-bold px-2 py-1"><i class="ph-fill ph-youtube-logo text-xl"></i> YouTube Video</div>`);
-                else showToast("Link YouTube tidak valid.");
+                const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/);
+                if (ytMatch && ytMatch[1]) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`; else { showToast("Link YouTube tidak valid"); return; }
             } else if (type === 'spotify') {
-                const embedUrl = getSpotifyEmbedUrl(link);
-                if (embedUrl) setSharingMedia('spotify', embedUrl, `<div class="flex items-center gap-2 text-green-600 text-sm font-bold px-2 py-1"><i class="ph-fill ph-spotify-logo text-xl"></i> Spotify Audio</div>`);
-                else showToast("Link Spotify tidak valid.");
+                if (url.includes('spotify.com')) {
+                    const urlParts = url.split('/'); const typePart = urlParts[urlParts.length - 2]; const idPart = urlParts[urlParts.length - 1].split('?')[0];
+                    embedUrl = `https://open.spotify.com/embed/${typePart}/${idPart}`;
+                } else { showToast("Link Spotify tidak valid"); return; }
             }
-        }
-
-        async function handleSharingImageSelect(event) {
-            const file = event.target.files[0]; if (!file) return;
-            if (file.size > 5 * 1024 * 1024) { showToast("Ukuran maksimal 5MB"); event.target.value = ''; return; }
             
-            const submitBtn = document.querySelector('#sec-devotion button[type="submit"]'); const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = 'Mengupload...'; submitBtn.disabled = true;
-
-            try {
-                if (!supabaseClient) throw new Error("Database belum siap.");
-                const fileExt = file.name.split('.').pop(); const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { cacheControl: '3600', contentType: file.type });
-                if (uploadError) throw uploadError;
-
-                const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/sharing_media/${fileName}`;
-                setSharingMedia('image', publicUrl, `<img src="${publicUrl}" class="h-20 object-cover rounded-lg">`);
-                showToast("Lampiran ditambahkan.");
-            } catch (error) { showToast("Gagal upload: " + error.message); } 
-            finally { submitBtn.innerHTML = originalText; submitBtn.disabled = false; event.target.value = ''; }
+            currentShareMediaUrl = embedUrl; currentShareMediaType = type;
+            document.getElementById('sharing-media-preview').innerHTML = `<div class="inline-flex items-center gap-2 mt-2 bg-vanilla border border-misty px-3 py-1 rounded-lg text-xs font-bold text-${type==='youtube'?'red-600':'green-600'}"><i class="ph ph-${type}-logo text-lg"></i> Terlampir <button type="button" onclick="clearMediaAttach()" class="text-midnight hover:text-rosewood ml-2"><i class="ph ph-x"></i></button></div>`;
         }
 
-        function generateMediaEmbedHtml(type, url) {
-            if (!url) return '';
-            if (type === 'image') return `<div class="mt-3"><img src="${url}" class="rounded-xl border border-misty max-h-64 w-auto object-cover" alt="Attachment"></div>`;
-            if (type === 'youtube') return `<div class="mt-3 aspect-w-16 aspect-h-9"><iframe src="${url}" class="w-full h-48 sm:h-64 rounded-xl border border-misty" frameborder="0" allowfullscreen></iframe></div>`;
-            if (type === 'spotify') return `<div class="mt-3"><iframe src="${url}" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media" class="rounded-xl border border-misty"></iframe></div>`;
-            return '';
+        function clearMediaAttach() {
+            currentShareMediaUrl = null; currentShareMediaType = null;
+            document.getElementById('sharing-media-preview').innerHTML = '';
         }
 
-        // --- SHARING FEED ---
         async function loadSharings() {
             try {
-                let currentUserId = null;
-                if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-
                 const res = await fetch(`/api/sharing?today=true&local_midnight=${getLocalMidnight()}&_t=${new Date().getTime()}`);
                 if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('sharing-list'); if(!listEl) return; listEl.innerHTML = '';
                 
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini. Jadilah yang pertama!</p>'; return; }
-                
-                data.forEach(item => {
-                    window.postDataMap[item.id] = { text: item.text, media_url: item.media_url, media_type: item.media_type };
-                    const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    const initial = (item.user_name || 'U').charAt(0).toUpperCase();
-                    const isOwner = currentUserId && (currentUserId === item.user_id);
-                    
-                    const actionButtons = isOwner ? `
-                        <div class="flex gap-2 ml-3 border-l border-misty pl-3">
-                            <button type="button" onclick="editSharing('${item.id}')" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-sm"></i></button>
-                            <button type="button" onclick="deleteSharing('${item.id}')" class="text-sage hover:text-red-500 transition" title="Hapus"><i class="ph ph-trash text-sm"></i></button>
-                        </div>` : '';
+                // Update Tanggal Header
+                const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+                document.getElementById('sharing-header-title').innerText = `Sharing Komunitas (${dateStr})`;
 
-                    let mediaHtml = generateMediaEmbedHtml(item.media_type, item.media_url);
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing hari ini. Jadilah yang pertama memberkati yang lain!</p>'; return; }
+                
+                let currentUserId = null;
+                if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
+
+                data.forEach(item => {
+                    const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const avatarContent = item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-sm">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`;
+                    
+                    let mediaHtml = '';
+                    if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty max-h-64"><img src="${item.media_url}" class="w-full h-full object-cover"></div>`; } 
+                    else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
+                    else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
                     listEl.innerHTML += `
-                        <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 animate-fade-in-up">
+                        <div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-sm shadow-sm relative overflow-hidden shrink-0"><span class="absolute">${initial}</span><img src="${item.avatar_url || ''}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'"></div>
+                                    <div class="w-8 h-8 rounded-full bg-blush overflow-hidden border border-misty shrink-0">${avatarContent}</div>
                                     <span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span>
                                 </div>
-                                <div class="flex items-center"><span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span>${actionButtons}</div>
+                                <span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span>
                             </div>
                             <div class="pl-10">
-                                <p class="text-sm text-midnight whitespace-pre-wrap">${item.text}</p>
+                                <p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>
                                 ${mediaHtml}
                             </div>
                         </div>`;
@@ -571,87 +715,73 @@
         async function postSharing(event) {
             if (event) event.preventDefault();
             const text = document.getElementById('sharing-input').value;
-            const mediaType = document.getElementById('sharing-media-type').value;
-            const mediaUrl = document.getElementById('sharing-media-url').value;
+            if(!text && !currentShareMediaUrl) { showToast("Tulisan atau media tidak boleh kosong."); return; }
 
-            const userName = await getUserDisplayName(); let userId = null; let avatarUrl = '';
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) { userId = user.id; avatarUrl = user.user_metadata?.avatar_url || ''; } }
+            const userName = await getUserDisplayName();
+            const avatarUrl = await getUserAvatarUrl();
+            let userId = null;
+            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
             
-            const submitBtn = document.querySelector('#sec-devotion button[type="submit"]'); submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Membagikan...'; submitBtn.disabled = true;
+            const submitBtn = document.querySelector('#sec-devotion button[type="submit"]');
+            submitBtn.innerHTML = 'Membagikan...'; submitBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/sharing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl, media_type: mediaType, media_url: mediaUrl }) });
-                if (!res.ok) throw new Error("Gagal menyimpan data");
-                document.getElementById('sharing-input').value = ''; clearSharingMedia();
-                loadSharings(); loadUserJournals(); loadUserStreak(userId); showToast("Sharing berhasil!");
-            } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
+                const res = await fetch('/api/sharing', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl, media_url: currentShareMediaUrl, media_type: currentShareMediaType })
+                });
+                
+                if (!res.ok) throw new Error("Gagal membagikan");
+                
+                document.getElementById('sharing-input').value = ''; clearMediaAttach();
+                loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); // Update feeds & streak
+                showToast("Sharing berhasil dibagikan!");
+            } catch (error) { showToast("Gagal: " + error.message); } 
+            finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
         }
 
-        async function editSharing(id) {
-            const currentData = window.postDataMap[id]; const newText = prompt("Edit wawasan/jurnal Anda:", currentData.text);
-            if (newText === null || newText.trim() === "" || newText === currentData.text) return;
-
-            let currentUserId = null;
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-
-            try {
-                const res = await fetch(`/api/sharing/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: newText, user_id: currentUserId, media_url: currentData.media_url, media_type: currentData.media_type }) });
-                if (!res.ok) throw new Error("Gagal mengedit.");
-                showToast("Berhasil diperbarui!"); loadSharings(); loadUserJournals();
-            } catch (error) { showToast(error.message); }
+        // =========================================================================
+        // 8. MODUL PRAYER (Mendukung Anonymous & Weekly Reset)
+        // =========================================================================
+        function getRecentMondayMidnight() {
+            const d = new Date();
+            const day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1);
+            const monday = new Date(d.setDate(diff));
+            monday.setHours(0,0,0,0);
+            return monday.toISOString();
         }
 
-        async function deleteSharing(id) {
-            if (!confirm("Hapus postingan ini secara permanen?")) return;
-            let currentUserId = null;
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-
-            try {
-                const res = await fetch(`/api/sharing/${id}?user_id=${currentUserId}`, { method: 'DELETE' });
-                if (!res.ok) throw new Error("Gagal menghapus.");
-                showToast("Postingan dihapus!"); loadSharings(); loadUserJournals();
-            } catch (error) { showToast(error.message); }
-        }
-
-
-        // --- PRAYER ---
         async function loadPrayers() {
             try {
-                let currentUserId = null;
-                if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-
-                const res = await fetch(`/api/prayers?since=${getLocalMondayMidnight()}&_t=${new Date().getTime()}`); 
+                const res = await fetch(`/api/prayers?since=${getRecentMondayMidnight()}&_t=${new Date().getTime()}`); 
                 if (!res.ok) return;
                 const data = await res.json();
                 const listEl = document.getElementById('prayer-list'); if(!listEl) return; listEl.innerHTML = '';
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2 text-center">Belum ada pokok doa untuk minggu ini.</p>'; return; }
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2">Belum ada pokok doa minggu ini.</p>'; return; }
                 
-                data.forEach(item => {
-                    const intercessors = item.intercessors || []; const count = intercessors.length;
-                    const isAnon = !item.user_name || item.user_name.toLowerCase() === "anonymous";
-                    const displayAvatar = isAnon ? '' : (item.avatar_url || '');
-                    const initial = (item.user_name || 'A').charAt(0).toUpperCase();
-                    
-                    const hasPrayed = currentUserId && intercessors.some(u => u.user_id === currentUserId);
-                    const btnClass = hasPrayed ? "text-xs bg-rosewood text-white px-3 py-1.5 rounded-lg font-semibold shadow-sm transition" : "text-xs bg-blush text-rosewood px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-rosewood hover:text-white transition";
-                    const btnLabel = hasPrayed ? `<i class="ph-fill ph-hands-praying"></i> Sedang Mendoakan (${count})` : `<i class="ph ph-hands-praying"></i> Berdoa (${count})`;
+                let currentUserId = null;
+                if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
 
-                    const dateObj = new Date(item.created_at);
-                    const dayStr = dateObj.toLocaleDateString('id-ID', { weekday: 'long' });
-                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                data.forEach(item => {
+                    const intercessors = item.intercessors || [];
+                    const count = intercessors.length;
+                    const hasPrayed = intercessors.some(u => u.user_id === currentUserId);
+                    const btnClass = hasPrayed ? "bg-rosewood text-white shadow-inner" : "bg-blush text-rosewood shadow-sm hover:bg-rosewood hover:text-white";
+                    const btnText = hasPrayed ? `Sedang Mendoakan (${count})` : `Berdoa (${count})`;
+
+                    const isAnon = item.user_name === 'Anonymous';
+                    const avatarContent = isAnon ? '<div class="w-full h-full flex items-center justify-center font-bold text-xs">A</div>' 
+                        : (item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`);
 
                     listEl.innerHTML += `
-                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between animate-fade-in-up">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-2 overflow-hidden pr-2">
-                                    <div class="w-7 h-7 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-xs relative overflow-hidden shrink-0"><span class="absolute">${initial}</span><img src="${displayAvatar}" class="w-full h-full object-cover relative z-10" onerror="this.style.display='none'"></div>
-                                    <span class="font-bold text-sm text-rosewood truncate">${item.user_name || 'Anonymous'}</span>
-                                </div>
-                                <span class="text-[10px] text-sage whitespace-nowrap">${dayStr}, ${timeStr}</span>
+                        <div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between relative group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-7 h-7 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div>
+                                <span class="font-bold text-sm text-rosewood">${item.user_name || 'User'}</span>
                             </div>
-                            <p class="text-sm text-midnight pl-9 mb-3 whitespace-pre-wrap">${item.text}</p>
+                            <p class="text-sm text-midnight pl-9 mb-3 break-words whitespace-pre-wrap">${item.text}</p>
                             <div class="pl-9 pt-3 border-t border-misty border-opacity-50">
-                                <button type="button" onclick="togglePray('${item.id}', this)" class="${btnClass} flex items-center gap-1.5">${btnLabel}</button>
+                                <button type="button" id="btn-pray-${item.id}" onclick="togglePray('${item.id}')" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition ${btnClass}"><i class="ph ph-hands-praying"></i> ${btnText}</button>
                             </div>
                         </div>`;
                 });
@@ -660,69 +790,122 @@
 
         async function postPrayer(event) {
             if (event) event.preventDefault();
-            const text = document.getElementById('prayer-input').value; let customName = document.getElementById('prayer-name-input').value.trim();
-            let userId = null; let finalName = "Anonymous"; let finalAvatar = "";
-
+            const text = document.getElementById('prayer-input').value;
+            let reqName = document.getElementById('prayer-name-input').value.trim();
+            
+            let userId = null;
+            let avatarUrl = null;
+            
             if (supabaseClient) { 
                 const { data: { user } } = await supabaseClient.auth.getUser(); 
-                if (user) userId = user.id; 
-                if (customName !== "") { finalName = customName; if (user) finalAvatar = user.user_metadata?.avatar_url || ''; } 
-            } else { if (customName !== "") finalName = customName; }
+                if (user) { userId = user.id; } 
+            }
+
+            if (!reqName) {
+                reqName = "Anonymous";
+                avatarUrl = null; // Sembunyikan avatar jika anonymous
+            } else {
+                avatarUrl = await getUserAvatarUrl(); // Ambil avatar jika ada nama
+            }
             
-            const submitBtn = document.querySelector('#sec-prayer button[type="submit"]'); submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengirim...'; submitBtn.disabled = true;
+            const submitBtn = document.querySelector('#sec-prayer button[type="submit"]');
+            submitBtn.innerHTML = 'Mengirim...'; submitBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/prayers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: finalName, user_id: userId, avatar_url: finalAvatar }) });
-                if (!res.ok) throw new Error("Gagal mengirim data");
-                document.getElementById('prayer-input').value = ''; document.getElementById('prayer-name-input').value = ''; 
+                const res = await fetch('/api/prayers', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, user_name: reqName, user_id: userId, avatar_url: avatarUrl })
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(()=>({}));
+                    throw new Error(errData.error || `Server Error ${res.status}`);
+                }
+                document.getElementById('prayer-input').value = ''; 
+                document.getElementById('prayer-name-input').value = ''; 
                 loadPrayers(); showToast("Pokok doa dikirim!");
-            } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
+            } catch (error) { showToast("Gagal: " + error.message); } 
+            finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
         }
 
-        async function togglePray(prayerId, btnElement) {
-            const originalText = btnElement.innerHTML; btnElement.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Proses...'; btnElement.disabled = true;
-            let userId = null; let userName = "Pendoa";
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) { userId = user.id; userName = user.user_metadata?.full_name || user.email.split('@')[0]; } }
+        async function togglePray(prayerId) {
+            const btn = document.getElementById(`btn-pray-${prayerId}`);
+            if(!btn) return;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses...';
+            btn.disabled = true;
 
-            if (!userId) { showToast("Login untuk berdoa bersama."); btnElement.innerHTML = originalText; btnElement.disabled = false; return; }
-
+            const userName = await getUserDisplayName(); let userId = null;
+            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
+            if(!userId) { showToast("Sesi habis, silakan login ulang"); return; }
+            
             try {
-                const res = await fetch(`/api/prayers/${prayerId}/pray`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_name: userName }) });
-                if (!res.ok) throw new Error("Gagal memproses data doa");
+                const res = await fetch(`/api/prayers/${prayerId}/pray`, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ user_id: userId, user_name: userName }) 
+                });
+                if(!res.ok) throw new Error("Gagal menyimpan respons doa");
                 loadPrayers();
-            } catch (error) { showToast("Gagal: " + error.message); btnElement.innerHTML = originalText; btnElement.disabled = false; }
+            } catch (error) { 
+                showToast(error.message); 
+                btn.innerHTML = originalHtml; btn.disabled = false;
+            }
         }
     </script>
 
-    <!-- LOGIN VIEW -->
+    <!-- TAMPILAN LOGIN & REGISTER -->
     <div id="login-view" class="active flex-grow flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
                 <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
-                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div><div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
+                <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
+                
                 <form method="POST" onsubmit="return handleAuth(event)">
-                    <div class="mb-4"><label class="block text-sm font-semibold mb-1">Email</label><input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg"></div>
-                    <div class="mb-6"><div class="flex justify-between items-center mb-1"><label class="block text-sm font-semibold">Password</label><button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button></div><input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg"></div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-semibold">Password</label>
+                            <button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button>
+                        </div>
+                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
                     <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold">Login</button>
                 </form>
                 <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold">Daftar sekarang</button></p>
             </div>
             
             <div id="forgot-password-container" class="hidden transition-opacity duration-300">
-                <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1><p class="text-center text-sage text-sm mb-6">Masukkan email untuk link reset.</p>
-                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div><div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
-                <form method="POST" onsubmit="return handleForgotPasswordSubmit(event)"><div class="mb-6"><label class="block text-sm font-semibold mb-1">Email</label><input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg"></div><button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold mb-4">Kirim Link Reset</button></form>
+                <h1 class="text-3xl font-bold text-center text-rosewood mb-2">Reset Password</h1>
+                <p class="text-center text-sage text-sm mb-6">Masukkan email untuk link reset.</p>
+                <div id="forgot-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
+                <div id="forgot-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
+                
+                <form method="POST" onsubmit="return handleForgotPasswordSubmit(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="forgot-email-input" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <button type="submit" id="forgot-submit-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold mb-4">Kirim Link Reset</button>
+                </form>
                 <p class="text-center text-xs text-sage mt-2">Ingat password? <button type="button" onclick="toggleForgotPassword()" class="text-rosewood font-bold">Kembali ke Login</button></p>
             </div>
         </div>
     </div>
 
-    <!-- MAIN APP VIEW -->
+    <!-- APLIKASI UTAMA (SETELAH LOGIN) -->
     <div id="main-view" class="hidden flex-col min-h-screen">
+        
+        <!-- HEADER & NAVIGASI -->
         <header class="bg-midnight text-white px-4 sm:px-6 py-3 shadow-md">
             <div class="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
-                <div class="flex justify-between w-full sm:w-auto"><div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i> Bible Community</div><button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button></div>
+                <div class="flex justify-between w-full sm:w-auto">
+                    <div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i> Bible Community</div>
+                    <button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button>
+                </div>
                 <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
                     <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold px-2 py-1">Home</button>
                     <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty px-2 py-1">Bible</button>
@@ -734,7 +917,9 @@
             </div>
         </header>
 
+        <!-- AREA KONTEN -->
         <main class="flex-grow p-4 sm:p-6 max-w-4xl mx-auto w-full">
+            
             <!-- SECTION: HOME -->
             <section id="sec-home" class="content-section space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
@@ -742,19 +927,44 @@
                         <h2 id="home-greeting" class="text-xl font-bold text-rosewood">How was your feeling today?</h2>
                         <div id="current-date-badge" class="text-xs font-bold bg-rosewood text-white px-4 py-1.5 rounded-full self-start sm:self-auto shadow-sm whitespace-nowrap">Hari, Tanggal</div>
                     </div>
+                    
                     <form id="feeling-form" onsubmit="return postFeeling(event)">
                         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
-                            <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button><button type="button" onclick="selectFeeling(this, 'Peaceful', '😌')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😌</span><span class="text-xs mt-1">Peaceful</span></button><button type="button" onclick="selectFeeling(this, 'Excited', '🤩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🤩</span><span class="text-xs mt-1">Excited</span></button><button type="button" onclick="selectFeeling(this, 'In Love', '🥰')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥰</span><span class="text-xs mt-1">In Love</span></button><button type="button" onclick="selectFeeling(this, 'Flat', '😐')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😐</span><span class="text-xs mt-1">Flat</span></button><button type="button" onclick="selectFeeling(this, 'Sad', '😢')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😢</span><span class="text-xs mt-1">Sad</span></button><button type="button" onclick="selectFeeling(this, 'Anxious', '😟')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😟</span><span class="text-xs mt-1">Anxious</span></button><button type="button" onclick="selectFeeling(this, 'Angry', '😠')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😠</span><span class="text-xs mt-1">Angry</span></button><button type="button" onclick="selectFeeling(this, 'Tired', '😩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😩</span><span class="text-xs mt-1">Tired</span></button><button type="button" onclick="selectFeeling(this, 'Sleepy', '🥱')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥱</span><span class="text-xs mt-1">Sleepy</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Happy', '😁')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😁</span><span class="text-xs mt-1">Happy</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Peaceful', '😌')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😌</span><span class="text-xs mt-1">Peaceful</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Excited', '🤩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🤩</span><span class="text-xs mt-1">Excited</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'In Love', '🥰')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥰</span><span class="text-xs mt-1">In Love</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Flat', '😐')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😐</span><span class="text-xs mt-1">Flat</span></button>
+                            
+                            <button type="button" onclick="selectFeeling(this, 'Sad', '😢')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😢</span><span class="text-xs mt-1">Sad</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Anxious', '😟')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😟</span><span class="text-xs mt-1">Anxious</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Angry', '😠')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😠</span><span class="text-xs mt-1">Angry</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Tired', '😩')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">😩</span><span class="text-xs mt-1">Tired</span></button>
+                            <button type="button" onclick="selectFeeling(this, 'Sleepy', '🥱')" class="emoji-btn flex flex-col items-center p-3 border border-misty rounded-xl transition hover:border-rosewood"><span class="text-3xl">🥱</span><span class="text-xs mt-1">Sleepy</span></button>
                         </div>
+
                         <div id="feeling-message" class="hidden mt-4 p-4 bg-blush bg-opacity-30 rounded-xl text-sm text-midnight border border-misty mb-4"></div>
+
                         <div id="feeling-input-area" class="hidden animate-fade-in-up">
-                            <input type="hidden" id="selected-feeling-value"><input type="hidden" id="selected-emoji-value">
+                            <input type="hidden" id="selected-feeling-value"> <input type="hidden" id="selected-emoji-value">
                             <label class="block text-xs font-semibold text-sage mb-1 mt-2">Ceritakan sedikit perasaanmu? (Opsional)</label>
                             <input type="text" id="feeling-reason" placeholder="Contoh: Senang karena baru saja..." class="w-full p-3 border border-misty rounded-xl focus:outline-none focus:border-rosewood text-sm bg-vanilla mb-3">
                             <button type="submit" id="feeling-submit-btn" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-opacity-90 transition flex items-center justify-center gap-1.5 w-full sm:w-auto shadow-sm"><i class="ph ph-share-network text-lg"></i> Bagikan Perasaan</button>
                         </div>
                     </form>
-                    <div class="mt-8 pt-6 border-t border-misty"><h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini</h3><div id="community-feelings-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div></div>
+
+                    <!-- LEADERBOARD STREAK SECTION -->
+                    <div class="mt-8 pt-6 border-t border-misty">
+                        <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-fire text-lg"></i> Leaderboard Streak</h3>
+                        <div id="leaderboard-list" class="flex gap-4 overflow-x-auto pb-2">
+                            <div class="text-center w-full py-2 text-sage"><i class="ph ph-spinner animate-spin text-xl"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-misty">
+                        <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-users-three text-lg"></i> Perasaan Komunitas Hari Ini</h3>
+                        <div id="community-feelings-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
+                    </div>
                 </div>
                 <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
             </section>
@@ -763,7 +973,11 @@
             <section id="sec-bible" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6"><select id="bible-version-select" onchange="fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"><option value="TB">TB (Indonesia)</option><option value="NIV">NIV (English)</option></select><select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select><select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                        <select id="bible-version-select" onchange="fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"><option value="TB">TB (Indonesia)</option><option value="NIV">NIV (English)</option></select>
+                        <select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
+                        <select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
+                    </div>
                     <div class="border border-misty rounded-xl p-5 bg-vanilla"><div id="bible-content" class="min-h-[300px]"></div></div>
                 </div>
             </section>
@@ -772,27 +986,19 @@
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <div class="flex items-center justify-between mb-4 border-b border-misty pb-4">
-                        <h3 class="text-lg font-bold text-rosewood">Sharing Komunitas</h3>
-                        <span id="sharing-date-badge" class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full shadow-sm"></span>
-                    </div>
-
+                    <h3 id="sharing-header-title" class="text-lg font-bold text-rosewood mb-4">Sharing Komunitas</h3>
                     <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                        <textarea id="sharing-input" rows="3" required placeholder="Tulis wawasan saat teduh..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm"></textarea>
+                        <textarea id="sharing-input" rows="3" placeholder="Tulis wawasan saat teduh..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
                         
-                        <div id="sharing-attachment-preview" class="hidden mb-3"></div>
+                        <div id="sharing-media-preview"></div>
 
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 gap-3">
                             <div class="flex gap-2">
-                                <button type="button" onclick="document.getElementById('sharing-image-input').click()" class="w-9 h-9 flex items-center justify-center text-sage hover:text-rosewood transition bg-white rounded-lg border border-misty shadow-sm" title="Lampirkan Foto/File"><i class="ph ph-image text-xl"></i></button>
-                                <button type="button" onclick="promptSharingLink('spotify')" class="w-9 h-9 flex items-center justify-center text-sage hover:text-green-500 transition bg-white rounded-lg border border-misty shadow-sm" title="Lampirkan Spotify"><i class="ph ph-spotify-logo text-xl"></i></button>
-                                <button type="button" onclick="promptSharingLink('youtube')" class="w-9 h-9 flex items-center justify-center text-sage hover:text-red-500 transition bg-white rounded-lg border border-misty shadow-sm" title="Lampirkan YouTube"><i class="ph ph-youtube-logo text-xl"></i></button>
-                                
-                                <input type="file" id="sharing-image-input" class="hidden" accept="image/*" onchange="handleSharingImageSelect(event)">
-                                <input type="hidden" id="sharing-media-url">
-                                <input type="hidden" id="sharing-media-type">
+                                <button type="button" id="btn-attach-img" onclick="attachImage()" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-rosewood hover:border-rosewood transition bg-white" title="Lampirkan Foto"><i class="ph ph-image text-lg"></i></button>
+                                <button type="button" onclick="attachLink('youtube')" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-red-600 hover:border-red-600 transition bg-white" title="Lampirkan YouTube"><i class="ph ph-youtube-logo text-lg"></i></button>
+                                <button type="button" onclick="attachLink('spotify')" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-green-600 hover:border-green-600 transition bg-white" title="Lampirkan Spotify"><i class="ph ph-spotify-logo text-lg"></i></button>
                             </div>
-                            <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Bagikan</button>
+                            <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90 w-full sm:w-auto">Bagikan ke Komunitas</button>
                         </div>
                     </form>
                     <div id="sharing-list" class="space-y-0"></div>
@@ -803,9 +1009,9 @@
             <section id="sec-prayer" class="content-section hidden space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <form onsubmit="return postPrayer(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                        <input type="text" id="prayer-name-input" placeholder="Nama (Opsional, kosongkan untuk Anonymous)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-white">
-                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa secara detail..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-white"></textarea>
+                    <form onsubmit="return postPrayer(event)" class="mb-6">
+                        <input type="text" id="prayer-name-input" placeholder="Nama pemohon doa (Opsional, kosongkan jika untuk sendiri)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-vanilla">
+                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa secara detail..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood"></textarea>
                         <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Kirim Pokok Doa</button>
                     </form>
                     <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -814,27 +1020,23 @@
 
             <!-- SECTION: PROFILE -->
             <section id="sec-profile" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto">
-                    <div class="flex flex-col items-center mb-6">
-                        <div class="relative group cursor-pointer mb-2" onclick="document.getElementById('avatar-upload').click()" title="Klik untuk mengubah foto profil">
-                            <div class="w-24 h-24 rounded-full bg-blush flex items-center justify-center text-rosewood font-bold text-4xl overflow-hidden relative border-2 border-misty shadow-sm">
-                                <span id="profile-avatar-text">U</span><img id="profile-avatar-img" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10" onerror="this.classList.add('hidden')" />
-                                <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-200 z-20"><i class="ph ph-camera text-white text-3xl"></i></div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty max-w-lg mx-auto relative">
+                    
+                    <!-- Badge Streak -->
+                    <div id="profile-streak-badge" class="hidden absolute top-6 right-6 bg-rosewood text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"><i class="ph ph-fire text-lg"></i> 0 Hari Streak</div>
+
+                    <div class="flex flex-col items-center mb-6 pt-4">
+                        <input type="file" id="avatar-upload-input" accept="image/*" class="hidden" onchange="handleAvatarSelect(event)">
+                        <button type="button" onclick="triggerAvatarUpload()" class="relative w-24 h-24 rounded-full bg-blush border-2 border-rosewood shadow-sm mb-3 flex items-center justify-center text-rosewood font-bold text-3xl overflow-hidden group">
+                            <div id="profile-avatar-container" class="w-full h-full flex items-center justify-center">U</div>
+                            <div class="absolute inset-0 bg-midnight bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                                <i class="ph ph-camera text-2xl text-white"></i>
                             </div>
-                            <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="handleFileSelect(event)">
-                        </div>
-                        <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2><p class="text-[10px] text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 5MB)</p>
+                        </button>
+                        <h2 id="display-name-title" class="text-xl font-bold text-midnight">User Profile</h2>
+                        <p class="text-xs text-sage mt-1">Klik gambar di atas untuk mengubah foto (Maks 2MB)</p>
                     </div>
                     
-                    <!-- STREAK BADGE -->
-                    <div class="flex items-center justify-center gap-3 mb-6 bg-blush px-4 py-3 rounded-xl border border-misty shadow-sm w-full animate-fade-in-up">
-                        <span id="streak-icon" class="text-3xl transition-all">🌱</span>
-                        <div class="text-left">
-                            <div class="text-[10px] font-bold text-sage uppercase tracking-widest">Sharing Streak</div>
-                            <div class="text-rosewood font-extrabold text-lg leading-none mt-1"><span id="profile-streak-count">0</span> Hari Beruntun</div>
-                        </div>
-                    </div>
-
                     <form onsubmit="return handleProfileUpdate(event)">
                         <input type="text" id="profile-name" required class="w-full px-3 py-2 border border-misty rounded-lg text-sm mb-3 focus:outline-none focus:border-rosewood" placeholder="Nama Lengkap">
                         <input type="email" id="profile-email" disabled class="w-full px-3 py-2 border border-misty bg-vanilla rounded-lg text-sm mb-3 cursor-not-allowed">
@@ -847,22 +1049,14 @@
                     </form>
                     
                     <div class="mt-8 pt-6 border-t border-misty">
-                        <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Riwayat Jurnal</h3>
+                        <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Riwayat Jurnal & Sharing</h3>
                         <div id="profile-journal-list" class="space-y-3"><div class="text-center py-4 text-sage"><i class="ph ph-spinner animate-spin text-2xl"></i></div></div>
                     </div>
                 </div>
             </section>
         </main>
+        
         <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">&copy; 2026 Perkantas Jabar. All rights reserved.</footer>
-    </div>
-
-    <!-- CROP MODAL -->
-    <div id="crop-modal" class="fixed inset-0 bg-midnight bg-opacity-80 z-[10000] hidden flex-col items-center justify-center p-4">
-        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl animate-fade-in-up">
-            <div class="p-4 border-b border-misty flex justify-between items-center bg-vanilla"><h3 class="font-bold text-rosewood text-lg">Sesuaikan Foto</h3><button type="button" onclick="closeCropModal()" class="text-sage hover:text-rosewood transition"><i class="ph ph-x text-2xl"></i></button></div>
-            <div class="bg-gray-100 flex justify-center items-center h-[350px] w-full overflow-hidden relative"><img id="crop-image" class="max-w-full max-h-full block"></div>
-            <div class="p-4 border-t border-misty flex justify-end gap-3 bg-vanilla"><button type="button" onclick="closeCropModal()" class="px-5 py-2.5 rounded-lg text-sm font-bold text-sage hover:bg-misty hover:bg-opacity-30 transition">Batal</button><button type="button" onclick="applyCrop()" id="btn-apply-crop" class="px-5 py-2.5 rounded-lg text-sm font-bold bg-rosewood text-white shadow-sm hover:bg-opacity-90 transition flex items-center gap-2">Terapkan Foto</button></div>
-        </div>
     </div>
 </body>
 </html>
