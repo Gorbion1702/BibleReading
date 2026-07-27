@@ -177,21 +177,19 @@ app.get('/api/streak/:user_id', async (req, res) => {
 });
 
 // =========================================================================
-// CRON JOB: PENGINGAT WHATSAPP OTOMATIS (Jam 18:00 WIB)
+// CRON JOB: PENGINGAT WHATSAPP OTOMATIS
 // =========================================================================
 app.get('/api/cron/reminder', async (req, res) => {
     try {
-        const FONNTE_TOKEN = process.env.FONNTE_TOKEN; // Token dari panel Fonnte
+        const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
         
         if (!FONNTE_TOKEN) {
             return res.status(500).json({ message: "Token Fonnte belum disetting di Vercel." });
         }
 
-        // 1. Ambil semua akun pengguna (Perlu Service Role Key)
         const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
         if (authError) throw authError;
 
-        // 2. Cari tahu siapa yang sudah sharing hari ini
         const todayStr = getWIBDateString(new Date());
         const { data: sharings, error: shareError } = await supabase.from('sharings').select('user_id, created_at');
         if (shareError) throw shareError;
@@ -202,15 +200,14 @@ app.get('/api/cron/reminder', async (req, res) => {
 
         let messagesSent = 0;
 
-        // 3. Cek satu per satu user
         for (const user of users) {
             const hasShared = usersWhoSharedToday.includes(user.id);
-            const phone = user.user_metadata?.phone; // Nomor WA dari form profile
+            const phone = user.user_metadata?.phone;
             const name = user.user_metadata?.full_name || 'Teman';
 
-            // Jika dia BELUM sharing dan PUNYA nomor WA, kirim pesan!
             if (!hasShared && phone) {
-                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Community agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+                // Pesan WhatsApp diubah menyesuaikan nama komunitas baru
+                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
                 
                 await fetch('https://api.fonnte.com/send', {
                     method: 'POST',
