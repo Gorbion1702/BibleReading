@@ -99,10 +99,18 @@ app.post('/api/feelings', async (req, res) => {
 // --- SHARING ---
 app.get('/api/sharing', async (req, res) => {
     try {
-        const { today, user_id, local_midnight } = req.query;
+        const { user_id, start_date, end_date, today, local_midnight } = req.query;
         let query = supabase.from('sharings').select('*').order('created_at', { ascending: false });
-        if (today === 'true' && local_midnight) query = query.gte('created_at', local_midnight);
+        
+        // Membaca input tanggal dari navigasi "Mesin Waktu"
+        if (start_date) query = query.gte('created_at', start_date);
+        if (end_date) query = query.lt('created_at', end_date);
+        
+        // Fallback untuk kode lama jika sewaktu-waktu terpakai
+        if (today === 'true' && local_midnight && !start_date) query = query.gte('created_at', local_midnight);
+        
         if (user_id) query = query.eq('user_id', user_id);
+        
         const { data, error } = await query;
         if (error) throw error; res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -119,7 +127,6 @@ app.post('/api/sharing', async (req, res) => {
 app.put('/api/sharing/:id', async (req, res) => {
     try {
         const { id } = req.params; const { text, user_id } = req.body; 
-        // Hanya update text agar media (foto/youtube) yang sudah ada tidak terhapus
         const { data, error } = await supabase.from('sharings').update({ text }).eq('id', id).eq('user_id', user_id).select();
         if (error) throw error; if (data.length === 0) throw new Error("Akses ditolak.");
         res.status(200).json(data);
