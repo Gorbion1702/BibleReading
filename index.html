@@ -138,7 +138,7 @@
             if(errorMsg) errorMsg.classList.add('hidden');
 
             if (isLoginMode) {
-                title.innerText = "Welcome Back"; subtitle.innerText = "Login to your Bible Community"; btn.innerText = "Login";
+                title.innerText = "Welcome Back"; subtitle.innerText = "Login to Bible Reading Perkantas Jabar"; btn.innerText = "Login";
                 toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
                 if(forgotLink) forgotLink.classList.remove('hidden');
             } else {
@@ -657,7 +657,7 @@
         <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-misty relative">
             <div id="standard-auth-container" class="transition-opacity duration-300">
                 <h1 id="auth-title" class="text-3xl font-bold text-center text-rosewood mb-2">Welcome Back</h1>
-                <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to your Bible Community</p>
+                <p id="auth-subtitle" class="text-center text-sage text-sm mb-6">Login to Bible Reading Perkantas Jabar</p>
                 <div id="auth-error-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-red-100 text-red-700"></div>
                 <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
                 
@@ -688,7 +688,7 @@
     <div id="main-view" class="hidden flex-col min-h-screen">
         <header class="bg-midnight text-white px-4 sm:px-6 py-3 shadow-md">
             <div class="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
-                <div class="flex justify-between w-full sm:w-auto"><div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i> Bible Community</div><button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button></div>
+                <div class="flex justify-between w-full sm:w-auto"><div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i>Bible Reading Perkantas Jabar</div><button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button></div>
                 <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
                     <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold px-2 py-1">Home</button>
                     <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty px-2 py-1">Bible</button>
