@@ -128,7 +128,7 @@
             document.getElementById('login-view').classList.add('hidden');
             const mainView = document.getElementById('main-view'); mainView.classList.remove('hidden'); mainView.classList.add('flex');
             navigate('home'); updateDateUI(); updateGreeting(); 
-            loadUserProfile(); loadFeelings(); initBible(); loadSharings(); loadUserJournals(); loadPrayers(); loadUserStreak(); loadLeaderboard();
+            loadUserProfile(); loadFeelings(); loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard();
         }
 
         function toggleAuthMode() {
@@ -270,7 +270,7 @@
                 if (updateError) throw updateError;
 
                 updateAvatarUI(user.email, user.user_metadata?.full_name || '', publicUrl); showToast("Foto profil berhasil diperbarui!");
-                closeCropperModal(); loadFeelings(); loadSharings(); loadPrayers(); loadLeaderboard();
+                closeCropperModal(); loadFeelings(); loadSharings(); loadLeaderboard();
             } catch (error) { showToast("Gagal menyimpan foto: " + error.message); } 
             finally { btn.innerHTML = 'Simpan Foto'; btn.disabled = false; }
         }
@@ -410,7 +410,7 @@
             } catch (error) { renderError('leaderboard-list', error.message); }
         }
 
-        // 6. BIBLE
+        // 6. DEVOTION & DAILY VERSE
         const dailyVerses = [
             { text: "Karena begitu besar kasih Allah akan dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.", reference: "Yohanes 3:16" },
             { text: "Sebab Aku ini mengetahui rancangan-rancangan apa yang ada pada-Ku mengenai kamu, demikianlah firman TUHAN, yaitu rancangan damai sejahtera dan bukan rancangan kecelakaan, untuk memberikan kepadamu hari depan yang penuh harapan.", reference: "Yeremia 29:11" },
@@ -451,27 +451,6 @@
                 const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' });
                 container.innerHTML = `<div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span><span class="text-xs font-semibold text-sage">${dateStr}</span></div><h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3><p class="text-xs font-semibold text-sage mb-4">${d.reference}</p><div class="prose text-sm text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty"><p>${d.content}</p></div><div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty"><h4 class="text-xs font-bold text-rosewood uppercase mb-1">Pertanyaan Hari Ini</h4><p class="text-sm italic text-midnight">${d.application}</p></div>`;
             }
-        }
-
-        const bibleBooks = [{ id: 1, name_id: "Kejadian", chapters: 50 }, { id: 40, name_id: "Matius", chapters: 28 }, { id: 43, name_id: "Yohanes", chapters: 21 }, { id: 19, name_id: "Mazmur", chapters: 150 }];
-        function initBible() {
-            const bookSelect = document.getElementById('bible-book-select'); bookSelect.innerHTML = '';
-            bibleBooks.forEach(b => { const opt = document.createElement('option'); opt.value = b.id; opt.innerText = b.name_id; bookSelect.appendChild(opt); });
-            updateChapterOptions(); fetchBibleChapter();
-        }
-        function updateChapterOptions() {
-            const bookId = parseInt(document.getElementById('bible-book-select').value); const chapterSelect = document.getElementById('bible-chapter-select'); chapterSelect.innerHTML = '';
-            const selectedBook = bibleBooks.find(b => b.id === bookId);
-            for (let i = 1; i <= (selectedBook ? selectedBook.chapters : 1); i++) { const opt = document.createElement('option'); opt.value = i; opt.innerText = `Pasal ${i}`; chapterSelect.appendChild(opt); }
-        }
-        async function fetchBibleChapter() {
-            const version = document.getElementById('bible-version-select').value; const bookId = document.getElementById('bible-book-select').value; const chapter = document.getElementById('bible-chapter-select').value || 1;
-            const contentContainer = document.getElementById('bible-content'); contentContainer.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-2xl"></i></div>';
-            try {
-                const res = await fetch(`https://bolls.life/get-chapter/${version}/${bookId}/${chapter}/`); const data = await res.json();
-                let html = '<div class="space-y-3">'; data.forEach(v => { html += `<p><sup class="text-xs font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; }); html += '</div>';
-                contentContainer.innerHTML = html;
-            } catch (error) { contentContainer.innerHTML = `<p class="text-center text-red-600">Gagal memuat Alkitab.</p>`; }
         }
 
         // 7. SHARING & MEDIA
@@ -593,87 +572,6 @@
                 loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); showToast("Sharing berhasil dibagikan!");
             } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
         }
-
-        // 8. PRAYERS
-        async function deletePrayer(id) {
-            if(!confirm("Apakah Anda yakin ingin menghapus pokok doa ini?")) return;
-            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
-            try {
-                const res = await fetch(`/api/prayers/${id}?user_id=${userId}`, { method: 'DELETE' });
-                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal menghapus"); }
-                showToast("Doa berhasil dihapus!"); loadPrayers();
-            } catch(e) { showToast(e.message); }
-        }
-
-        async function editPrayer(id, oldText) {
-            const newText = prompt("Edit pokok doa:", oldText);
-            if(newText === null || newText.trim() === "" || newText === oldText) return;
-            let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
-            try {
-                const res = await fetch(`/api/prayers/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: newText, user_id: userId }) });
-                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal mengedit"); }
-                showToast("Doa berhasil diedit!"); loadPrayers();
-            } catch(e) { showToast(e.message); }
-        }
-
-        async function loadPrayers() {
-            renderLoading('prayer-list');
-            let currentUserId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) currentUserId = user.id; }
-            
-            const listEl = document.getElementById('prayer-list'); if(!listEl) return;
-            try {
-                const res = await fetch(`/api/prayers?since=${getRecentMondayMidnight()}&_t=${new Date().getTime()}`); 
-                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-                const data = await res.json(); listEl.innerHTML = '';
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage col-span-2 text-center bg-vanilla p-4 rounded-xl border border-misty">Belum ada pokok doa minggu ini.</p>'; return; }
-                
-                data.forEach(item => {
-                    const intercessors = item.intercessors || []; const count = intercessors.length; const hasPrayed = intercessors.some(u => u.user_id === currentUserId);
-                    const btnClass = hasPrayed ? "bg-rosewood text-white shadow-inner" : "bg-blush text-rosewood shadow-sm hover:bg-rosewood hover:text-white";
-                    const btnText = hasPrayed ? `Sedang Mendoakan (${count})` : `Berdoa (${count})`;
-                    const isAnon = item.user_name === 'Anonymous';
-                    const avatarContent = isAnon ? '<div class="w-full h-full flex items-center justify-center font-bold text-xs text-rosewood">A</div>' : (item.avatar_url ? `<img src="${item.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs">${(item.user_name || 'U').charAt(0).toUpperCase()}</div>`);
-                    const dateObj = new Date(item.created_at); const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'short' }); const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                    let actionBtns = '';
-                    if (item.user_id === currentUserId && currentUserId) {
-                        actionBtns = `<div class="flex items-center gap-2 mr-2"><button type="button" onclick="editPrayer('${item.id}', decodeURIComponent('${encodeURIComponent(item.text)}'))" class="text-sage hover:text-rosewood transition" title="Edit"><i class="ph ph-pencil-simple text-base"></i></button><button type="button" onclick="deletePrayer('${item.id}')" class="text-sage hover:text-red-600 transition" title="Hapus"><i class="ph ph-trash text-base"></i></button></div>`;
-                    }
-
-                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty flex flex-col justify-between relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-blush border border-misty overflow-hidden shrink-0">${avatarContent}</div><span class="font-bold text-sm text-rosewood truncate max-w-[120px]">${item.user_name || 'User'}</span></div><div class="flex items-center">${actionBtns}<span class="text-[10px] text-sage whitespace-nowrap">${dayName}, ${timeStr}</span></div></div><p class="text-sm text-midnight mb-4 break-words whitespace-pre-wrap mt-1">${item.text}</p><div class="pt-3 border-t border-misty border-opacity-50"><button type="button" id="btn-pray-${item.id}" onclick="togglePray('${item.id}')" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition ${btnClass}"><i class="ph ph-hands-praying"></i> ${btnText}</button></div></div>`;
-                });
-            } catch (error) { renderError('prayer-list', error.message); }
-        }
-
-        async function postPrayer(event) {
-            if (event) event.preventDefault(); const text = document.getElementById('prayer-input').value; let reqName = document.getElementById('prayer-name-input').value.trim();
-            let userId = null; let avatarUrl = null;
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) { userId = user.id; } }
-            if (!reqName) { reqName = "Anonymous"; avatarUrl = null; } else { avatarUrl = await getUserAvatarUrl(); }
-            
-            const submitBtn = document.querySelector('#sec-prayer button[type="submit"]'); submitBtn.innerHTML = 'Mengirim...'; submitBtn.disabled = true;
-
-            try {
-                const res = await fetch('/api/prayers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: reqName, user_id: userId, avatar_url: avatarUrl }) });
-                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-                document.getElementById('prayer-input').value = ''; document.getElementById('prayer-name-input').value = ''; loadPrayers(); showToast("Pokok doa dikirim!");
-            } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Kirim Pokok Doa'; submitBtn.disabled = false; }
-        }
-
-        async function togglePray(prayerId) {
-            const btn = document.getElementById(`btn-pray-${prayerId}`); if(!btn) return;
-            const originalHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Proses...'; btn.disabled = true;
-
-            const userName = await getUserDisplayName(); let userId = null;
-            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
-            if(!userId) { showToast("Sesi habis, login ulang"); return; }
-            
-            try {
-                const res = await fetch(`/api/prayers/${prayerId}/pray`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_name: userName }) });
-                if(!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-                loadPrayers();
-            } catch (error) { showToast("Error: " + error.message); btn.innerHTML = originalHtml; btn.disabled = false; }
-        }
     </script>
 
     <!-- AUTH VIEW -->
@@ -715,9 +613,7 @@
                 <div class="flex justify-between w-full sm:w-auto"><div class="font-bold text-sm sm:text-base text-blush flex items-center gap-2"><i class="ph ph-book-bookmark text-xl"></i>Bible Reading Perkantas Jabar</div><button type="button" onclick="logout()" class="text-misty sm:hidden"><i class="ph ph-sign-out text-xl"></i></button></div>
                 <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
                     <button type="button" data-target="home" onclick="navigate('home')" class="nav-btn text-blush font-bold px-2 py-1">Home</button>
-                    <button type="button" data-target="bible" onclick="navigate('bible')" class="nav-btn text-misty px-2 py-1">Bible</button>
                     <button type="button" data-target="devotion" onclick="navigate('devotion')" class="nav-btn text-misty px-2 py-1">Devotion</button>
-                    <button type="button" data-target="prayer" onclick="navigate('prayer')" class="nav-btn text-misty px-2 py-1">Prayer</button>
                     <button type="button" data-target="profile" onclick="navigate('profile')" class="nav-btn text-misty px-2 py-1">Profile</button>
                 </nav>
                 <div class="hidden sm:flex justify-end"><button type="button" onclick="logout()" class="text-misty hover:text-blush transition flex items-center gap-1"><i class="ph ph-sign-out text-lg"></i> Logout</button></div>
@@ -769,19 +665,6 @@
                 </div>
             </section>
 
-            <!-- BIBLE -->
-            <section id="sec-bible" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h2 class="text-xl font-bold text-rosewood mb-4">Perpustakaan Alkitab</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                        <select id="bible-version-select" onchange="fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"><option value="TB">TB (Indonesia)</option><option value="NIV">NIV (English)</option></select>
-                        <select id="bible-book-select" onchange="updateChapterOptions(); fetchBibleChapter();" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
-                        <select id="bible-chapter-select" onchange="fetchBibleChapter()" class="w-full p-2.5 border border-misty rounded-xl text-sm bg-vanilla"></select>
-                    </div>
-                    <div class="border border-misty rounded-xl p-5 bg-vanilla"><div id="bible-content" class="min-h-[300px]"></div></div>
-                </div>
-            </section>
-
             <!-- DEVOTION -->
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
@@ -800,19 +683,6 @@
                         </div>
                     </form>
                     <div id="sharing-list" class="space-y-0"></div>
-                </div>
-            </section>
-
-            <!-- PRAYER -->
-            <section id="sec-prayer" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <h2 class="text-xl font-bold text-rosewood mb-4">Ruang Doa Bersama</h2>
-                    <form onsubmit="return postPrayer(event)" class="mb-6">
-                        <input type="text" id="prayer-name-input" placeholder="Nama pemohon doa (Opsional, kosongkan jika untuk Anonymous)" class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood text-sm bg-vanilla">
-                        <textarea id="prayer-input" rows="3" required placeholder="Tuliskan pokok doa secara detail..." class="w-full p-3 border border-misty rounded-xl mb-3 focus:outline-none focus:border-rosewood"></textarea>
-                        <button type="submit" class="bg-rosewood text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-opacity-90">Kirim Pokok Doa</button>
-                    </form>
-                    <div id="prayer-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </section>
 
