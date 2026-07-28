@@ -111,7 +111,7 @@
 
         function renderError(containerId, errorMsg) {
             const el = document.getElementById(containerId);
-            if(el) el.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center"><p class="text-sm font-bold text-red-600 mb-1">Terjadi Gangguan Jaringan</p><p class="text-xs text-red-500">${errorMsg}</p><button onclick="location.reload()" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">Muat Ulang</button></div>`;
+            if(el) el.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center"><p class="text-sm font-bold text-red-600 mb-1">Terjadi Gangguan Jaringan</p><p class="text-xs text-red-500 break-words">${errorMsg}</p><button onclick="location.reload()" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">Muat Ulang</button></div>`;
         }
 
         // 3. AUTH
@@ -207,11 +207,11 @@
             if (user) {
                 document.getElementById('profile-email').value = user.email;
                 const fullName = user.user_metadata?.full_name || ''; 
-                const phone = user.user_metadata?.phone || ''; 
+                const phone = user.user_metadata?.phone || '';
                 const avatarUrl = user.user_metadata?.avatar_url || null;
                 
                 document.getElementById('profile-name').value = fullName; 
-                document.getElementById('profile-phone').value = phone;
+                document.getElementById('profile-phone').value = phone; 
                 updateAvatarUI(user.email, fullName, avatarUrl);
             }
         }
@@ -277,7 +277,8 @@
 
         async function handleProfileUpdate(event) {
             if (event) event.preventDefault(); const btn = document.getElementById('update-profile-btn');
-            const newName = document.getElementById('profile-name').value; const newPhone = document.getElementById('profile-phone').value; 
+            const newName = document.getElementById('profile-name').value;
+            const newPhone = document.getElementById('profile-phone').value;
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
                 const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName, phone: newPhone } });
@@ -338,6 +339,7 @@
 
                     let mediaHtml = '';
                     if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-gray-50"><img src="${item.media_url}" class="w-full h-auto object-contain max-h-96"></div>`; } 
+                    else if (item.media_type === 'video' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-black"><video src="${item.media_url}" controls class="w-full h-auto max-h-96"></video></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
@@ -402,8 +404,8 @@
                 if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center p-3">Belum ada data streak.</p>'; return; }
 
                 data.forEach(u => {
-                    const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : (u.user_name || 'U').charAt(0).toUpperCase();
-                    listEl.innerHTML += `<div class="flex flex-col items-center gap-1 min-w-[70px] shrink-0 animate-fade-in-up"><div class="w-14 h-14 rounded-full bg-blush flex items-center justify-center font-bold text-rosewood text-xl shadow-sm border border-misty overflow-hidden">${avatarContent}</div><span class="text-xs font-bold text-midnight truncate w-full text-center">${u.user_name.split(' ')[0]}</span><span class="text-[10px] font-bold bg-rosewood text-white px-2 py-0.5 rounded-full shadow-sm">${u.streak} 🔥</span></div>`;
+                    const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-rosewood text-xl">${(u.user_name || 'U').charAt(0).toUpperCase()}</div>`;
+                    listEl.innerHTML += `<div class="flex flex-col items-center gap-1 min-w-[70px] shrink-0 animate-fade-in-up"><div class="w-14 h-14 rounded-full bg-blush shadow-sm border border-misty overflow-hidden">${avatarContent}</div><span class="text-xs font-bold text-midnight truncate w-full text-center">${u.user_name.split(' ')[0]}</span><span class="text-[10px] font-bold bg-rosewood text-white px-2 py-0.5 rounded-full shadow-sm">${u.streak} 🔥</span></div>`;
                 });
             } catch (error) { renderError('leaderboard-list', error.message); }
         }
@@ -449,26 +451,53 @@
         // 7. SHARING & MEDIA
         let currentShareMediaUrl = null; let currentShareMediaType = null;
 
-        function attachImage() {
-            const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+        function attachMedia() {
+            const input = document.createElement('input'); 
+            input.type = 'file'; 
+            input.accept = 'image/*,video/mp4,video/quicktime,.heic,.mov'; // SUPPORT FOTO, VIDEO, HEIC, MOV
+            
             input.onchange = async (e) => {
                 const file = e.target.files[0]; if (!file) return;
-                if (file.size > 10 * 1024 * 1024) { showToast("Maksimal 10MB"); return; }
+                if (file.size > 50 * 1024 * 1024) { showToast("Maksimal ukuran file 50MB"); return; }
+                
                 const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
+                
                 try {
-                    // MENDETEKSI FORMAT FILE (PNG, WEBP, JPG, dll) DAN MENYIMPANNYA SESUAI FORMATNYA
-                    const fileExt = file.name.split('.').pop();
+                    const fileExt = file.name.split('.').pop().toLowerCase();
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
                     
-                    // Menambahkan contentType agar browser tahu cara merendernya
-                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { contentType: file.type, upsert: true });
+                    // Mendeteksi format asli file agar browser tahu cara merendernya
+                    let contentType = file.type;
+                    if (!contentType) {
+                        if (fileExt === 'heic') contentType = 'image/heic';
+                        else if (fileExt === 'mov') contentType = 'video/quicktime';
+                        else contentType = 'application/octet-stream';
+                    }
+
+                    // Tentukan apakah ini akan dirender sebagai <img> atau <video>
+                    let detectedType = 'image';
+                    if (contentType.startsWith('video/') || fileExt === 'mov' || fileExt === 'mp4') {
+                        detectedType = 'video';
+                    }
+
+                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { contentType: contentType, upsert: true });
                     if (error) throw error;
+                    
                     const { data } = supabaseClient.storage.from('sharing_media').getPublicUrl(fileName);
                     
-                    currentShareMediaUrl = data.publicUrl; currentShareMediaType = 'image';
-                    document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2"><img src="${data.publicUrl}" class="h-24 rounded border border-misty"><button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">x</button></div>`;
-                    showToast("Foto dilampirkan");
-                } catch(err) { showToast("Gagal upload foto"); console.error(err); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
+                    currentShareMediaUrl = data.publicUrl; 
+                    currentShareMediaType = detectedType;
+                    
+                    let previewHtml = '';
+                    if (detectedType === 'video') {
+                        previewHtml = `<video src="${data.publicUrl}" class="h-24 rounded border border-misty bg-black" muted></video>`;
+                    } else {
+                        previewHtml = `<img src="${data.publicUrl}" class="h-24 rounded border border-misty object-contain bg-gray-50">`;
+                    }
+
+                    document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2">${previewHtml}<button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md">x</button></div>`;
+                    showToast("File dilampirkan");
+                } catch(err) { showToast("Gagal upload: " + err.message); console.error(err); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
             }; input.click();
         }
 
@@ -516,6 +545,7 @@
 
                     let mediaHtml = '';
                     if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-gray-50"><img src="${item.media_url}" class="w-full h-auto object-contain max-h-96"></div>`; } 
+                    else if (item.media_type === 'video' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-black"><video src="${item.media_url}" controls class="w-full h-auto max-h-96"></video></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
 
@@ -540,7 +570,7 @@
             } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
         }
 
-        // 8. PRAYERS (ANONYMOUS, RESET & EDIT/DELETE)
+        // 8. PRAYERS
         async function deletePrayer(id) {
             if(!confirm("Apakah Anda yakin ingin menghapus pokok doa ini?")) return;
             let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
@@ -709,7 +739,7 @@
                 
                 <div id="daily-verse-container" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty mt-6">
                     <h3 class="text-sm font-bold text-rosewood mb-4 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-fire text-lg"></i> Leaderboard Streak</h3>
                     <div id="leaderboard-list" class="flex gap-4 overflow-x-auto pb-2"></div>
                 </div>
@@ -738,7 +768,7 @@
                         <div id="sharing-media-preview"></div>
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 gap-3">
                             <div class="flex gap-2">
-                                <button type="button" id="btn-attach-img" onclick="attachImage()" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-rosewood hover:border-rosewood transition bg-white" title="Lampirkan Foto"><i class="ph ph-image text-lg"></i></button>
+                                <button type="button" id="btn-attach-img" onclick="attachMedia()" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-rosewood hover:border-rosewood transition bg-white" title="Lampirkan Foto/Video"><i class="ph ph-image text-lg"></i></button>
                                 <button type="button" onclick="attachLink('youtube')" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-red-600 hover:border-red-600 transition bg-white" title="Lampirkan YouTube"><i class="ph ph-youtube-logo text-lg"></i></button>
                                 <button type="button" onclick="attachLink('spotify')" class="w-8 h-8 rounded-full border border-misty flex items-center justify-center text-sage hover:text-green-600 hover:border-green-600 transition bg-white" title="Lampirkan Spotify"><i class="ph ph-spotify-logo text-lg"></i></button>
                             </div>
