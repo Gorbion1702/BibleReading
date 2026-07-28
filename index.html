@@ -111,7 +111,7 @@
 
         function renderError(containerId, errorMsg) {
             const el = document.getElementById(containerId);
-            if(el) el.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center"><p class="text-sm font-bold text-red-600 mb-1">Gagal memuat data</p><p class="text-xs text-red-500">${errorMsg}</p></div>`;
+            if(el) el.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center"><p class="text-sm font-bold text-red-600 mb-1">Terjadi Gangguan Jaringan</p><p class="text-xs text-red-500">${errorMsg}</p><button onclick="location.reload()" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">Muat Ulang</button></div>`;
         }
 
         // 3. AUTH
@@ -301,7 +301,7 @@
             let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
             try {
                 const res = await fetch(`/api/sharing/${id}?user_id=${userId}`, { method: 'DELETE' });
-                if (!res.ok) throw new Error("Gagal menghapus.");
+                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal menghapus"); }
                 showToast("Berhasil dihapus!"); loadSharings(); loadUserJournals();
             } catch(e) { showToast(e.message); }
         }
@@ -312,7 +312,7 @@
             let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
             try {
                 const res = await fetch(`/api/sharing/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: newText, user_id: userId }) });
-                if (!res.ok) throw new Error("Gagal mengedit.");
+                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal mengedit"); }
                 showToast("Berhasil diedit!"); loadSharings(); loadUserJournals();
             } catch(e) { showToast(e.message); }
         }
@@ -399,7 +399,7 @@
                 if (!res.ok) throw new Error(`Server Error HTTP ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
                 
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center bg-vanilla p-3 rounded-xl border border-misty">Belum ada data streak.</p>'; return; }
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic w-full text-center p-3">Belum ada data streak.</p>'; return; }
 
                 data.forEach(u => {
                     const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : (u.user_name || 'U').charAt(0).toUpperCase();
@@ -456,14 +456,19 @@
                 if (file.size > 10 * 1024 * 1024) { showToast("Maksimal 10MB"); return; }
                 const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
                 try {
-                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { upsert: true });
+                    // MENDETEKSI FORMAT FILE (PNG, WEBP, JPG, dll) DAN MENYIMPANNYA SESUAI FORMATNYA
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                    
+                    // Menambahkan contentType agar browser tahu cara merendernya
+                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { contentType: file.type, upsert: true });
                     if (error) throw error;
                     const { data } = supabaseClient.storage.from('sharing_media').getPublicUrl(fileName);
+                    
                     currentShareMediaUrl = data.publicUrl; currentShareMediaType = 'image';
                     document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2"><img src="${data.publicUrl}" class="h-24 rounded border border-misty"><button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">x</button></div>`;
                     showToast("Foto dilampirkan");
-                } catch(err) { showToast("Gagal upload foto"); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
+                } catch(err) { showToast("Gagal upload foto"); console.error(err); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
             }; input.click();
         }
 
@@ -541,7 +546,7 @@
             let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
             try {
                 const res = await fetch(`/api/prayers/${id}?user_id=${userId}`, { method: 'DELETE' });
-                if (!res.ok) throw new Error("Gagal menghapus.");
+                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal menghapus"); }
                 showToast("Doa berhasil dihapus!"); loadPrayers();
             } catch(e) { showToast(e.message); }
         }
@@ -552,7 +557,7 @@
             let userId = null; if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if(user) userId = user.id; }
             try {
                 const res = await fetch(`/api/prayers/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: newText, user_id: userId }) });
-                if (!res.ok) throw new Error("Gagal mengedit.");
+                if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal mengedit"); }
                 showToast("Doa berhasil diedit!"); loadPrayers();
             } catch(e) { showToast(e.message); }
         }
