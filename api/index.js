@@ -178,7 +178,7 @@ app.get('/api/cron/reminder', async (req, res) => {
             const name = user.user_metadata?.full_name || 'Teman';
 
             if (!hasShared && phone) {
-                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+                const waMessage = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
                 
                 await fetch('https://api.fonnte.com/send', {
                     method: 'POST',
