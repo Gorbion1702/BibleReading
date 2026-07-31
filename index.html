@@ -68,7 +68,7 @@
             }, 1000);
 
             document.addEventListener('submit', (e) => e.preventDefault(), true);
-            loadDailyVerse(); checkSession();
+            checkSession();
         });
 
         // 2. UTILS
@@ -84,6 +84,7 @@
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('text-blush', 'font-bold'); if (btn.dataset.target === sectionId) btn.classList.add('text-blush', 'font-bold');
             });
+            if (sectionId === 'devotion') { changeDevotionDate(0); }
         }
 
         function getLocalMidnight() {
@@ -128,7 +129,7 @@
             document.getElementById('login-view').classList.add('hidden');
             const mainView = document.getElementById('main-view'); mainView.classList.remove('hidden'); mainView.classList.add('flex');
             navigate('home'); updateDateUI(); updateGreeting(); 
-            loadUserProfile(); loadFeelings(); changeDevotionDate(0); loadUserJournals(); loadUserStreak(); loadLeaderboard();
+            loadUserProfile(); loadFeelings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); loadDailyVerse();
         }
 
         function toggleAuthMode() {
@@ -410,102 +411,140 @@
             } catch (error) { renderError('leaderboard-list', error.message); }
         }
 
-        // 6. DEVOTION MESIN WAKTU & DAILY VERSE
+        // 6. DEVOTION (365 DAYS BIBLE READING)
         const dailyVerses = [
             { text: "Karena begitu besar kasih Allah akan dunia ini, sehingga Ia telah mengaruniakan Anak-Nya yang tunggal, supaya setiap orang yang percaya kepada-Nya tidak binasa, melainkan beroleh hidup yang kekal.", reference: "Yohanes 3:16" },
             { text: "Sebab Aku ini mengetahui rancangan-rancangan apa yang ada pada-Ku mengenai kamu, demikianlah firman TUHAN, yaitu rancangan damai sejahtera dan bukan rancangan kecelakaan, untuk memberikan kepadamu hari depan yang penuh harapan.", reference: "Yeremia 29:11" },
             { text: "Segala perkara dapat kutanggung di dalam Dia yang memberi kekuatan kepadaku.", reference: "Filipi 4:13" },
             { text: "Kita tahu sekarang, bahwa Allah turut bekerja dalam segala sesuatu untuk mendatangkan kebaikan bagi mereka yang mengasihi Dia, yaitu bagi mereka yang terpanggil sesuai dengan rencana Allah.", reference: "Roma 8:28" },
-            { text: "Percayalah kepada TUHAN dengan segenap hatimu, dan janganlah bersandar kepada pengertianmu sendiri. Akuilah Dia dalam segala lakumu, maka Ia akan meluruskan jalanmu.", reference: "Amsal 3:5-6" },
-            { text: "Janganlah takut, sebab Aku menyertai engkau, janganlah bimbang, sebab Aku ini Allahmu; Aku akan meneguhkan, bahkan akan menolong engkau; Aku akan memegang engkau dengan tangan kanan-Ku yang membawa kemenangan.", reference: "Yesaya 41:10" },
-            { text: "Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.", reference: "Matius 11:28" },
-            { text: "Bukankah telah Kuperintahkan kepadamu: kuatkan dan teguhkanlah hatimu? Janganlah kecut dan tawar hati, sebab TUHAN, Allahmu, menyertai engkau, ke mana pun engkau pergi.", reference: "Yosua 1:9" },
-            { text: "Pencobaan-pencobaan yang kamu alami ialah pencobaan-pencobaan biasa, yang tidak melebihi kekuatan manusia. Sebab Allah setia dan karena itu Ia tidak akan membiarkan kamu dicobai melampaui kekuatanmu. Pada waktu kamu dicobai Ia akan memberikan kepadamu jalan ke luar, sehingga kamu dapat menanggungnya.", reference: "1 Korintus 10:13" },
-            { text: "TUHAN adalah gembalaku, takkan kekurangan aku. Ia membaringkan aku di padang yang berumput hijau, Ia membimbing aku ke air yang tenang.", reference: "Mazmur 23:1-2" },
-            { text: "Bersukacitalah senantiasa. Tetaplah berdoa. Mengucap syukurlah dalam segala hal, sebab itulah yang dikehendaki Allah di dalam Kristus Yesus bagi kamu.", reference: "1 Tesalonika 5:16-18" },
-            { text: "Sebab karena kasih karunia kamu diselamatkan oleh iman; itu bukan hasil usahamu, tetapi pemberian Allah, itu bukan hasil pekerjaanmu: jangan ada orang yang memegahkan diri.", reference: "Efesus 2:8-9" }
+            { text: "Percayalah kepada TUHAN dengan segenap hatimu, dan janganlah bersandar kepada pengertianmu sendiri. Akuilah Dia dalam segala lakumu, maka Ia akan meluruskan jalanmu.", reference: "Amsal 3:5-6" }
         ];
 
-        const dailyDevotionsList = [
-            { title: "Menghidupkan Kasih yang Tulus", reference: "Kolose 3:12-14", theme: "Kasih & Persaudaraan", content: "Sebagai orang-orang pilihan Allah yang dikuduskan dan dikasihi-Nya, kenakanlah belas kasihan, kemurahan, kerendahan hati, kelemahlembutan dan kesabaran...", application: "Adakah seseorang yang hari ini perlu Anda ampuni?" },
-            { title: "Kekuatan dalam Kelemahan", reference: "2 Korintus 12:9", theme: "Pengharapan", content: "Tetapi jawab Tuhan kepadaku: 'Cukuplah kasih karunia-Ku bagimu, sebab justru dalam kelemahanlah kuasa-Ku menjadi sempurna.'", application: "Apa kelemahanmu yang bisa kau serahkan pada-Nya hari ini?" },
-            { title: "Tinggalkan Kekuatiran", reference: "Matius 6:34", theme: "Kedamaian", content: "Sebab itu janganlah kamu kuatir akan hari besok, karena hari besok mempunyai kesusahannya sendiri. Kesusahan sehari cukuplah untuk sehari.", application: "Apa kekuatiran terbesarmu yang perlu diserahkan pada Tuhan hari ini?" },
-            { title: "Menanti Waktu Tuhan", reference: "Pengkhotbah 3:11", theme: "Waktu & Proses", content: "Ia membuat segala sesuatu indah pada waktunya, bahkan Ia memberikan kekekalan dalam hati mereka.", application: "Apakah Anda sedang belajar bersabar menunggu janji Tuhan?" },
-            { title: "Lebih dari Pemenang", reference: "Roma 8:37", theme: "Kemenangan", content: "Tetapi dalam semuanya itu kita lebih dari pada orang-orang yang menang, oleh Dia yang telah mengasihi kita.", application: "Rintangan apa yang sedang Anda hadapi bersama-Nya?" },
-            { title: "Damai Sejahtera Hati", reference: "Yohanes 14:27", theme: "Kehadiran Tuhan", content: "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu, dan apa yang Kuberikan tidak seperti yang diberikan oleh dunia kepadamu. Janganlah gelisah dan gentar hatimu.", application: "Apakah hatimu sedang bimbang dan gelisah hari ini?" },
-            { title: "Belajar Mengucap Syukur", reference: "1 Tesalonika 5:18", theme: "Rasa Syukur", content: "Mengucap syukurlah dalam segala hal, sebab itulah yang dikehendaki Allah di dalam Kristus Yesus bagi kamu.", application: "Sebutkan 3 hal kecil yang Anda syukuri hari ini." }
+        function loadDailyVerse() {
+            const programStart = new Date(2026, 6, 21); // Bulan di JS dimulai dari 0, jadi 6 = Juli
+            programStart.setHours(0,0,0,0);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const diffTime = today.getTime() - programStart.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Tahan di ayat pertama jika sebelum tanggal 21 Juli 2026
+            let index = diffDays < 0 ? 0 : diffDays % dailyVerses.length;
+            
+            const v = dailyVerses[index];
+            const container = document.getElementById('daily-verse-container');
+            if (container) { container.innerHTML = `<h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-book-open-text text-lg"></i> Ayat Harian</h3><p class="text-sm italic text-midnight mb-3 leading-relaxed">"${v.text}"</p><span class="text-xs font-semibold text-sage block text-right">— ${v.reference} (TB)</span>`; }
+        }
+
+        const biblePlan365 = [
+            "Kejadian 1-3", "Kejadian 4-7", "Kejadian 8-11", "Ayub 1-5", "Ayub 6-9", "Ayub 10-13", "Ayub 14-16", "Ayub 17-20", "Ayub 21-23", "Ayub 24-28", "Ayub 29-31", "Ayub 32-34", "Ayub 35-37", "Ayub 38-39", "Ayub 40-42", "Kejadian 12-15", "Kejadian 16-18", "Kejadian 19-21", "Kejadian 22-24", "Kejadian 25-26", "Kejadian 27-29", "Kejadian 30-31", "Kejadian 32-34", "Kejadian 35-37", "Kejadian 38-40", "Kejadian 41-42", "Kejadian 43-45", "Kejadian 46-47", "Kejadian 48-50", "Keluaran 1-3", "Keluaran 4-6", "Keluaran 7-9", "Keluaran 10-12", "Keluaran 13-15", "Keluaran 16-18", "Keluaran 19-21", "Keluaran 22-24", "Keluaran 25-27", "Keluaran 28-29", "Keluaran 30-32", "Keluaran 33-35", "Keluaran 36-38", "Keluaran 39-40", "Imamat 1-4", "Imamat 5-7", "Imamat 8-10", "Imamat 11-13", "Imamat 14-15", "Imamat 16-18", "Imamat 19-21", "Imamat 22-23", "Imamat 24-25", "Imamat 26-27", "Bilangan 1-2", "Bilangan 3-4", "Bilangan 5-6", "Bilangan 7", "Bilangan 8-10", "Bilangan 11-13", "Bilangan 14-15", "Bilangan 16-17", "Bilangan 18-20", "Bilangan 21-22", "Bilangan 23-25", "Bilangan 26-27", "Bilangan 28-30", "Bilangan 31-32", "Bilangan 33-34", "Bilangan 35-36", "Ulangan 1-2", "Ulangan 3-4", "Ulangan 5-7", "Ulangan 8-10", "Ulangan 11-13", "Ulangan 14-16", "Ulangan 17-20", "Ulangan 21-23", "Ulangan 24-27", "Ulangan 28-29", "Ulangan 30-31", "Ulangan 32-34; Mazmur 90", "Yosua 1-4", "Yosua 5-8", "Yosua 9-11", "Yosua 12-15", "Yosua 16-18", "Yosua 19-21", "Yosua 22-24", "Hakim-hakim 1-2", "Hakim-hakim 3-5", "Hakim-hakim 6-7", "Hakim-hakim 8-9", "Hakim-hakim 10-12", "Hakim-hakim 13-15", "Hakim-hakim 16-18", "Hakim-hakim 19-21", "Rut 1-4", "1 Samuel 1-3", "1 Samuel 4-8", "1 Samuel 9-12", "1 Samuel 13-14", "1 Samuel 15-17", "1 Samuel 18-20; Mazmur 11, 59", "1 Samuel 21-24; Mazmur 91", "Mazmur 7, 27, 31, 34, 52", "Mazmur 56, 120, 140-142", "1 Samuel 25-27", "Mazmur 17, 35, 54, 63", "1 Samuel 28-31; Mazmur 18", "Mazmur 121, 123-125, 128-130", "2 Samuel 1-4", "Mazmur 6, 8-10, 14, 16, 19, 21", "1 Tawarikh 1-2", "Mazmur 43-45, 49, 84-85, 87", "1 Tawarikh 3-5", "Mazmur 73, 77-78", "1 Tawarikh 6", "Mazmur 81, 88, 92-93", "1 Tawarikh 7-10", "Mazmur 102-104", "2 Samuel 5; 1 Tawarikh 11-12", "Mazmur 133", "Mazmur 106-107", "1 Tawarikh 13-16", "Mazmur 1-2, 15, 22-24, 47, 68", "Mazmur 89, 96, 100-101, 105, 132", "2 Samuel 6-7; 1 Tawarikh 17", "Mazmur 25, 29, 33, 36, 39", "2 Samuel 8-9; 1 Tawarikh 18", "Mazmur 50, 53, 60, 75", "2 Samuel 10; 1 Tawarikh 19; Mazmur 20", "Mazmur 65-67, 69-70", "2 Samuel 11-12; 1 Tawarikh 20", "Mazmur 32, 51, 86, 122", "2 Samuel 13-15", "Mazmur 3-4, 12-13, 28, 55", "2 Samuel 16-18", "Mazmur 26, 40, 58, 61-62, 64", "2 Samuel 19-21", "Mazmur 5, 38, 41-42", "2 Samuel 22-23; Mazmur 57", "Mazmur 95, 97-99", "2 Samuel 24; 1 Tawarikh 21-22; Mazmur 30", "Mazmur 108-110", "1 Tawarikh 23-25", "Mazmur 131, 138-139, 143-145", "1 Tawarikh 26-29; Mazmur 127", "Mazmur 111-118", "1 Raja-raja 1-2; Mazmur 37, 71, 94", "Mazmur 119", "1 Raja-raja 3-4", "2 Tawarikh 1; Mazmur 72", "Kidung Agung 1-8", "Amsal 1-3", "Amsal 4-6", "Amsal 7-9", "Amsal 10-12", "Amsal 13-15", "Amsal 16-18", "Amsal 19-21", "Amsal 22-24", "1 Raja-raja 5-6; 2 Tawarikh 2-3", "1 Raja-raja 7; 2 Tawarikh 4", "1 Raja-raja 8; 2 Tawarikh 5", "2 Tawarikh 6-7; Mazmur 136", "Mazmur 134, 146-150", "1 Raja-raja 9; 2 Tawarikh 8", "Amsal 25-26", "Amsal 27-29", "Pengkhotbah 1-6", "Pengkhotbah 7-12", "1 Raja-raja 10-11; 2 Tawarikh 9", "Amsal 30-31", "1 Raja-raja 12-14", "2 Tawarikh 10-12", "1 Raja-raja 15; 2 Tawarikh 13-16", "1 Raja-raja 16; 2 Tawarikh 17", "1 Raja-raja 17-19", "1 Raja-raja 20-21", "1 Raja-raja 22; 2 Tawarikh 18", "2 Tawarikh 19-23", "Obaja 1; Mazmur 82-83", "2 Raja-raja 1-4", "2 Raja-raja 5-8", "2 Raja-raja 9-11", "2 Raja-raja 12-13; 2 Tawarikh 24", "2 Raja-raja 14; 2 Tawarikh 25", "Yunus 1-4", "2 Raja-raja 15; 2 Tawarikh 26", "Yesaya 1-4", "Yesaya 5-8", "Amos 1-5", "Amos 6-9", "2 Tawarikh 27; Yesaya 9-12", "Mikha 1-7", "2 Tawarikh 28; 2 Raja-raja 16-17", "Yesaya 13-17", "Yesaya 18-22", "Yesaya 23-27", "2 Raja-raja 18; 2 Tawarikh 29-31; Mazmur 48", "Hosea 1-7", "Hosea 8-14", "Yesaya 28-30", "Yesaya 31-34", "Yesaya 35-36", "Yesaya 37-39; Mazmur 76", "Yesaya 40-43", "Yesaya 44-48", "2 Raja-raja 19; Mazmur 46, 80, 135", "Yesaya 49-53", "Yesaya 54-58", "Yesaya 59-63", "Yesaya 64-66", "2 Raja-raja 20-21", "2 Tawarikh 32-33", "Nahum 1-3", "2 Raja-raja 22-23; 2 Tawarikh 34-35", "Zefanya 1-3", "Yeremia 1-3", "Yeremia 4-6", "Yeremia 7-9", "Yeremia 10-13", "Yeremia 14-17", "Yeremia 18-22", "Yeremia 23-25", "Yeremia 26-29", "Yeremia 30-31", "Yeremia 32-34", "Yeremia 35-37", "Yeremia 38-40; Mazmur 74, 79", "2 Raja-raja 24-25; 2 Tawarikh 36", "Habakuk 1-3", "Yeremia 41-45", "Yeremia 46-48", "Yeremia 49-50", "Yeremia 51-52", "Ratapan 1-2", "Ratapan 3-5", "Yehezkiel 1-4", "Yehezkiel 5-8", "Yehezkiel 9-12", "Yehezkiel 13-15", "Yehezkiel 16-17", "Yehezkiel 18-20", "Yehezkiel 21-22", "Yehezkiel 23-24", "Yehezkiel 25-27", "Yehezkiel 28-30", "Yehezkiel 31-33", "Yehezkiel 34-36", "Yehezkiel 37-39", "Yehezkiel 40-42", "Yehezkiel 43-45", "Yehezkiel 46-48", "Yoel 1-3", "Daniel 1-3", "Daniel 4-6", "Daniel 7-9", "Daniel 10-12", "Ezra 1-3", "Ezra 4-6; Mazmur 137", "Hagai 1-2", "Zakharia 1-4", "Zakharia 5-9", "Zakharia 10-14", "Ester 1-5", "Ester 6-10", "Ezra 7-10", "Nehemia 1-5", "Nehemia 6-7", "Nehemia 8-10", "Nehemia 11-13; Mazmur 126", "Maleakhi 1-4", "Lukas 1; Yohanes 1", "Matius 1; Lukas 2", "Matius 2", "Matius 3; Markus 1; Lukas 3", "Matius 4; Lukas 4-5", "Yohanes 2-4", "Matius 8; Markus 2", "Yohanes 5", "Matius 12; Markus 3; Lukas 6", "Matius 5-7", "Matius 9; Lukas 7", "Matius 11", "Lukas 11", "Matius 13; Lukas 8", "Markus 4-5", "Matius 10", "Matius 14; Markus 6; Lukas 9", "Yohanes 6", "Matius 15; Markus 7", "Matius 16; Markus 8", "Matius 17; Markus 9", "Matius 18", "Yohanes 7-8", "Yohanes 9-10", "Lukas 10", "Lukas 12-13", "Lukas 14-15", "Lukas 16-17", "Yohanes 11", "Lukas 18", "Matius 19; Markus 10", "Matius 20-21", "Lukas 19", "Markus 11; Yohanes 12", "Matius 22; Markus 12", "Matius 23; Lukas 20-21", "Markus 13", "Matius 24", "Matius 25", "Matius 26; Markus 14", "Lukas 22; Yohanes 13", "Yohanes 14-17", "Matius 27; Markus 15", "Lukas 23; Yohanes 18-19", "Matius 28; Markus 16", "Lukas 24; Yohanes 20-21", "Kisah Para Rasul 1-3", "Kisah Para Rasul 4-6", "Kisah Para Rasul 7-8", "Kisah Para Rasul 9-10", "Kisah Para Rasul 11-12", "Kisah Para Rasul 13-14", "Yakobus 1-5", "Kisah Para Rasul 15-16", "Galatia 1-3", "Galatia 4-6", "Kisah Para Rasul 17", "1 Tesalonika 1-5; 2 Tesalonika 1-3", "Kisah Para Rasul 18-19", "1 Korintus 1-4", "1 Korintus 5-8", "1 Korintus 9-11", "1 Korintus 12-14", "1 Korintus 15-16", "2 Korintus 1-4", "2 Korintus 5-9", "2 Korintus 10-13", "Roma 1-3", "Roma 4-7", "Roma 8-10", "Roma 11-13", "Roma 14-16", "Kisah Para Rasul 20-23", "Kisah Para Rasul 24-26", "Kisah Para Rasul 27-28", "Kolose 1-4; Filemon 1", "Efesus 1-6", "Filipi 1-4", "1 Timotius 1-6", "Titus 1-3", "1 Petrus 1-5", "Ibrani 1-6", "Ibrani 7-10", "Ibrani 11-13", "2 Timotius 1-4", "2 Petrus 1-3; Yudas 1", "1 Yohanes 1-5", "2 Yohanes 1; 3 Yohanes 1", "Wahyu 1-5", "Wahyu 6-11", "Wahyu 12-18", "Wahyu 19-22"
         ];
+
+        const bookMap = {
+            "Kejadian": 1, "Keluaran": 2, "Imamat": 3, "Bilangan": 4, "Ulangan": 5, "Yosua": 6, "Hakim-hakim": 7, "Rut": 8,
+            "1 Samuel": 9, "2 Samuel": 10, "1 Raja-raja": 11, "2 Raja-raja": 12, "1 Tawarikh": 13, "2 Tawarikh": 14,
+            "Ezra": 15, "Nehemia": 16, "Ester": 17, "Ayub": 18, "Mazmur": 19, "Amsal": 20, "Pengkhotbah": 21, "Kidung Agung": 22,
+            "Yesaya": 23, "Yeremia": 24, "Ratapan": 25, "Yehezkiel": 26, "Daniel": 27, "Hosea": 28, "Yoel": 29, "Amos": 30,
+            "Obaja": 31, "Yunus": 32, "Mikha": 33, "Nahum": 34, "Habakuk": 35, "Zefanya": 36, "Hagai": 37, "Zakharia": 38, "Maleakhi": 39,
+            "Matius": 40, "Markus": 41, "Lukas": 42, "Yohanes": 43, "Kisah Para Rasul": 44, "Roma": 45, "1 Korintus": 46, "2 Korintus": 47,
+            "Galatia": 48, "Efesus": 49, "Filipi": 50, "Kolose": 51, "1 Tesalonika": 52, "2 Tesalonika": 53, "1 Timotius": 54, "2 Timotius": 55,
+            "Titus": 56, "Filemon": 57, "Ibrani": 58, "Yakobus": 59, "1 Petrus": 60, "2 Petrus": 61, "1 Yohanes": 62, "2 Yohanes": 63, "3 Yohanes": 64, "Yudas": 65, "Wahyu": 66
+        };
+
+        function parseReading(str) {
+            let reqs = []; let parts = str.split(';');
+            parts.forEach(p => {
+                p = p.trim();
+                let bookName = Object.keys(bookMap).find(b => p.startsWith(b));
+                if (bookName) {
+                    let chapStr = p.substring(bookName.length).trim();
+                    if(chapStr) {
+                        chapStr.split(',').forEach(c => {
+                            let range = c.trim().split('-');
+                            if(range.length === 2) {
+                                for(let i=parseInt(range[0]); i<=parseInt(range[1]); i++) reqs.push({book: bookName, chapter: i});
+                            } else {
+                                reqs.push({book: bookName, chapter: parseInt(range[0])});
+                            }
+                        });
+                    } else { reqs.push({book: bookName, chapter: 1}); }
+                }
+            });
+            return reqs;
+        }
+
+        async function fetchDailyDevotionData(readingString) {
+            const reqs = parseReading(readingString);
+            try {
+                const promises = reqs.map(req => 
+                    fetch(`https://bolls.life/get-chapter/TB/${bookMap[req.book]}/${req.chapter}/`).then(res => res.json()).then(data => ({req, data}))
+                );
+                const results = await Promise.all(promises);
+                let html = '';
+                results.forEach(res => {
+                    html += `<h4 class="font-bold text-rosewood mt-4 mb-2 text-lg px-4">${res.req.book} ${res.req.chapter}</h4><div class="space-y-1 text-sm text-midnight px-4 pb-4 border-b border-misty last:border-0">`;
+                    if(Array.isArray(res.data)) {
+                        res.data.forEach(v => { html += `<p><sup class="font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; });
+                    } else { html += `<p class="italic">Gagal memuat teks...</p>`; }
+                    html += `</div>`;
+                });
+                return html;
+            } catch(e) { return `<p class="text-red-500 p-4">Gagal memuat ayat. Cek koneksi Anda.</p>`; }
+        }
 
         function changeDevotionDate(delta) {
             const today = new Date();
-            
-            // Ubah tanggal yang sedang dilihat
             currentDevotionDate.setDate(currentDevotionDate.getDate() + delta);
             
-            // Cegah melompat ke masa depan (besok)
-            if (currentDevotionDate > today) {
-                currentDevotionDate = new Date();
-                return;
-            }
+            if (currentDevotionDate > today) { currentDevotionDate = new Date(); return; }
 
             const nextBtn = document.getElementById('btn-next-devotion');
             const formContainer = document.getElementById('sharing-form-container');
-            const headerTitle = document.getElementById('sharing-header-title');
+            
+            const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             
             if (isSameDay(currentDevotionDate, today)) {
-                // HARI INI
-                nextBtn.disabled = true;
-                nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                nextBtn.disabled = true; nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 document.getElementById('devotion-date-display').innerText = "Hari Ini";
-                
-                // Tampilkan form sharing
                 if(formContainer) formContainer.classList.remove('hidden');
-                if(headerTitle) headerTitle.innerText = `Sharing Komunitas (Hari Ini)`;
             } else {
-                // HARI SEBELUMNYA (MASA LALU)
-                nextBtn.disabled = false;
-                nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+                nextBtn.disabled = false; nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 document.getElementById('devotion-date-display').innerText = currentDevotionDate.toLocaleDateString('id-ID', dateOptions);
-                
-                // Sembunyikan form sharing (agar user tidak merusak streak dengan posting di hari lampau)
                 if(formContainer) formContainer.classList.add('hidden');
-                if(headerTitle) headerTitle.innerText = `Catatan Sharing Komunitas (${currentDevotionDate.toLocaleDateString('id-ID', dateOptions)})`;
             }
 
-            loadDailyDevotion();
-            loadSharings();
+            loadDailyDevotionContent(); loadSharings();
         }
 
-        function loadDailyVerse() {
-            const today = new Date();
-            const start = new Date(today.getFullYear(), 0, 0);
-            const diff = today - start;
-            const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-            
-            const index = dayOfYear % dailyVerses.length;
-            const v = dailyVerses[index];
-
-            const container = document.getElementById('daily-verse-container');
-            if (container) {
-                container.innerHTML = `<h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-book-open-text text-lg"></i> Ayat Harian</h3><p class="text-sm italic text-midnight mb-3 leading-relaxed">"${v.text}"</p><span class="text-xs font-semibold text-sage block text-right">— ${v.reference} (TB)</span>`;
-            }
-        }
-
-        function loadDailyDevotion() {
+        async function loadDailyDevotionContent() {
             const container = document.getElementById('daily-devotion-card');
             if (container) {
-                // Devotion menyesuaikan dengan currentDevotionDate ("Mesin Waktu")
-                const start = new Date(currentDevotionDate.getFullYear(), 0, 0);
-                const diff = currentDevotionDate - start;
-                const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const programStart = new Date(2026, 6, 21); // 21 Juli 2026
+                programStart.setHours(0,0,0,0);
+                const current = new Date(currentDevotionDate);
+                current.setHours(0,0,0,0);
                 
-                const index = dayOfYear % dailyDevotionsList.length;
-                const d = dailyDevotionsList[index];
+                const diffTime = current.getTime() - programStart.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                
+                // Mencegah bacaan muncul jika tanggal sebelum 21 Juli 2026
+                if (diffDays < 0) {
+                    container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bible Reading 365 Hari Perkantas Jabar akan dimulai serentak pada tanggal <b class="text-midnight">21 Juli 2026</b>.</p></div>`;
+                    return;
+                }
 
-                const dateStr = currentDevotionDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' });
+                container.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-3xl text-sage mb-2"></i><p class="text-xs text-sage">Menarik ayat dari Alkitab...</p></div>';
                 
-                container.innerHTML = `<div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">${d.theme}</span><span class="text-xs font-semibold text-sage">${dateStr}</span></div><h3 class="text-xl font-bold text-rosewood mb-1">${d.title}</h3><p class="text-xs font-semibold text-sage mb-4">${d.reference}</p><div class="prose text-sm text-midnight mb-6 bg-vanilla p-4 rounded-xl border border-misty"><p>${d.content}</p></div><div class="bg-blush bg-opacity-25 p-4 rounded-xl border border-misty"><h4 class="text-xs font-bold text-rosewood uppercase mb-1">Pertanyaan Hari Ini</h4><p class="text-sm italic text-midnight">${d.application}</p></div>`;
+                let index = diffDays % biblePlan365.length;
+                
+                const dayOfYear = index + 1;
+                const readingString = biblePlan365[index];
+                const dateStr = currentDevotionDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                
+                const bibleHtml = await fetchDailyDevotionData(readingString);
+
+                container.innerHTML = `<div class="flex items-center justify-between mb-4 px-4 pt-2"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">Hari ke-${dayOfYear}</span><span class="text-xs font-semibold text-sage">${dateStr}</span></div><h3 class="text-xl font-bold text-rosewood mb-4 px-4">${readingString}</h3><div class="bg-vanilla rounded-xl border border-misty overflow-hidden max-h-[60vh] overflow-y-auto mb-2">${bibleHtml}</div>`;
             }
         }
 
@@ -584,15 +623,17 @@
             
             const listEl = document.getElementById('sharing-list'); if(!listEl) return;
             try {
-                // Menarik data berdasarkan hari yang sedang dilihat pada Mesin Waktu
                 const startOfDay = new Date(currentDevotionDate); startOfDay.setHours(0,0,0,0);
                 const endOfDay = new Date(currentDevotionDate); endOfDay.setHours(23,59,59,999);
                 
                 const res = await fetch(`/api/sharing?start_date=${startOfDay.toISOString()}&end_date=${endOfDay.toISOString()}&_t=${new Date().getTime()}`);
                 if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
                 const data = await res.json(); listEl.innerHTML = '';
+                
+                const dateStr = currentDevotionDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                document.getElementById('sharing-header-title').innerText = `Sharing Komunitas (${dateStr})`;
 
-                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada catatan sharing untuk hari ini.</p>'; return; }
+                if (!data || data.length === 0) { listEl.innerHTML = '<p class="text-xs text-sage italic bg-vanilla p-4 rounded-xl border border-misty text-center">Belum ada sharing.</p>'; return; }
                 
                 data.forEach(item => {
                     const timeStr = new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -734,7 +775,7 @@
                     <button type="button" onclick="changeDevotionDate(1)" id="btn-next-devotion" class="w-10 h-10 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition opacity-50 cursor-not-allowed shadow-sm" disabled><i class="ph ph-caret-right text-lg font-bold"></i></button>
                 </div>
 
-                <div id="daily-devotion-card" class="bg-white p-6 rounded-2xl shadow-sm border border-misty"></div>
+                <div id="daily-devotion-card" class="bg-white py-6 rounded-2xl shadow-sm border border-misty relative"></div>
                 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
                     <h3 id="sharing-header-title" class="text-lg font-bold text-rosewood mb-4">Sharing Komunitas</h3>
@@ -786,7 +827,7 @@
                     </form>
                     
                     <div class="mt-8 pt-6 border-t border-misty">
-                        <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Semua Riwayat Jurnal Anda</h3>
+                        <h3 class="text-lg font-bold text-rosewood mb-4 flex items-center gap-2"><i class="ph ph-book-open text-xl"></i> Riwayat Jurnal & Sharing</h3>
                         <div id="profile-journal-list" class="space-y-3"></div>
                     </div>
                 </div>
