@@ -318,6 +318,31 @@
                 showToast("Berhasil diedit!"); loadSharings(); loadUserJournals();
             } catch(e) { showToast(e.message); }
         }
+        
+        async function toggleLikeSharing(id) {
+            let userId = null;
+            if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
+            if (!userId) { showToast("Silakan login kembali untuk memberikan Like."); return; }
+            
+            const btn = document.getElementById(`btn-like-${id}`);
+            if (btn) btn.style.opacity = '0.5';
+
+            try {
+                const res = await fetch(`/api/sharing/${id}/like`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ user_id: userId }) 
+                });
+                if(!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+                
+                // Refresh list untuk menampilkan status like terbaru
+                loadSharings(); 
+                if(!document.getElementById('sec-profile').classList.contains('hidden')) loadUserJournals();
+            } catch (error) { 
+                showToast("Gagal memberikan Like: " + error.message); 
+                if(btn) btn.style.opacity = '1';
+            }
+        }
 
         async function loadUserJournals() {
             renderLoading('profile-journal-list', 'Memuat riwayat jurnal...');
@@ -343,8 +368,15 @@
                     else if (item.media_type === 'video' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-black"><video src="${item.media_url}" controls class="w-full h-auto max-h-96"></video></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
+                    
+                    const likesArr = item.likes || [];
+                    const likeCount = likesArr.length;
+                    const hasLiked = likesArr.includes(user.id);
+                    const heartIcon = hasLiked ? 'ph-fill text-rosewood' : 'ph';
+                    const likeBtnText = likeCount > 0 ? likeCount : 'Suka';
+                    const likeBtnHtml = `<div class="mt-2 pt-2 flex items-center"><button type="button" id="btn-like-${item.id}" onclick="toggleLikeSharing('${item.id}')" class="flex items-center gap-1.5 text-xs text-sage hover:text-rosewood transition-colors ${hasLiked ? 'text-rosewood font-bold' : ''}"><i class="${heartIcon} ph-heart text-lg"></i> <span>${likeBtnText}</span></button></div>`;
 
-                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-bold text-sage block uppercase tracking-wider">${dateStr} • ${timeStr}</span>${actionBtns}</div><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div>`;
+                    listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-bold text-sage block uppercase tracking-wider">${dateStr} • ${timeStr}</span>${actionBtns}</div><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}${likeBtnHtml}</div>`;
                 });
             } catch (error) { renderError('profile-journal-list', error.message); }
         }
@@ -649,8 +681,15 @@
                     else if (item.media_type === 'video' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-black"><video src="${item.media_url}" controls class="w-full h-auto max-h-96"></video></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
+                    
+                    const likesArr = item.likes || [];
+                    const likeCount = likesArr.length;
+                    const hasLiked = currentUserId ? likesArr.includes(currentUserId) : false;
+                    const heartIcon = hasLiked ? 'ph-fill text-rosewood' : 'ph';
+                    const likeBtnText = likeCount > 0 ? likeCount : 'Suka';
+                    const likeBtnHtml = `<div class="mt-2 pt-2 flex items-center"><button type="button" id="btn-like-${item.id}" onclick="toggleLikeSharing('${item.id}')" class="flex items-center gap-1.5 text-xs text-sage hover:text-rosewood transition-colors ${hasLiked ? 'text-rosewood font-bold' : ''}"><i class="${heartIcon} ph-heart text-lg"></i> <span>${likeBtnText}</span></button></div>`;
 
-                    listEl.innerHTML += `<div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blush overflow-hidden border border-misty shrink-0">${avatarContent}</div><span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span></div><div class="flex items-center">${actionBtns}<span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span></div></div><div class="pl-10"><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}</div></div>`;
+                    listEl.innerHTML += `<div class="border-b border-misty pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blush overflow-hidden border border-misty shrink-0">${avatarContent}</div><span class="font-bold text-midnight text-sm">${item.user_name || 'User'}</span></div><div class="flex items-center">${actionBtns}<span class="text-[10px] text-sage whitespace-nowrap">${timeStr}</span></div></div><div class="pl-10"><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}${likeBtnHtml}</div></div>`;
                 });
             } catch (error) { renderError('sharing-list', error.message); }
         }

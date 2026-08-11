@@ -106,9 +106,8 @@ app.get('/api/sharing', async (req, res) => {
         if (start_date) query = query.gte('created_at', start_date);
         if (end_date) query = query.lt('created_at', end_date);
         
-        // Fallback untuk kode lama jika sewaktu-waktu terpakai
+        // Fallback
         if (today === 'true' && local_midnight && !start_date) query = query.gte('created_at', local_midnight);
-        
         if (user_id) query = query.eq('user_id', user_id);
         
         const { data, error } = await query;
@@ -119,7 +118,7 @@ app.get('/api/sharing', async (req, res) => {
 app.post('/api/sharing', async (req, res) => {
     try {
         const { text, user_name, user_id, avatar_url, media_url, media_type } = req.body;
-        const { data, error } = await supabase.from('sharings').insert([{ text, user_name, user_id, avatar_url, media_url, media_type }]).select();
+        const { data, error } = await supabase.from('sharings').insert([{ text, user_name, user_id, avatar_url, media_url, media_type, likes: [] }]).select();
         if (error) throw error; res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -138,6 +137,36 @@ app.delete('/api/sharing/:id', async (req, res) => {
         const { id } = req.params; const { user_id } = req.query;
         const { data, error } = await supabase.from('sharings').delete().eq('id', id).eq('user_id', user_id).select();
         if (error) throw error; if (data.length === 0) throw new Error("Akses ditolak.");
+        res.status(200).json(data);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// ENDPOINT BARU: LIKE SHARING
+app.post('/api/sharing/:id/like', async (req, res) => {
+    try {
+        const { id } = req.params; 
+        const { user_id } = req.body;
+        
+        // 1. Ambil data sharing saat ini
+        const { data: shareData, error: fetchError } = await supabase.from('sharings').select('likes').eq('id', id).single();
+        if (fetchError) throw fetchError;
+        
+        // 2. Cek apakah user sudah like
+        let likesArray = shareData.likes || [];
+        const userIndex = likesArray.indexOf(user_id);
+        
+        if (userIndex > -1) {
+            // Jika sudah like -> Batal Like (Hapus user_id dari array)
+            likesArray.splice(userIndex, 1);
+        } else {
+            // Jika belum like -> Tambahkan Like (Masukkan user_id ke array)
+            likesArray.push(user_id);
+        }
+        
+        // 3. Update ke database
+        const { data, error } = await supabase.from('sharings').update({ likes: likesArray }).eq('id', id).select();
+        if (error) throw error;
+        
         res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -171,6 +200,7 @@ app.get('/api/cron/reminder', async (req, res) => {
             .map(s => s.user_id);
 
         let messagesSent = 0;
+        let fonnteFeedback = []; 
 
         for (const user of users) {
             const hasShared = usersWhoSharedToday.includes(user.id);
@@ -178,19 +208,29 @@ app.get('/api/cron/reminder', async (req, res) => {
             const name = user.user_metadata?.full_name || 'Teman';
 
             if (!hasShared && phone) {
-                const waMessage = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+                const waMessage = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
                 
-                await fetch('https://api.fonnte.com/send', {
+                const fonnteResponse = await fetch('https://api.fonnte.com/send', {
                     method: 'POST',
                     headers: { 'Authorization': FONNTE_TOKEN },
                     body: new URLSearchParams({ target: phone, message: waMessage })
                 });
 
-                messagesSent++;
+                const fonnteData = await fonnteResponse.json();
+                
+                if (fonnteData.status === true) {
+                    messagesSent++;
+                } else {
+                    fonnteFeedback.push(`Gagal kirim ke ${phone}: ${fonnteData.reason || 'Tidak ada alasan'}`);
+                }
             }
         }
 
-        res.status(200).json({ message: `Berhasil mengeksekusi Cron. Mengirim ${messagesSent} pesan WA.` });
+        res.status(200).json({ 
+            message: "Berhasil mengeksekusi sistem pengecekan user.", 
+            total_berhasil_terkirim: messagesSent,
+            error_dari_fonnte: fonnteFeedback
+        });
     } catch (error) { 
         res.status(500).json({ error: error.message }); 
     }
