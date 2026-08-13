@@ -59,7 +59,7 @@
         if (typeof supabase !== 'undefined') { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
 
         // TENTUKAN EMAIL ADMIN DI SINI JUGA (Untuk memunculkan menu Admin)
-        const ADMIN_EMAILS = ['jonathanjason125@gmail.com', 'jonathanjason619@gmail.com'];
+        const ADMIN_EMAILS = ['jonathanjason619@gmail.com', 'jonathanjason125@gmail.com'];
 
         let isLoginMode = true;
         let currentDevotionDate = new Date();
@@ -999,10 +999,12 @@
             </section>
 
             <!-- ADMIN DASHBOARD -->
-            <section id="sec-admin" class="content-section hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty">
-                    <div class="flex items-center gap-3 mb-6 border-b border-misty pb-4">
-                        <div class="w-12 h-12 bg-rosewood rounded-xl flex items-center justify-center shadow-md">
+            <section id="sec-admin" class="content-section hidden">
+                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-misty w-full h-auto flex flex-col justify-start items-start">
+                    
+                    <!-- Header Admin -->
+                    <div class="flex items-center gap-3 mb-6 border-b border-misty pb-4 w-full">
+                        <div class="w-12 h-12 bg-rosewood rounded-xl flex items-center justify-center shadow-md shrink-0">
                             <i class="ph ph-shield-star text-2xl text-white"></i>
                         </div>
                         <div>
@@ -1011,12 +1013,15 @@
                         </div>
                     </div>
 
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6 text-sm text-blue-800">
+                    <!-- Panduan -->
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6 text-sm text-blue-800 w-full">
                         <p class="font-bold flex items-center gap-1.5 mb-1"><i class="ph-bold ph-info"></i> Panduan Pengingat Manual</p>
-                        <p class="text-xs">Ubah hari melalui "Mesin Waktu" di halaman <b>Devotion</b> untuk melihat rekapan hari sebelumnya. Klik tombol WhatsApp hijau untuk membuka aplikasi WA Anda dengan teks pesan yang sudah terisi otomatis.</p>
+                        <p class="text-xs leading-relaxed">Ubah hari melalui "Mesin Waktu" di halaman <b>Devotion</b> untuk melihat rekapan hari sebelumnya. Klik tombol WhatsApp hijau untuk membuka aplikasi WA Anda dengan teks pesan yang sudah terisi otomatis.</p>
                     </div>
 
-                    <div id="admin-users-list" class="min-h-[200px]"></div>
+                    <!-- List User -->
+                    <div id="admin-users-list" class="w-full min-h-[200px]"></div>
+                    
                 </div>
             </section>
 
@@ -1025,4 +1030,4 @@
         <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">&copy; 2026 Perkantas Jabar. All rights reserved.</footer>
     </div>
 </body>
-</html>
+</html>@
