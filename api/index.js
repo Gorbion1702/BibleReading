@@ -171,6 +171,61 @@ app.post('/api/sharing/:id/like', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// --- ADMIN DASHBOARD API ---
+app.get('/api/admin/users-status', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: "Akses ditolak. Token tidak ditemukan." });
+
+        // Verifikasi pengguna yang meminta (Keamanan ketat)
+        const { data: { user: requestingUser }, error: authUserError } = await supabase.auth.getUser(token);
+        if (authUserError || !requestingUser) return res.status(401).json({ error: "Sesi tidak valid." });
+
+        // DAFTAR EMAIL ADMIN (Silakan tambahkan email Anda di sini)
+        const ADMIN_EMAILS = ['admin@gmail.com', 'jason@gmail.com']; 
+        
+        if (!ADMIN_EMAILS.includes(requestingUser.email)) {
+            return res.status(403).json({ error: "Anda bukan Admin." });
+        }
+
+        // Ambil data seluruh user (Membutuhkan SUPABASE_SERVICE_KEY)
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) throw authError;
+
+        // Tentukan batas awal dan akhir hari yang dipilih
+        const targetDate = new Date(date);
+        const startDate = new Date(targetDate.setHours(0,0,0,0)).toISOString();
+        const endDate = new Date(targetDate.setHours(23,59,59,999)).toISOString();
+
+        // Ambil semua sharing pada hari tersebut
+        const { data: sharings, error: shareError } = await supabase.from('sharings')
+            .select('user_id')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
+        
+        if (shareError) throw shareError;
+        const sharedUserIds = sharings.map(s => s.user_id);
+
+        // Petakan hasil rekapan
+        const result = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: u.user_metadata?.full_name || u.email.split('@')[0],
+            phone: u.user_metadata?.phone || '',
+            avatar_url: u.user_metadata?.avatar_url || null,
+            hasShared: sharedUserIds.includes(u.id)
+        }));
+
+        // Urutkan: Yang Belum Sharing di atas, Yang Sudah di bawah
+        result.sort((a, b) => (a.hasShared === b.hasShared) ? 0 : a.hasShared ? 1 : -1);
+
+        res.status(200).json(result);
+    } catch (error) { 
+        res.status(500).json({ error: error.message }); 
+    }
+});
+
 // --- STREAK API ---
 app.get('/api/streak/:user_id', async (req, res) => {
     try {
