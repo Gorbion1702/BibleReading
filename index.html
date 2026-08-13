@@ -59,7 +59,7 @@
         if (typeof supabase !== 'undefined') { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
 
         // TENTUKAN EMAIL ADMIN DI SINI JUGA (Untuk memunculkan menu Admin)
-        const ADMIN_EMAILS = ['jonathanjason619@gmail.com', 'jonathanjason125@gmail.com'];
+        const ADMIN_EMAILS = ['admin@gmail.com', 'jason@gmail.com'];
 
         let isLoginMode = true;
         let currentDevotionDate = new Date();
@@ -966,7 +966,8 @@
 
             <!-- PROFILE -->
             <section id="sec-profile" class="content-section hidden space-y-6">
-                <!-- (Isi Profile Tetap Sama) -->
+                <!-- MEMPERBAIKI KOTAK PUTIH YANG HILANG DI SINI -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty relative">
                     <div id="profile-streak-badge" class="hidden absolute top-6 right-6 bg-rosewood text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"><i class="ph ph-fire text-lg"></i> 0 Hari Streak</div>
 
                     <div class="flex flex-col items-center mb-6 pt-4">
@@ -1030,4 +1031,4 @@
         <footer class="bg-white border-t border-misty text-center py-4 text-xs text-sage">&copy; 2026 Perkantas Jabar. All rights reserved.</footer>
     </div>
 </body>
-</html>@
+</html>
