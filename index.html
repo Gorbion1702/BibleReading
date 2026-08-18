@@ -59,7 +59,7 @@
         if (typeof supabase !== 'undefined') { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
 
         // TENTUKAN EMAIL ADMIN DI SINI JUGA (Untuk memunculkan menu Admin)
-        const ADMIN_EMAILS = ['jonathanjason619@gmail.com', 'jonathanjason125@gmail.com', 'metty.kusumastuti@gmail.com', 'hnyemima@gmail.com'];
+        const ADMIN_EMAILS = ['admin@gmail.com', 'jason@gmail.com', 'jonathanjason619@gmail.com'];
 
         let isLoginMode = true;
         let currentDevotionDate = new Date();
@@ -81,7 +81,77 @@
             setTimeout(() => { toast.classList.add('translate-y-[-20px]', 'opacity-0'); setTimeout(() => toast.classList.add('hidden'), 300); }, 4000);
         }
 
+        // --- AUDIO BIBLE (TEXT-TO-SPEECH) ---
+        let synth = window.speechSynthesis;
+        let currentUtterance = null;
+        let isAudioPlaying = false;
+        let isAudioPaused = false;
+
+        function extractBibleTextForAudio() {
+            let text = "";
+            document.querySelectorAll('#daily-devotion-card h4').forEach(h4 => {
+                text += h4.innerText + ". "; // Baca judul pasal
+                let verseContainer = h4.nextElementSibling;
+                if(verseContainer) {
+                    verseContainer.querySelectorAll('p').forEach(p => {
+                        let span = p.querySelector('span'); // Hanya ambil teks firman, abaikan nomor ayat (sup)
+                        if(span) text += span.innerText + " ";
+                    });
+                }
+            });
+            return text;
+        }
+
+        function toggleAudioBible() {
+            const btn = document.getElementById('btn-audio-bible');
+            if (!synth) { showToast("Perangkat Anda tidak mendukung fitur audio."); return; }
+
+            if (isAudioPlaying && !isAudioPaused) {
+                // Sedang jalan, maka Jeda
+                synth.pause(); isAudioPaused = true;
+                btn.innerHTML = '<i class="ph-bold ph-play text-sm"></i> Lanjut';
+                btn.classList.replace('bg-rosewood', 'bg-sage');
+            } else if (isAudioPlaying && isAudioPaused) {
+                // Sedang jeda, maka Lanjut
+                synth.resume(); isAudioPaused = false;
+                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda';
+                btn.classList.replace('bg-sage', 'bg-rosewood');
+            } else {
+                // Mulai baru
+                const textToRead = extractBibleTextForAudio();
+                if (!textToRead.trim()) { showToast("Teks belum dimuat."); return; }
+
+                currentUtterance = new SpeechSynthesisUtterance(textToRead);
+                currentUtterance.lang = 'id-ID'; // Logat Bahasa Indonesia
+                currentUtterance.rate = 0.9; // Diperlambat sedikit agar lebih nyaman didengar
+
+                currentUtterance.onend = () => { isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); };
+                currentUtterance.onerror = () => { isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); };
+
+                synth.speak(currentUtterance);
+                isAudioPlaying = true; isAudioPaused = false;
+                
+                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda';
+                btn.classList.replace('bg-sage', 'bg-rosewood');
+            }
+        }
+
+        function stopAudioBible() {
+            if (synth && isAudioPlaying) {
+                synth.cancel(); isAudioPlaying = false; isAudioPaused = false; resetAudioButton();
+            }
+        }
+
+        function resetAudioButton() {
+            const btn = document.getElementById('btn-audio-bible');
+            if(btn) {
+                btn.innerHTML = '<i class="ph-bold ph-speaker-high text-sm"></i> Putar Audio';
+                btn.classList.remove('bg-sage'); btn.classList.add('bg-rosewood');
+            }
+        }
+
         function navigate(sectionId) {
+            stopAudioBible(); // Hentikan audio jika pindah menu
             document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
             const targetSec = document.getElementById('sec-' + sectionId); if(targetSec) targetSec.classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -480,20 +550,50 @@
             if (container) { container.innerHTML = `<h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-book-open-text text-lg"></i> Ayat Harian</h3><p class="text-sm italic text-midnight mb-3 leading-relaxed">"${v.text}"</p><span class="text-xs font-semibold text-sage block text-right">— ${v.reference} (TB)</span>`; }
         }
 
-        // Algoritma cerdas penghasil 929 Pasal Perjanjian Lama secara otomatis
+        // Algoritma cerdas penghasil 365 hari Perjanjian Lama (Tanpa Mazmur & Amsal)
+        // Total = 748 Pasal. Akan didistribusikan merata (2-3 pasal per hari) selama 365 hari.
         const otBooks = [
             {n:"Kejadian",c:50},{n:"Keluaran",c:40},{n:"Imamat",c:27},{n:"Bilangan",c:36},{n:"Ulangan",c:34},
             {n:"Yosua",c:24},{n:"Hakim-hakim",c:21},{n:"Rut",c:4},{n:"1 Samuel",c:31},{n:"2 Samuel",c:24},
             {n:"1 Raja-raja",c:22},{n:"2 Raja-raja",c:25},{n:"1 Tawarikh",c:29},{n:"2 Tawarikh",c:36},
-            {n:"Ezra",c:10},{n:"Nehemia",c:13},{n:"Ester",c:10},{n:"Ayub",c:42},{n:"Mazmur",c:150},
-            {n:"Amsal",c:31},{n:"Pengkhotbah",c:12},{n:"Kidung Agung",c:8},{n:"Yesaya",c:66},
+            {n:"Ezra",c:10},{n:"Nehemia",c:13},{n:"Ester",c:10},{n:"Ayub",c:42},
+            /* Mazmur (150) dan Amsal (31) Dihilangkan */
+            {n:"Pengkhotbah",c:12},{n:"Kidung Agung",c:8},{n:"Yesaya",c:66},
             {n:"Yeremia",c:52},{n:"Ratapan",c:5},{n:"Yehezkiel",c:48},{n:"Daniel",c:12},{n:"Hosea",c:14},
             {n:"Yoel",c:3},{n:"Amos",c:9},{n:"Obaja",c:1},{n:"Yunus",c:4},{n:"Mikha",c:7},{n:"Nahum",c:3},
             {n:"Habakuk",c:3},{n:"Zefanya",c:3},{n:"Hagai",c:2},{n:"Zakharia",c:14},{n:"Maleakhi",c:4}
         ];
         
+        const allChapters = [];
+        otBooks.forEach(b => { for(let i = 1; i <= b.c; i++) { allChapters.push({book: b.n, chapter: i}); } });
+
         const biblePlanOT = [];
-        otBooks.forEach(b => { for(let i = 1; i <= b.c; i++) { biblePlanOT.push(`${b.n} ${i}`); } });
+        const totalDays = 365;
+        const totalChapters = allChapters.length; // 748 pasal
+
+        for (let i = 0; i < totalDays; i++) {
+            const startIdx = Math.floor(i * totalChapters / totalDays);
+            const endIdx = Math.floor((i + 1) * totalChapters / totalDays);
+            const dailySlice = allChapters.slice(startIdx, endIdx);
+            
+            // Format rincian (contoh: "Kejadian 1-2" atau perbatasan kitab "Kejadian 50; Keluaran 1")
+            const grouped = {};
+            dailySlice.forEach(item => {
+                if(!grouped[item.book]) grouped[item.book] = [];
+                grouped[item.book].push(item.chapter);
+            });
+            
+            const dayStrings = [];
+            for (let book in grouped) {
+                const chaps = grouped[book];
+                if (chaps.length === 1) {
+                    dayStrings.push(`${book} ${chaps[0]}`);
+                } else {
+                    dayStrings.push(`${book} ${chaps[0]}-${chaps[chaps.length-1]}`);
+                }
+            }
+            biblePlanOT.push(dayStrings.join('; '));
+        }
 
         const bookMap = {
             "Kejadian": 1, "Keluaran": 2, "Imamat": 3, "Bilangan": 4, "Ulangan": 5, "Yosua": 6, "Hakim-hakim": 7, "Rut": 8,
@@ -548,6 +648,7 @@
         }
 
         function changeDevotionDate(delta) {
+            stopAudioBible(); // Hentikan audio jika ganti hari
             const today = new Date();
             currentDevotionDate.setDate(currentDevotionDate.getDate() + delta);
             
@@ -584,7 +685,7 @@
                 
                 // Mencegah bacaan muncul jika tanggal sebelum 11 Agustus 2026
                 if (diffDays < 0) {
-                    container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bible Reading Perjanjian Lama Perkantas Jabar akan dimulai serentak pada tanggal <b class="text-midnight">11 Agustus 2026</b>.</p></div>`;
+                    container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bacaan 1 Tahun Perjanjian Lama (Tanpa Mazmur & Amsal) akan dimulai serentak pada <b class="text-midnight">11 Agustus 2026</b>.</p></div>`;
                     return;
                 }
 
@@ -598,7 +699,20 @@
                 
                 const bibleHtml = await fetchDailyDevotionData(readingString);
 
-                container.innerHTML = `<div class="flex items-center justify-between mb-4 px-4 pt-2"><span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full">Hari ke-${dayOfYear}</span><span class="text-xs font-semibold text-sage">${dateStr}</span></div><h3 class="text-xl font-bold text-rosewood mb-4 px-4">${readingString}</h3><div class="bg-vanilla rounded-xl border border-misty overflow-hidden max-h-[60vh] overflow-y-auto mb-2">${bibleHtml}</div>`;
+                container.innerHTML = `
+                    <div class="flex items-center justify-between mb-3 px-4 pt-2">
+                        <span class="text-xs font-bold bg-blush text-rosewood px-3 py-1 rounded-full shadow-sm">Hari ke-${dayOfYear}</span>
+                        <span class="text-xs font-semibold text-sage">${dateStr}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between px-4 mb-4 gap-3">
+                        <h3 class="text-xl font-bold text-rosewood leading-tight">${readingString}</h3>
+                        <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                            <button type="button" onclick="stopAudioBible()" class="w-8 h-8 rounded-full bg-vanilla border border-misty text-rosewood flex items-center justify-center hover:bg-blush transition shadow-sm" title="Berhenti (Stop)"><i class="ph-bold ph-stop text-sm"></i></button>
+                            <button type="button" onclick="toggleAudioBible()" id="btn-audio-bible" class="bg-rosewood text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5 hover:bg-opacity-90 transition min-w-[115px] justify-center"><i class="ph-bold ph-speaker-high text-base"></i> Putar Audio</button>
+                        </div>
+                    </div>
+                    <div class="bg-vanilla rounded-xl border border-misty overflow-hidden max-h-[60vh] overflow-y-auto mb-2">${bibleHtml}</div>
+                `;
             }
         }
 
@@ -744,7 +858,7 @@
             let formattedPhone = phone.replace(/\D/g,'');
             if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
             
-            const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+            const message = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
             const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
             
             window.open(waUrl, '_blank');
@@ -934,7 +1048,7 @@
                 <div class="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-misty">
                     <button type="button" onclick="changeDevotionDate(-1)" class="w-10 h-10 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition shadow-sm"><i class="ph ph-caret-left text-lg font-bold"></i></button>
                     <div class="text-center flex flex-col px-2">
-                        <span class="text-[10px] font-bold text-sage uppercase tracking-widest mb-0.5">Bacaan & Sharing</span>
+                        <span class="text-[10px] font-bold text-sage uppercase tracking-widest mb-0.5">Renungan & Sharing</span>
                         <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base">Hari Ini</span>
                     </div>
                     <button type="button" onclick="changeDevotionDate(1)" id="btn-next-devotion" class="w-10 h-10 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition opacity-50 cursor-not-allowed shadow-sm" disabled><i class="ph ph-caret-right text-lg font-bold"></i></button>
@@ -947,7 +1061,7 @@
                     
                     <div id="sharing-form-container">
                         <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat bible reading hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
+                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat saat teduh hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
                             <div id="sharing-media-preview"></div>
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 gap-3">
                                 <div class="flex gap-2">
