@@ -83,23 +83,56 @@
 
         // --- AUDIO BIBLE (TEXT-TO-SPEECH) ---
         let synth = window.speechSynthesis;
-        let currentUtterance = null;
+        window.currentUtterance = null; // Mencegah bug "Garbage Collection" di HP (Terutama iOS Safari)
         let isAudioPlaying = false;
         let isAudioPaused = false;
+        let audioQueue = [];
+        let currentAudioIndex = 0;
 
-        function extractBibleTextForAudio() {
-            let text = "";
+        function extractBibleTextChunks() {
+            let chunks = [];
             document.querySelectorAll('#daily-devotion-card h4').forEach(h4 => {
-                text += h4.innerText + ". "; // Baca judul pasal
+                chunks.push(h4.innerText + ". "); // Baca judul pasal
                 let verseContainer = h4.nextElementSibling;
                 if(verseContainer) {
                     verseContainer.querySelectorAll('p').forEach(p => {
-                        let span = p.querySelector('span'); // Hanya ambil teks firman, abaikan nomor ayat (sup)
-                        if(span) text += span.innerText + " ";
+                        let span = p.querySelector('span');
+                        if(span && span.innerText.trim() !== "") {
+                            // Pecah ayat panjang menjadi kalimat per kalimat (sangat penting untuk batas memori HP)
+                            let text = span.innerText.trim();
+                            let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                            sentences.forEach(s => chunks.push(s.trim()));
+                        }
                     });
                 }
             });
-            return text;
+            return chunks;
+        }
+
+        function playNextChunk() {
+            if (currentAudioIndex >= audioQueue.length || !isAudioPlaying) {
+                isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); return;
+            }
+            
+            let text = audioQueue[currentAudioIndex];
+            window.currentUtterance = new SpeechSynthesisUtterance(text);
+            window.currentUtterance.lang = 'id-ID'; // Logat Bahasa Indonesia
+            window.currentUtterance.rate = 0.9; // Diperlambat sedikit agar nyaman
+            
+            // Lanjut ke kalimat berikutnya setelah kalimat ini selesai
+            window.currentUtterance.onend = () => {
+                currentAudioIndex++;
+                if (isAudioPlaying) playNextChunk();
+            };
+            
+            // Jika ada error pada karakter aneh, lewati dan lanjut ke kalimat selanjutnya
+            window.currentUtterance.onerror = (e) => {
+                console.error("Audio error:", e);
+                currentAudioIndex++;
+                if (isAudioPlaying) playNextChunk(); 
+            };
+
+            synth.speak(window.currentUtterance);
         }
 
         function toggleAudioBible() {
@@ -118,27 +151,24 @@
                 btn.classList.replace('bg-sage', 'bg-rosewood');
             } else {
                 // Mulai baru
-                const textToRead = extractBibleTextForAudio();
-                if (!textToRead.trim()) { showToast("Teks belum dimuat."); return; }
-
-                currentUtterance = new SpeechSynthesisUtterance(textToRead);
-                currentUtterance.lang = 'id-ID'; // Logat Bahasa Indonesia
-                currentUtterance.rate = 0.9; // Diperlambat sedikit agar lebih nyaman didengar
-
-                currentUtterance.onend = () => { isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); };
-                currentUtterance.onerror = () => { isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); };
-
-                synth.speak(currentUtterance);
-                isAudioPlaying = true; isAudioPaused = false;
+                synth.cancel(); // WAJIB DI HP: Bersihkan sisa suara yang macet dari sesi sebelumnya
+                audioQueue = extractBibleTextChunks();
+                currentAudioIndex = 0;
                 
+                if (audioQueue.length === 0) { showToast("Teks belum dimuat."); return; }
+
+                isAudioPlaying = true; isAudioPaused = false;
                 btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda';
                 btn.classList.replace('bg-sage', 'bg-rosewood');
+                
+                playNextChunk();
             }
         }
 
         function stopAudioBible() {
-            if (synth && isAudioPlaying) {
-                synth.cancel(); isAudioPlaying = false; isAudioPaused = false; resetAudioButton();
+            if (synth) {
+                isAudioPlaying = false; isAudioPaused = false;
+                synth.cancel(); resetAudioButton();
             }
         }
 
@@ -568,13 +598,10 @@
         otBooks.forEach(b => { for(let i = 1; i <= b.c; i++) { allChapters.push({book: b.n, chapter: i}); } });
 
         const biblePlanOT = [];
-        const totalDays = 365;
-        const totalChapters = allChapters.length; // 748 pasal
-
-        for (let i = 0; i < totalDays; i++) {
-            const startIdx = Math.floor(i * totalChapters / totalDays);
-            const endIdx = Math.floor((i + 1) * totalChapters / totalDays);
-            const dailySlice = allChapters.slice(startIdx, endIdx);
+        
+        // Membagi tepat 2 pasal per hari. 748 pasal / 2 = 374 Hari Program.
+        for (let i = 0; i < allChapters.length; i += 2) {
+            const dailySlice = allChapters.slice(i, i + 2);
             
             // Format rincian (contoh: "Kejadian 1-2" atau perbatasan kitab "Kejadian 50; Keluaran 1")
             const grouped = {};
@@ -685,7 +712,7 @@
                 
                 // Mencegah bacaan muncul jika tanggal sebelum 11 Agustus 2026
                 if (diffDays < 0) {
-                    container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bacaan 1 Tahun Perjanjian Lama (Tanpa Mazmur & Amsal) akan dimulai serentak pada <b class="text-midnight">11 Agustus 2026</b>.</p></div>`;
+                    container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bacaan Perjanjian Lama 2 Pasal Sehari (Tanpa Mazmur & Amsal) akan dimulai serentak pada <b class="text-midnight">11 Agustus 2026</b>.</p></div>`;
                     return;
                 }
 
