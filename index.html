@@ -744,7 +744,7 @@
             let formattedPhone = phone.replace(/\D/g,'');
             if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
             
-            const message = `Syalom ${name} 👋,\n\nSudahkah kamu saat teduh hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-ten.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
+            const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar agar streak-mu tidak putus!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat merenungkan firman-Nya! 🙏`;
             const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
             
             window.open(waUrl, '_blank');
@@ -947,7 +947,7 @@
                     
                     <div id="sharing-form-container">
                         <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat saat teduh hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
+                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat bible reading hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
                             <div id="sharing-media-preview"></div>
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 gap-3">
                                 <div class="flex gap-2">
