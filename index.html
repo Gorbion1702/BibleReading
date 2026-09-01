@@ -240,16 +240,28 @@
             isLoginMode = !isLoginMode;
             const title = document.getElementById('auth-title'); const subtitle = document.getElementById('auth-subtitle'); const btn = document.getElementById('auth-btn');
             const toggleText = document.getElementById('auth-toggle-text'); const forgotLink = document.getElementById('forgot-password-link'); const errorMsg = document.getElementById('auth-error-message');
+            const registerFields = document.getElementById('register-fields');
+
             if(errorMsg) errorMsg.classList.add('hidden');
 
             if (isLoginMode) {
                 title.innerText = "Welcome Back"; subtitle.innerText = "Login to Bible Reading Perkantas Jabar"; btn.innerText = "Login";
                 toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
                 if(forgotLink) forgotLink.classList.remove('hidden');
+                
+                // Sembunyikan field register & matikan status "required"
+                if(registerFields) registerFields.classList.add('hidden');
+                document.getElementById('auth-name').required = false;
+                document.getElementById('auth-phone').required = false;
             } else {
-                title.innerText = "Buat Akun Baru"; subtitle.innerText = "Sign up  to Bible Reading Perkantas Jabar"; btn.innerText = "Register";
+                title.innerText = "Buat Akun Baru"; subtitle.innerText = "Sign up to Bible Reading Perkantas Jabar"; btn.innerText = "Register";
                 toggleText.innerHTML = 'Sudah punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>';
                 if(forgotLink) forgotLink.classList.add('hidden');
+                
+                // Tampilkan field register & nyalakan status "required"
+                if(registerFields) registerFields.classList.remove('hidden');
+                document.getElementById('auth-name').required = true;
+                document.getElementById('auth-phone').required = true;
             }
         }
 
@@ -262,13 +274,26 @@
         async function handleAuth(event) {
             if (event) event.preventDefault();
             const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
+            
+            // Ambil data nama dan wa
+            const fullName = document.getElementById('auth-name') ? document.getElementById('auth-name').value : '';
+            const phone = document.getElementById('auth-phone') ? document.getElementById('auth-phone').value : '';
+
             const btn = document.getElementById('auth-btn'); const errorMsg = document.getElementById('auth-error-message'); const successMsg = document.getElementById('auth-success-message');
             const originalBtnText = btn.innerText; btn.innerText = 'Mohon tunggu...'; btn.disabled = true; errorMsg.classList.add('hidden'); successMsg.classList.add('hidden');
 
             try {
                 let result;
-                if (isLoginMode) result = await supabaseClient.auth.signInWithPassword({ email, password });
-                else result = await supabaseClient.auth.signUp({ email, password });
+                if (isLoginMode) {
+                    result = await supabaseClient.auth.signInWithPassword({ email, password });
+                } else {
+                    // Lempar metadata phone & name saat register
+                    result = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password,
+                        options: { data: { full_name: fullName, phone: phone } }
+                    });
+                }
                 if (result.error) throw result.error;
 
                 if (!isLoginMode) { successMsg.innerText = "Pendaftaran berhasil! Segera masuk..."; successMsg.classList.remove('hidden'); setTimeout(() => showMainApp(), 1200); } 
@@ -920,8 +945,30 @@
                 <div id="auth-success-message" class="hidden mb-4 p-3 rounded text-sm text-center bg-green-100 text-green-700"></div>
                 
                 <form method="POST" onsubmit="return handleAuth(event)">
-                    <div class="mb-4"><label class="block text-sm font-semibold mb-1">Email</label><input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg"></div>
-                    <div class="mb-6"><div class="flex justify-between items-center mb-1"><label class="block text-sm font-semibold">Password</label><button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button></div><input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg"></div>
+                    <!-- FIELD TAMBAHAN KHUSUS REGISTER -->
+                    <div id="register-fields" class="hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1">Nama Lengkap</label>
+                            <input type="text" id="auth-name" class="w-full px-3 py-2 border border-misty rounded-lg" placeholder="Nama Anda">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1">No. WhatsApp</label>
+                            <input type="tel" id="auth-phone" class="w-full px-3 py-2 border border-misty rounded-lg" placeholder="Contoh: 081234567890">
+                        </div>
+                    </div>
+                    
+                    <!-- FIELD EMAIL & PASSWORD (BAWAAN) -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-1">Email</label>
+                        <input type="email" id="auth-email" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-semibold">Password</label>
+                            <button type="button" id="forgot-password-link" onclick="toggleForgotPassword()" class="text-xs text-rosewood hover:underline font-medium">Lupa Password?</button>
+                        </div>
+                        <input type="password" id="auth-password" required class="w-full px-3 py-2 border border-misty rounded-lg">
+                    </div>
                     <button type="submit" id="auth-btn" class="w-full bg-rosewood text-white py-2 rounded-lg font-bold">Login</button>
                 </form>
                 <p id="auth-toggle-text" class="text-center text-xs text-sage mt-4">Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold">Daftar sekarang</button></p>
