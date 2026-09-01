@@ -746,53 +746,53 @@
         // 7. SHARING & MEDIA
         let currentShareMediaUrl = null; let currentShareMediaType = null;
 
-        // function attachMedia() {
-        //     const input = document.createElement('input'); 
-        //     input.type = 'file'; 
-        //     input.accept = 'image/*,video/mp4,video/quicktime,.heic,.mov'; 
+        function attachMedia() {
+            const input = document.createElement('input'); 
+            input.type = 'file'; 
+            input.accept = 'image/*,video/mp4,video/quicktime,.heic,.mov'; 
             
-        //     input.onchange = async (e) => {
-        //         const file = e.target.files[0]; if (!file) return;
-        //         if (file.size > 50 * 1024 * 1024) { showToast("Maksimal ukuran file 50MB"); return; }
+            input.onchange = async (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                if (file.size > 50 * 1024 * 1024) { showToast("Maksimal ukuran file 50MB"); return; }
                 
-        //         const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
+                const btn = document.getElementById('btn-attach-img'); const oriHtml = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
                 
-        //         try {
-        //             const fileExt = file.name.split('.').pop().toLowerCase();
-        //             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                try {
+                    const fileExt = file.name.split('.').pop().toLowerCase();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
                     
-        //             let contentType = file.type;
-        //             if (!contentType) {
-        //                 if (fileExt === 'heic') contentType = 'image/heic';
-        //                 else if (fileExt === 'mov') contentType = 'video/quicktime';
-        //                 else contentType = 'application/octet-stream';
-        //             }
+                    let contentType = file.type;
+                    if (!contentType) {
+                        if (fileExt === 'heic') contentType = 'image/heic';
+                        else if (fileExt === 'mov') contentType = 'video/quicktime';
+                        else contentType = 'application/octet-stream';
+                    }
 
-        //             let detectedType = 'image';
-        //             if (contentType.startsWith('video/') || fileExt === 'mov' || fileExt === 'mp4') {
-        //                 detectedType = 'video';
-        //             }
+                    let detectedType = 'image';
+                    if (contentType.startsWith('video/') || fileExt === 'mov' || fileExt === 'mp4') {
+                        detectedType = 'video';
+                    }
 
-        //             const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { contentType: contentType, upsert: true });
-        //             if (error) throw error;
+                    const { error } = await supabaseClient.storage.from('sharing_media').upload(fileName, file, { contentType: contentType, upsert: true });
+                    if (error) throw error;
                     
-        //             const { data } = supabaseClient.storage.from('sharing_media').getPublicUrl(fileName);
+                    const { data } = supabaseClient.storage.from('sharing_media').getPublicUrl(fileName);
                     
-        //             currentShareMediaUrl = data.publicUrl; 
-        //             currentShareMediaType = detectedType;
+                    currentShareMediaUrl = data.publicUrl; 
+                    currentShareMediaType = detectedType;
                     
-        //             let previewHtml = '';
-        //             if (detectedType === 'video') {
-        //                 previewHtml = `<video src="${data.publicUrl}" class="h-24 rounded border border-misty bg-black" muted></video>`;
-        //             } else {
-        //                 previewHtml = `<img src="${data.publicUrl}" class="h-24 rounded border border-misty object-contain bg-gray-50">`;
-        //             }
+                    let previewHtml = '';
+                    if (detectedType === 'video') {
+                        previewHtml = `<video src="${data.publicUrl}" class="h-24 rounded border border-misty bg-black" muted></video>`;
+                    } else {
+                        previewHtml = `<img src="${data.publicUrl}" class="h-24 rounded border border-misty object-contain bg-gray-50">`;
+                    }
 
-        //             document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2">${previewHtml}<button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md">x</button></div>`;
-        //             showToast("File dilampirkan");
-        //         } catch(err) { showToast("Gagal upload: " + err.message); console.error(err); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
-        //     }; input.click();
-        // }
+                    document.getElementById('sharing-media-preview').innerHTML = `<div class="relative inline-block mt-2">${previewHtml}<button type="button" onclick="clearMediaAttach()" class="absolute -top-2 -right-2 bg-midnight text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md">x</button></div>`;
+                    showToast("File dilampirkan");
+                } catch(err) { showToast("Gagal upload: " + err.message); console.error(err); } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
+            }; input.click();
+        }
 
         function attachLink(type) {
             const url = prompt(`Masukkan link ${type === 'youtube' ? 'YouTube' : 'Spotify (Track/Episode)'}:`); if (!url) return;
@@ -1088,7 +1088,7 @@
                     
                     <div id="sharing-form-container">
                         <form onsubmit="return postSharing(event)" class="mb-6 bg-vanilla p-4 rounded-xl border border-misty">
-                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat saat teduh hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
+                            <textarea id="sharing-input" rows="3" placeholder="Tulis apa yang didapat bible reading hari ini..." class="w-full p-3 border border-misty rounded-xl mb-2 focus:outline-none focus:border-rosewood"></textarea>
                             <div id="sharing-media-preview"></div>
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 gap-3">
                                 <div class="flex gap-2">
