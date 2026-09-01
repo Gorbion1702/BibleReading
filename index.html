@@ -846,9 +846,17 @@
             if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
             
             const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat membaca firman-Nya! 🙏`;
-            const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
             
-            window.open(waUrl, '_blank');
+            // Deteksi perangkat
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // Menggunakan deep link khusus WhatsApp Pribadi agar tidak lari ke Business
+                window.location.href = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+            } else {
+                // Untuk pengguna Desktop/Laptop diarahkan ke WhatsApp Web
+                window.open(`https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`, '_blank');
+            }
         }
 
         async function loadAdminDashboard() {
