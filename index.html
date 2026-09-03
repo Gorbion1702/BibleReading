@@ -1161,11 +1161,36 @@
                         </div>
                     </div>
 
-                    <!-- Panduan -->
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6 text-sm text-blue-800 w-full">
-                        <p class="font-bold flex items-center gap-1.5 mb-1"><i class="ph-bold ph-info"></i> Panduan Pengingat Manual</p>
-                        <p class="text-xs leading-relaxed">Ubah hari melalui "Mesin Waktu" di halaman <b>Devotion</b> untuk melihat rekapan hari sebelumnya. Klik tombol WhatsApp hijau untuk membuka aplikasi WA Anda dengan teks pesan yang sudah terisi otomatis.</p>
+                    <!-- Header Admin & Navigasi Tanggal -->
+                    <div class="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-amber-900 flex items-center gap-2">
+                                <i class="fas fa-shield-alt"></i> Dashboard Admin
+                            </h2>
+                            <p class="text-sm text-gray-500">Rekapitulasi Partisipasi Harian</p>
+                        </div>
+                        
+                        <!-- Fitur Pilih Tanggal (Date Picker) -->
+                        <div class="flex items-center bg-amber-50 rounded-lg border border-amber-200 p-1 shadow-inner">
+                            <button onclick="changeAdminDate(-1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Sebelumnya">
+                                &lt;
+                            </button>
+                            <input type="date" id="adminDatePicker" onchange="setAdminDate(this.value)" class="bg-transparent border-none focus:ring-0 text-amber-900 font-semibold cursor-pointer text-center outline-none mx-2">
+                            <button onclick="changeAdminDate(1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Berikutnya">
+                                &gt;
+                            </button>
+                        </div>
                     </div>
+
+<!-- Panduan Pengingat Manual (Sudah Diperbarui) -->
+<div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 w-full">
+    <h3 class="text-sm font-bold text-blue-800 flex items-center gap-2 mb-1">
+        <i class="fas fa-info-circle"></i> Panduan Pengingat Manual
+    </h3>
+    <p class="text-sm text-blue-700">
+        Gunakan kalender di atas untuk melihat rekapan hari tertentu. Klik tombol WhatsApp hijau untuk mengirim pesan pengingat yang sudah terisi otomatis.
+    </p>
+</div>
 
                     <!-- List User -->
                     <div id="admin-users-list" class="w-full min-h-[200px]"></div>
