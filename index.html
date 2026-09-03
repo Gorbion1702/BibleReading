@@ -878,88 +878,101 @@
             }
         }
 
-        async function loadAdminDashboard() {
-            const container = document.getElementById('admin-users-list');
-            if(!container) return;
-            
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) return;
-            if (!ADMIN_EMAILS.includes(session.user.email)) return;
+        // --- SISTEM TANGGAL KHUSUS ADMIN ---
+        let adminCurrentDate = new Date(); // Otomatis dimulai dari hari ini
 
-            renderLoading('admin-users-list', 'Merekap data komunitas...');
-            
-            try {
-                const dateParam = currentDevotionDate.toISOString();
-                const res = await fetch(`/api/admin/users-status?date=${dateParam}`, {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                });
-                
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                
-                const dateStr = currentDevotionDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                document.getElementById('admin-dashboard-title').innerText = `Rekapitulasi (${dateStr})`;
-
-                let html = '<div class="space-y-3">';
-                
-                let alreadySharedCount = 0;
-                let notSharedCount = 0;
-
-                data.forEach(u => {
-                    if (u.hasShared) alreadySharedCount++; else notSharedCount++;
-                    
-                    const statusBadge = u.hasShared 
-                        ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-check"></i> Sudah</span>`
-                        : `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-x"></i> Belum</span>`;
-                    
-                    const avatar = u.avatar_url 
-                        ? `<img src="${u.avatar_url}" class="w-8 h-8 rounded-full object-cover border border-misty">`
-                        : `<div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center font-bold text-sm border border-misty">${u.name.charAt(0).toUpperCase()}</div>`;
-                    
-                    let waButton = '';
-                    if (!u.hasShared) {
-                        waButton = `<button onclick="sendWaManual('${u.phone}', '${u.name}')" class="ml-auto bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Kirim WA Pengingat"><i class="ph ph-whatsapp-logo text-base"></i> <span class="hidden sm:inline">Ingatkan</span></button>`;
-                    }
-
-                    html += `
-                    <div class="flex items-center gap-3 bg-vanilla p-3 rounded-xl border border-misty transition hover:border-sage">
-                        ${avatar}
-                        <div class="flex-grow min-w-0">
-                            <div class="flex items-center gap-2 mb-0.5">
-                                <h4 class="font-bold text-sm text-midnight truncate">${u.name}</h4>
-                                ${statusBadge}
-                            </div>
-                            <p class="text-[10px] text-sage truncate">${u.email} ${u.phone ? `• ${u.phone}` : '• No WA Kosong'}</p>
-                        </div>
-                        ${waButton}
-                    </div>`;
-                });
-                
-                html += '</div>';
-
-                const total = alreadySharedCount + notSharedCount;
-                const percentage = total === 0 ? 0 : Math.round((alreadySharedCount / total) * 100);
-                
-                let statsHtml = `
-                <div class="bg-blush bg-opacity-30 p-4 rounded-xl border border-misty mb-6">
-                    <div class="flex justify-between items-end mb-2">
-                        <div>
-                            <span class="block text-xs font-bold text-sage uppercase tracking-wider mb-1">Partisipasi Harian</span>
-                            <span class="text-2xl font-bold text-rosewood">${alreadySharedCount} <span class="text-sm font-normal text-sage">dari ${total} Orang</span></span>
-                        </div>
-                        <span class="text-xl font-bold text-sage">${percentage}%</span>
-                    </div>
-                    <div class="w-full bg-misty rounded-full h-2.5 overflow-hidden">
-                        <div class="bg-rosewood h-2.5 rounded-full transition-all duration-1000" style="width: ${percentage}%"></div>
-                    </div>
-                </div>`;
-
-                container.innerHTML = statsHtml + html;
-
-            } catch (error) {
-                renderError('admin-users-list', "Gagal memuat data admin: " + error.message);
+        function initAdminDate() {
+            const dateInput = document.getElementById('adminDatePicker');
+            if (dateInput) {
+                // Mencegah error zona waktu (memaksa ke waktu lokal)
+                const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
+                dateInput.value = localDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
             }
         }
+
+        function changeAdminDate(daysToAdd) {
+            // Geser hari (Next/Prev)
+            adminCurrentDate.setDate(adminCurrentDate.getDate() + daysToAdd);
+            initAdminDate();
+            loadAdminDashboard(); // Memuat ulang data dari Supabase
+        }
+
+        function setAdminDate(dateString) {
+            // Lompat ke tanggal spesifik dari kalender
+            if (!dateString) return;
+            adminCurrentDate = new Date(dateString);
+            loadAdminDashboard(); // Memuat ulang data dari Supabase
+        }
+
+        async function loadAdminDashboard() {
+        const container = document.getElementById('admin-users-list');
+        if(!container) return;
+        
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+        if (!ADMIN_EMAILS.includes(session.user.email)) return;
+
+        renderLoading('admin-users-list', 'Merekap data komunitas...');
+        
+        try {
+            // Menggunakan adminCurrentDate yang sudah ada di script Anda
+            const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
+            const dateParam = localDate.toISOString();
+            
+            const res = await fetch(`/api/admin/users-status?date=${dateParam}`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            
+            const dateStr = adminCurrentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const titleEl = document.getElementById('admin-dashboard-title');
+            if (titleEl) titleEl.innerText = `Rekapitulasi (${dateStr})`;
+
+            let html = '<div class="space-y-3">';
+            
+            let alreadySharedCount = 0;
+            let notSharedCount = 0;
+
+            data.forEach(u => {
+                if (u.hasShared) alreadySharedCount++; else notSharedCount++;
+                
+                const statusBadge = u.hasShared 
+                    ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-check"></i> Sudah</span>`
+                    : `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-x"></i> Belum</span>`;
+                
+                const avatar = u.avatar_url 
+                    ? `<img src="${u.avatar_url}" class="w-8 h-8 rounded-full object-cover border border-misty">`
+                    : `<div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center font-bold text-sm border border-misty">${u.name.charAt(0).toUpperCase()}</div>`;
+                
+                let waButton = '';
+                if (!u.hasShared) {
+                    waButton = `<button onclick="sendWaManual('${u.phone}', '${u.name}')" class="ml-auto bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Kirim WA Pengingat"><i class="ph ph-whatsapp-logo text-base"></i> <span class="hidden sm:inline">Ingatkan</span></button>`;
+                }
+
+                html += `
+                <div class="flex items-center gap-3 bg-vanilla p-3 rounded-xl border border-misty transition hover:border-sage">
+                    ${avatar}
+                    <div class="flex-grow min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <h4 class="font-bold text-sm text-midnight truncate">${u.name}</h4>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-[10px] text-sage truncate">${u.email} ${u.phone ? `• ${u.phone}` : '• No WA Kosong'}</p>
+                    </div>
+                    ${waButton}
+                </div>`;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div class="p-4 text-center text-red-600">Gagal memuat data admin: ${err.message}</div>`;
+        }
+    }
     </script>
 
     <!-- AUTH VIEW -->
