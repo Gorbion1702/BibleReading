@@ -854,22 +854,27 @@
                 return;
             }
             
+            // Membersihkan dan memformat nomor HP
             let formattedPhone = phone.replace(/\D/g,'');
-            if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
+            if (formattedPhone.startsWith('0')) {
+                formattedPhone = '62' + formattedPhone.substring(1);
+            }
             
             const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat membaca firman-Nya! 🙏`;
-    
-            // 2. Deteksi apakah admin menggunakan HP atau Komputer
+            
+            // Menerjemahkan pesan teks menjadi format tautan URL (Ini yang sebelumnya hilang)
+            const encodedText = encodeURIComponent(message);
+
+            // Deteksi apakah admin menggunakan HP atau Komputer
             const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
-            // 3. Arahkan ke aplikasi yang sesuai
+            // Arahkan ke aplikasi yang sesuai
             if (isMobile) {
                 // Jika di HP: Tetap gunakan sistem lama (wa.me)
-                window.open(`https://wa.me/${phone}?text=${encodedText}`, '_blank');
+                window.open(`https://wa.me/${formattedPhone}?text=${encodedText}`, '_blank');
             } else {
                 // Jika di Desktop/Laptop: Paksa buka aplikasi WhatsApp Desktop (whatsapp://)
-                // Menggunakan '_self' agar tidak meninggalkan tab browser kosong yang mengganggu
-                window.open(`whatsapp://send?phone=${phone}&text=${encodedText}`, '_self');
+                window.open(`whatsapp://send?phone=${formattedPhone}&text=${encodedText}`, '_self');
             }
         }
 
