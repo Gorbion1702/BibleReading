@@ -226,37 +226,6 @@ app.get('/api/admin/users-status', async (req, res) => {
     }
 });
 
-// --- SISTEM TANGGAL KHUSUS ADMIN ---
-let adminCurrentDate = new Date(); // Otomatis dimulai dari hari ini
-
-function initAdminDate() {
-    const dateInput = document.getElementById('adminDatePicker');
-    if (dateInput) {
-        // Mencegah error zona waktu (memaksa ke waktu lokal)
-        const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
-        dateInput.value = localDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
-    }
-}
-
-function changeAdminDate(daysToAdd) {
-    // Geser hari (Next/Prev)
-    adminCurrentDate.setDate(adminCurrentDate.getDate() + daysToAdd);
-    initAdminDate();
-    loadAdminDashboard(); // Memuat ulang data dari Supabase
-}
-
-function setAdminDate(dateString) {
-    // Lompat ke tanggal spesifik dari kalender
-    if (!dateString) return;
-    adminCurrentDate = new Date(dateString);
-    loadAdminDashboard(); // Memuat ulang data dari Supabase
-}
-
-// Pastikan tanggal tersetting saat halaman dimuat
-window.addEventListener('DOMContentLoaded', () => {
-    initAdminDate();
-});
-
 // --- STREAK API ---
 app.get('/api/streak/:user_id', async (req, res) => {
     try {
