@@ -183,7 +183,7 @@ app.get('/api/admin/users-status', async (req, res) => {
         if (authUserError || !requestingUser) return res.status(401).json({ error: "Sesi tidak valid." });
 
         // DAFTAR EMAIL ADMIN (Silakan tambahkan email Anda di sini)
-        const ADMIN_EMAILS = ['jonathanjason125@gmail.com', 'jonathanjason619@gmail.com', 'metty.kusumastuti@gmail.com', 'hnyemima@gmail.com']; 
+        const ADMIN_EMAILS = ['hnyemima@gmail.com', 'jonathanjason125@gmail.com', 'metty.kusumastuti@gmail.com']; 
         
         if (!ADMIN_EMAILS.includes(requestingUser.email)) {
             return res.status(403).json({ error: "Anda bukan Admin." });
