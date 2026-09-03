@@ -514,7 +514,19 @@
         function selectFeeling(btn, feeling, emoji) {
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             const msgEl = document.getElementById('feeling-message'); msgEl.classList.remove('hidden');
-            const messages = { 'Happy': 'Puji Tuhan! Kiranya sukacita-Nya mengalir.', 'Peaceful': 'Damai sejahtera Allah memelihara hatimu.', 'Excited': 'Luar biasa! Semangatmu memuliakan-Nya.', 'In Love': 'Kasih karunia Tuhan mengelilingimu.', 'Flat': 'Penyertaan Tuhan setia dan tak berubah.', 'Sad': 'Tuhan dekat dengan mereka yang patah hati.', 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya.', 'Angry': 'Biarkan kasih Tuhan meredakan kemarahanmu.', 'Tired': 'Marilah kepada-Ku, Aku akan memberi kelegaan.', 'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya.' };
+            // const messages = { 'Happy': 'Puji Tuhan! Kiranya sukacita-Nya mengalir.', 'Peaceful': 'Damai sejahtera Allah memelihara hatimu.', 'Excited': 'Luar biasa! Semangatmu memuliakan-Nya.', 'In Love': 'Kasih karunia Tuhan mengelilingimu.', 'Flat': 'Penyertaan Tuhan setia dan tak berubah.', 'Sad': 'Tuhan dekat dengan mereka yang patah hati.', 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya.', 'Angry': 'Biarkan kasih Tuhan meredakan kemarahanmu.', 'Tired': 'Marilah kepada-Ku, Aku akan memberi kelegaan.', 'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya.' };
+            const messages = {
+                "Happy": "Puji Tuhan! Kiranya sukacita-Nya terus mengalir. (Mazmur 118:29 — Bersyukurlah kepada TUHAN, sebab Ia baik! Bahwasanya untuk selama-lamanya kasih setia-Nya.)",
+                "Peaceful": "Damai sejahtera Allah memelihara hatimu. (Filipi 4:7 — Damai sejahtera Allah, yang melampaui segala akal, akan memelihara hati dan pikiranmu dalam Kristus Yesus.)",
+                "Excited": "Luar biasa! Teruslah bersemangat. (Roma 12:11 — Janganlah hendaknya kerajinanmu kendor, biarlah rohmu menyala-nyala dan layanilah Tuhan.)",
+                "In Love": "Mari kita membagikan kasih Allah. (1 Yohanes 4:19 — Kita mengasihi, karena Allah lebih dahulu mengasihi kita.)",
+                "Flat": "Tuhan selalu menyertaimu di segala musim. (Mazmur 103:2 — Pujilah TUHAN, hai jiwaku, dan janganlah lupakan segala kebaikan-Nya!)",
+                "Sad": "Tuhan mengerti dan sudah mengalami apa yang kamu alami. (Mazmur 34:18 — TUHAN itu dekat kepada orang-orang yang patah hati, dan Ia menyelamatkan orang-orang yang remuk jiwanya.)",
+                "Anxious": "Tarik napas panjang... ingat Tuhan pegang kendali! (1 Petrus 5:7 — Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu.)",
+                "Angry": "Tenangkan hatimu bersama-Nya. (Efesus 4:26 — Apabila kamu menjadi marah, janganlah kamu berbuat dosa: janganlah matahari terbenam, sebelum padam amarahmu.)",
+                "Tired": "Yuk istirahat sejenak di dalam hadirat-Nya. (Matius 11:28 — Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.)",
+                "Sleepy": "Ingat, tubuhmu perlu istirahat juga ya. (Mazmur 4:8 — Dengan tenteram aku mau membaringkan diri, lalu segera tidur, sebab hanya Engkaulah, ya TUHAN, yang membiarkan aku diam dalam aman.)"
+            };
             msgEl.innerText = messages[feeling]; document.getElementById('selected-feeling-value').value = feeling; document.getElementById('selected-emoji-value').value = emoji;
             document.getElementById('feeling-input-area').classList.remove('hidden'); document.getElementById('feeling-reason').focus();
         }
