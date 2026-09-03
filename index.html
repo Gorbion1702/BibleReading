@@ -858,16 +858,18 @@
             if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
             
             const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat membaca firman-Nya! 🙏`;
+    
+            // 2. Deteksi apakah admin menggunakan HP atau Komputer
+            const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
-            // Deteksi perangkat
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            
+            // 3. Arahkan ke aplikasi yang sesuai
             if (isMobile) {
-                // Menggunakan deep link khusus WhatsApp Pribadi agar tidak lari ke Business
-                window.location.href = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+                // Jika di HP: Tetap gunakan sistem lama (wa.me)
+                window.open(`https://wa.me/${phone}?text=${encodedText}`, '_blank');
             } else {
-                // Untuk pengguna Desktop/Laptop diarahkan ke WhatsApp Web
-                window.open(`https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`, '_blank');
+                // Jika di Desktop/Laptop: Paksa buka aplikasi WhatsApp Desktop (whatsapp://)
+                // Menggunakan '_self' agar tidak meninggalkan tab browser kosong yang mengganggu
+                window.open(`whatsapp://send?phone=${phone}&text=${encodedText}`, '_self');
             }
         }
 
