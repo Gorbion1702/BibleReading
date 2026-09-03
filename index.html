@@ -71,6 +71,11 @@
             }, 1000);
 
             document.addEventListener('submit', (e) => e.preventDefault(), true);
+            
+            // Inisialisasi tanggal kalender admin & muat data otomatis
+            initAdminDate();
+            loadAdminDashboard();
+            
             checkSession();
         });
 
