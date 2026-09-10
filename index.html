@@ -1033,10 +1033,9 @@
 
                     if (uniqueDays > 0) activeUsers++; else inactiveUsers++;
 
+                    // MURNI HANYA MENAMPILKAN DISPLAY NAME DAN STATISTIK PARTISIPASI
                     return {
-                        "Nama Lengkap": u.name,
-                        "No WhatsApp": u.phone,
-                        "Email": u.email,
+                        "Display Name": u.name,
                         "Total Hari Ikut Sharing": uniqueDays,
                         "Status": uniqueDays > 0 ? "Aktif Partisipasi" : "Belum Pernah Ikut"
                     };
