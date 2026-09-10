@@ -291,4 +291,38 @@ app.get('/api/cron/reminder', async (req, res) => {
     }
 });
 
+// --- ENDPOINT BARU: EXPORT SEMUA DATA ---
+app.get('/api/admin/export-all', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: "Token tidak ditemukan." });
+
+        const { data: { user: requestingUser }, error: authUserError } = await supabase.auth.getUser(token);
+        if (authUserError || !requestingUser) return res.status(401).json({ error: "Sesi tidak valid." });
+
+        const ADMIN_EMAILS = ['hnyemima@gmail.com', 'jonathanjason125@gmail.com', 'metty.kusumastuti@gmail.com']; 
+        if (!ADMIN_EMAILS.includes(requestingUser.email)) return res.status(403).json({ error: "Anda bukan Admin." });
+
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) throw authError;
+
+        // Ambil SEMUA sharing mulai dari 14 September 2026
+        const startDate = new Date(2026, 8, 14).toISOString();
+        const { data: sharings, error: shareError } = await supabase.from('sharings')
+            .select('user_id, created_at')
+            .gte('created_at', startDate);
+        
+        if (shareError) throw shareError;
+
+        // Format data
+        const usersData = users.map(u => ({
+            id: u.id, email: u.email, 
+            name: u.user_metadata?.full_name || u.email.split('@')[0],
+            phone: u.user_metadata?.phone || ''
+        }));
+
+        res.status(200).json({ users: usersData, sharings });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 module.exports = app;

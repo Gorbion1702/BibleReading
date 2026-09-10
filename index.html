@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
@@ -1003,6 +1004,67 @@
                 container.innerHTML = `<div class="p-4 text-center text-red-600">Gagal memuat data admin: ${err.message}</div>`;
             }
         }
+
+        async function exportToExcel() {
+            const btn = document.getElementById('btn-export-excel');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-lg"></i> Memproses...';
+            btn.disabled = true;
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) throw new Error("Sesi tidak valid.");
+
+                const res = await fetch('/api/admin/export-all', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (!res.ok) throw new Error("Gagal mengambil data dari server.");
+                const data = await res.json();
+
+                let activeUsers = 0; let inactiveUsers = 0;
+
+                // Olah Data Detail
+                const userStats = data.users.map(u => {
+                    const userSharings = data.sharings.filter(s => s.user_id === u.id);
+                    // Hitung berapa HARI BERBEDA dia pernah sharing (bukan jumlah post)
+                    const uniqueDays = new Set(userSharings.map(s => {
+                        const d = new Date(s.created_at); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                    })).size;
+
+                    if (uniqueDays > 0) activeUsers++; else inactiveUsers++;
+
+                    return {
+                        "Nama Lengkap": u.name,
+                        "No WhatsApp": u.phone,
+                        "Email": u.email,
+                        "Total Hari Ikut Sharing": uniqueDays,
+                        "Status": uniqueDays > 0 ? "Aktif Partisipasi" : "Belum Pernah Ikut"
+                    };
+                });
+
+                // Olah Data Ringkasan untuk Diagram
+                const summaryData = [
+                    { "Kategori": "Aktif Partisipasi", "Jumlah Anggota": activeUsers },
+                    { "Kategori": "Belum Pernah Ikut", "Jumlah Anggota": inactiveUsers },
+                    { "Kategori": "TOTAL ANGGOTA", "Jumlah Anggota": data.users.length }
+                ];
+
+                // Proses file Excel
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), "Ringkasan");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(userStats), "Detail Anggota");
+
+                const fileName = `Rekap_Bible_Reading_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showToast("Berhasil mengunduh Excel!");
+            } catch (error) {
+                showToast("Gagal Export: " + error.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
     </script>
 
     <!-- AUTH VIEW -->
@@ -1193,42 +1255,38 @@
             <section id="sec-admin" class="content-section hidden">
                 <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-misty w-full h-auto flex flex-col justify-start items-start">
                     
-                    <!-- Header Admin -->
-                    <div class="flex items-center gap-3 mb-6 border-b border-misty pb-4 w-full">
-                        <div class="w-12 h-12 bg-rosewood rounded-xl flex items-center justify-center shadow-md shrink-0">
-                            <i class="ph ph-shield-star text-2xl text-white"></i>
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold text-rosewood">Dashboard Admin</h2>
-                            <p class="text-xs text-sage" id="admin-dashboard-title">Rekapitulasi Hari Ini</p>
-                        </div>
-                    </div>
-
-                    <!-- Header Admin & Navigasi Tanggal -->
+                    <!-- Header Admin & Navigasi Tanggal & Tombol Export -->
                     <div class="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-amber-900 flex items-center gap-2">
-                                <i class="fas fa-shield-alt"></i> Dashboard Admin
+                                <i class="ph-bold ph-shield-check text-3xl"></i> Dashboard Admin
                             </h2>
-                            <p class="text-sm text-gray-500">Rekapitulasi Partisipasi Harian</p>
+                            <p class="text-sm text-gray-500">Rekapitulasi Partisipasi Keseluruhan</p>
                         </div>
                         
-                        <!-- Fitur Pilih Tanggal (Date Picker) -->
-                        <div class="flex items-center bg-amber-50 rounded-lg border border-amber-200 p-1 shadow-inner">
-                            <button onclick="changeAdminDate(-1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Sebelumnya">
-                                &lt;
-                            </button>
-                            <input type="date" id="adminDatePicker" onchange="setAdminDate(this.value)" class="bg-transparent border-none focus:ring-0 text-amber-900 font-semibold cursor-pointer text-center outline-none mx-2">
-                            <button onclick="changeAdminDate(1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Berikutnya">
-                                &gt;
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <!-- Fitur Pilih Tanggal (Date Picker) -->
+                            <div class="flex items-center bg-amber-50 rounded-lg border border-amber-200 p-1 shadow-inner">
+                                <button onclick="changeAdminDate(-1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Sebelumnya">
+                                    &lt;
+                                </button>
+                                <input type="date" id="adminDatePicker" onchange="setAdminDate(this.value)" class="bg-transparent border-none focus:ring-0 text-amber-900 font-semibold cursor-pointer text-center outline-none mx-2">
+                                <button onclick="changeAdminDate(1)" class="px-3 py-1 text-amber-700 hover:bg-amber-100 rounded-md transition font-bold" title="Hari Berikutnya">
+                                    &gt;
+                                </button>
+                            </div>
+                            
+                            <!-- Tombol Export Excel -->
+                            <button onclick="exportToExcel()" id="btn-export-excel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center gap-2 w-full sm:w-auto justify-center">
+                                <i class="ph-bold ph-microsoft-excel-logo text-lg"></i> Export Excel
                             </button>
                         </div>
                     </div>
 
-                    <!-- Panduan Pengingat Manual (Sudah Diperbarui) -->
+                    <!-- Panduan Pengingat Manual -->
                     <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 w-full">
                         <h3 class="text-sm font-bold text-blue-800 flex items-center gap-2 mb-1">
-                            <i class="fas fa-info-circle"></i> Panduan Pengingat Manual
+                            <i class="ph-bold ph-info"></i> Panduan Pengingat Manual
                         </h3>
                         <p class="text-sm text-blue-700">
                             Gunakan kalender di atas untuk melihat rekapan hari tertentu. Klik tombol WhatsApp hijau untuk mengirim pesan pengingat yang sudah terisi otomatis.
