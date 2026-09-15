@@ -11,13 +11,15 @@ const FALLBACK_KEY = 'sb_publishable_8ZRLF_VvsvQMjKcmspcrqQ_s88fHQYt';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || FALLBACK_KEY; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+// --- KALIBRASI ZONA WAKTU WIB (UTC+7) ---
 function getWIBDateString(dateInput) {
     const d = new Date(dateInput);
-    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-    const wib = new Date(utc + (3600000 * 7));
-    const yyyy = wib.getFullYear();
-    const mm = String(wib.getMonth() + 1).padStart(2, '0');
-    const dd = String(wib.getDate()).padStart(2, '0');
+    // Langsung tambahkan 7 jam (WIB) ke waktu asli agar aman di server Vercel (UTC)
+    const wibTime = d.getTime() + (7 * 60 * 60 * 1000);
+    const wibDate = new Date(wibTime);
+    const yyyy = wibDate.getUTCFullYear();
+    const mm = String(wibDate.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(wibDate.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -182,7 +184,7 @@ app.get('/api/admin/users-status', async (req, res) => {
         const { data: { user: requestingUser }, error: authUserError } = await supabase.auth.getUser(token);
         if (authUserError || !requestingUser) return res.status(401).json({ error: "Sesi tidak valid." });
 
-        // DAFTAR EMAIL ADMIN (Silakan tambahkan email Anda di sini)
+        // DAFTAR EMAIL ADMIN
         const ADMIN_EMAILS = ['hnyemima@gmail.com', 'jonathanjason125@gmail.com', 'metty.kusumastuti@gmail.com']; 
         
         if (!ADMIN_EMAILS.includes(requestingUser.email)) {
@@ -193,12 +195,13 @@ app.get('/api/admin/users-status', async (req, res) => {
         const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
         if (authError) throw authError;
 
-        // Tentukan batas awal dan akhir hari yang dipilih
+        // --- KALIBRASI WIB (UTC+7) ---
+        // Membuat rentang waktu persis dari 00:00:00 WIB sampai 23:59:59 WIB
         const targetDate = new Date(date);
-        const startDate = new Date(targetDate.setHours(0,0,0,0)).toISOString();
-        const endDate = new Date(targetDate.setHours(23,59,59,999)).toISOString();
+        const startDate = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), -7, 0, 0, 0)).toISOString();
+        const endDate = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 16, 59, 59, 999)).toISOString();
 
-        // Ambil semua sharing pada hari tersebut
+        // Ambil semua sharing pada rentang hari WIB tersebut
         const { data: sharings, error: shareError } = await supabase.from('sharings')
             .select('user_id')
             .gte('created_at', startDate)
@@ -306,8 +309,8 @@ app.get('/api/admin/export-all', async (req, res) => {
         const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
         if (authError) throw authError;
 
-        // Ambil SEMUA sharing mulai dari 14 September 2026
-        const startDate = new Date(2026, 8, 14).toISOString();
+        // Ambil SEMUA sharing mulai dari 14 September 2026 (Di-kalibrasi ke WIB)
+        const startDate = new Date(Date.UTC(2026, 8, 14, -7, 0, 0, 0)).toISOString();
         const { data: sharings, error: shareError } = await supabase.from('sharings')
             .select('user_id, created_at')
             .gte('created_at', startDate);
