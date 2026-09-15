@@ -52,7 +52,11 @@ async function calculateUserStreak(userId) {
 // --- LEADERBOARD ---
 app.get('/api/leaderboard', async (req, res) => {
     try {
-        const { data: users, error } = await supabase.from('sharings').select('user_id, user_name, avatar_url');
+        // DITAMBAHKAN: .order('created_at', { ascending: false }) agar selalu membaca NAMA TERBARU
+        const { data: users, error } = await supabase.from('sharings')
+            .select('user_id, user_name, avatar_url')
+            .order('created_at', { ascending: false });
+            
         if (error) throw error;
 
         const uniqueUserIds = [...new Set(users.map(u => u.user_id))];
@@ -66,6 +70,8 @@ app.get('/api/leaderboard', async (req, res) => {
             }
         }
         leaderboard.sort((a, b) => b.streak - a.streak);
+        
+        // Menampilkan maksimal 25 user teratas
         res.status(200).json(leaderboard.slice(0, 25));
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -89,7 +95,8 @@ app.post('/api/feelings', async (req, res) => {
 
         const { data: existingData } = await checkQuery;
         if (existingData && existingData.length > 0) {
-            const { data, error } = await supabase.from('feelings').update({ feeling, emoji, reason, avatar_url, created_at: new Date().toISOString() }).eq('id', existingData[0].id).select();
+            // DITAMBAHKAN: user_name ke dalam update agar saat diklik ulang, nama ikut ter-refresh
+            const { data, error } = await supabase.from('feelings').update({ feeling, emoji, reason, user_name, avatar_url, created_at: new Date().toISOString() }).eq('id', existingData[0].id).select();
             if (error) throw error; return res.status(200).json(data);
         } else {
             const { data, error } = await supabase.from('feelings').insert([{ feeling, emoji, reason, user_name, user_id, avatar_url }]).select();
