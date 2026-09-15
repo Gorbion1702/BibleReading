@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- KODE ANTI-CACHE BROWSER -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>Bible Reading Perkantas Jabar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -98,13 +104,21 @@
         function extractBibleTextChunks() {
             let chunks = [];
             document.querySelectorAll('#daily-devotion-card h4').forEach(h4 => {
-                chunks.push(h4.innerText + ". "); 
+                // Manipulasi judul khusus untuk audio (tampilan di layar tetap aman)
+                let titleText = h4.innerText + ". ";
+                titleText = titleText.replace(/Allah/gi, "Alah");
+                chunks.push(titleText); 
+                
                 let verseContainer = h4.nextElementSibling;
                 if(verseContainer) {
                     verseContainer.querySelectorAll('p').forEach(p => {
                         let span = p.querySelector('span');
                         if(span && span.innerText.trim() !== "") {
                             let text = span.innerText.trim();
+                            
+                            // Manipulasi ayat khusus untuk audio (mencegah bunyi "Auloh")
+                            text = text.replace(/Allah/gi, "Alah");
+                            
                             let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
                             sentences.forEach(s => chunks.push(s.trim()));
                         }
@@ -926,7 +940,7 @@
             try {
                 // Menggunakan adminCurrentDate
                 const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
-                const dateParam = localDate.toISOString();
+                const dateParam = localDate.toISOString().split('T')[0] + "T00:00:00.000Z"; 
                 
                 const res = await fetch(`/api/admin/users-status?date=${dateParam}`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -1217,7 +1231,6 @@
 
             <!-- PROFILE -->
             <section id="sec-profile" class="content-section hidden space-y-6">
-                <!-- MEMPERBAIKI KOTAK PUTIH YANG HILANG DI SINI -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-misty relative">
                     <div id="profile-streak-badge" class="hidden absolute top-6 right-6 bg-rosewood text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"><i class="ph ph-fire text-lg"></i> 0 Hari Streak</div>
 
