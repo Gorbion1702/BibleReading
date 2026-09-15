@@ -66,7 +66,7 @@ app.get('/api/leaderboard', async (req, res) => {
             }
         }
         leaderboard.sort((a, b) => b.streak - a.streak);
-        res.status(200).json(leaderboard.slice(0, 5));
+        res.status(200).json(leaderboard.slice(0, 25));
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
