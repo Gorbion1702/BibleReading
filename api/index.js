@@ -199,7 +199,7 @@ app.get('/api/admin/users-status', async (req, res) => {
         }
 
         // Ambil data seluruh user (Membutuhkan SUPABASE_SERVICE_KEY)
-        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
         if (authError) throw authError;
 
         // --- KALIBRASI WIB (UTC+7) ---
@@ -253,7 +253,7 @@ app.get('/api/cron/reminder', async (req, res) => {
             return res.status(500).json({ message: "Token Fonnte belum disetting di Vercel." });
         }
 
-        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
         if (authError) throw authError;
 
         const todayStr = getWIBDateString(new Date());
@@ -313,7 +313,7 @@ app.get('/api/admin/export-all', async (req, res) => {
         const ADMIN_EMAILS = ['hnyemima@gmail.com', 'jonathanjason125@gmail.com', 'metty.kusumastuti@gmail.com']; 
         if (!ADMIN_EMAILS.includes(requestingUser.email)) return res.status(403).json({ error: "Anda bukan Admin." });
 
-        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
         if (authError) throw authError;
 
         // Ambil SEMUA sharing mulai dari 14 September 2026 (Di-kalibrasi ke WIB)
