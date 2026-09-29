@@ -124,10 +124,19 @@ app.get('/api/sharing', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// FITUR BARU: BISA POSTING SHARING UNTUK HARI SEBELUMNYA
 app.post('/api/sharing', async (req, res) => {
     try {
-        const { text, user_name, user_id, avatar_url, media_url, media_type } = req.body;
-        const { data, error } = await supabase.from('sharings').insert([{ text, user_name, user_id, avatar_url, media_url, media_type, likes: [] }]).select();
+        const { text, user_name, user_id, avatar_url, media_url, media_type, created_at } = req.body;
+        
+        const insertData = { text, user_name, user_id, avatar_url, media_url, media_type, likes: [] };
+        
+        // Menerima input tanggal susulan dari frontend
+        if (created_at) {
+            insertData.created_at = created_at;
+        }
+
+        const { data, error } = await supabase.from('sharings').insert([insertData]).select();
         if (error) throw error; res.status(200).json(data);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });

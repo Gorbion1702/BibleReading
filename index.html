@@ -512,7 +512,6 @@
                     }
 
                     let mediaHtml = '';
-                    // Tetap menyimpan legacy rendering untuk foto/video lama jika ada
                     if (item.media_type === 'image' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-gray-50"><img src="${item.media_url}" class="w-full h-auto object-contain max-h-96"></div>`; } 
                     else if (item.media_type === 'video' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty bg-black"><video src="${item.media_url}" controls class="w-full h-auto max-h-96"></video></div>`; } 
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
@@ -534,7 +533,6 @@
         function selectFeeling(btn, feeling, emoji) {
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             const msgEl = document.getElementById('feeling-message'); msgEl.classList.remove('hidden');
-            // const messages = { 'Happy': 'Puji Tuhan! Kiranya sukacita-Nya mengalir.', 'Peaceful': 'Damai sejahtera Allah memelihara hatimu.', 'Excited': 'Luar biasa! Semangatmu memuliakan-Nya.', 'In Love': 'Kasih karunia Tuhan mengelilingimu.', 'Flat': 'Penyertaan Tuhan setia dan tak berubah.', 'Sad': 'Tuhan dekat dengan mereka yang patah hati.', 'Anxious': 'Serahkanlah segala kekuatiranmu kepada-Nya.', 'Angry': 'Biarkan kasih Tuhan meredakan kemarahanmu.', 'Tired': 'Marilah kepada-Ku, Aku akan memberi kelegaan.', 'Sleepy': 'Tuhan memberikan tidur kepada yang dikasihi-Nya.' };
             const messages = {
                 "Happy": "Puji Tuhan! Kiranya sukacita-Nya terus mengalir. (Mazmur 118:29 — Bersyukurlah kepada TUHAN, sebab Ia baik! Bahwasanya untuk selama-lamanya kasih setia-Nya.)",
                 "Peaceful": "Damai sejahtera Allah memelihara hatimu. (Filipi 4:7 — Damai sejahtera Allah, yang melampaui segala akal, akan memelihara hati dan pikiranmu dalam Kristus Yesus.)",
@@ -757,12 +755,13 @@
             if (isSameDay(currentDevotionDate, today)) {
                 nextBtn.disabled = true; nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 document.getElementById('devotion-date-display').innerText = "Hari Ini";
-                if(formContainer) formContainer.classList.remove('hidden');
             } else {
                 nextBtn.disabled = false; nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 document.getElementById('devotion-date-display').innerText = currentDevotionDate.toLocaleDateString('id-ID', dateOptions);
-                if(formContainer) formContainer.classList.add('hidden');
             }
+
+            // PASTIKAN FORM SELALU MUNCUL MESKIPUN HARI SEBELUMNYA
+            if(formContainer) formContainer.classList.remove('hidden');
 
             loadDailyDevotionContent(); loadSharings(); loadAdminDashboard();
         }
@@ -887,7 +886,27 @@
             const submitBtn = document.querySelector('#sec-devotion button[type="submit"]'); submitBtn.innerHTML = 'Membagikan...'; submitBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/sharing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user_name: userName, user_id: userId, avatar_url: avatarUrl, media_url: currentShareMediaUrl, media_type: currentShareMediaType }) });
+                // BUAT TIMESTAMP SUSULAN (Agar masuk ke hari yang sedang dibuka)
+                const targetDate = new Date(currentDevotionDate);
+                // Jika hari ini, gunakan jam saat ini. Jika hari sebelumnya, set jam 12 siang.
+                if (!isSameDay(targetDate, new Date())) {
+                    targetDate.setHours(12, 0, 0, 0); 
+                } else {
+                    targetDate.setHours(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds());
+                }
+                const createdAtStr = targetDate.toISOString();
+
+                const res = await fetch('/api/sharing', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        text, user_name: userName, user_id: userId, 
+                        avatar_url: avatarUrl, media_url: currentShareMediaUrl, 
+                        media_type: currentShareMediaType,
+                        created_at: createdAtStr // Kirim tanggal susulan ke server
+                    }) 
+                });
+                
                 if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
                 document.getElementById('sharing-input').value = ''; clearMediaAttach();
                 loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); showToast("Sharing berhasil dibagikan!");
