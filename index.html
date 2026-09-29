@@ -252,6 +252,14 @@
                 }
             });
 
+            // Set maksimal tanggal untuk Devotion Date Picker agar tidak bisa ke masa depan
+            const devPicker = document.getElementById('devotionDatePicker');
+            if (devPicker) {
+                const todayLocal = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000));
+                devPicker.max = todayLocal.toISOString().split('T')[0];
+                devPicker.value = todayLocal.toISOString().split('T')[0];
+            }
+
             navigate('home'); updateDateUI(); updateGreeting(); 
             loadUserProfile(); loadFeelings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); loadDailyVerse();
         }
@@ -740,6 +748,29 @@
             } catch(e) { return `<p class="text-red-500 p-4">Gagal memuat ayat. Cek koneksi Anda.</p>`; }
         }
 
+        // --- FUNGSI LOMPAT TANGGAL KHUSUS DEVOTION (MESIN WAKTU) ---
+        function setDevotionDate(dateString) {
+            if (!dateString) return;
+            const selectedDate = new Date(dateString);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            // Cek jika memilih masa depan
+            if (selectedDate > today) {
+                showToast("Belum bisa melihat renungan masa depan ya!");
+                // Kembalikan picker ke currentDevotionDate
+                const picker = document.getElementById('devotionDatePicker');
+                if (picker) {
+                    const localDate = new Date(currentDevotionDate.getTime() - (currentDevotionDate.getTimezoneOffset() * 60000));
+                    picker.value = localDate.toISOString().split('T')[0];
+                }
+                return;
+            }
+
+            currentDevotionDate = selectedDate;
+            changeDevotionDate(0); // Panggil fungsi utama dengan delta 0 untuk memicu update UI
+        }
+
         function changeDevotionDate(delta) {
             stopAudioBible(); 
             const today = new Date();
@@ -758,6 +789,13 @@
             } else {
                 nextBtn.disabled = false; nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 document.getElementById('devotion-date-display').innerText = currentDevotionDate.toLocaleDateString('id-ID', dateOptions);
+            }
+
+            // Sinkronisasi nilai kalender transparan
+            const picker = document.getElementById('devotionDatePicker');
+            if (picker) {
+                const localDate = new Date(currentDevotionDate.getTime() - (currentDevotionDate.getTimezoneOffset() * 60000));
+                picker.value = localDate.toISOString().split('T')[0];
             }
 
             // PASTIKAN FORM SELALU MUNCUL MESKIPUN HARI SEBELUMNYA
@@ -1242,12 +1280,19 @@
             <section id="sec-devotion" class="content-section hidden space-y-6">
                 <!-- DATE NAVIGATION (Mesin Waktu) -->
                 <div class="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-misty">
-                    <button type="button" onclick="changeDevotionDate(-1)" class="w-10 h-10 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition shadow-sm"><i class="ph ph-caret-left text-lg font-bold"></i></button>
-                    <div class="text-center flex flex-col px-2">
+                    <button type="button" onclick="changeDevotionDate(-1)" class="w-10 h-10 shrink-0 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition shadow-sm"><i class="ph ph-caret-left text-lg font-bold"></i></button>
+                    
+                    <!-- BAGIAN TENGAH YANG BISA DIKLIK (DATE PICKER) -->
+                    <div class="relative flex flex-col items-center justify-center px-2 cursor-pointer group flex-grow text-center">
                         <span class="text-[10px] font-bold text-sage uppercase tracking-widest mb-0.5">Renungan & Sharing</span>
-                        <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base">Hari Ini</span>
+                        <div class="flex items-center gap-1.5 text-rosewood group-hover:opacity-80 transition">
+                            <span id="devotion-date-display" class="font-bold text-sm sm:text-base">Hari Ini</span>
+                            <i class="ph-bold ph-calendar-blank text-lg"></i>
+                        </div>
+                        <input type="date" id="devotionDatePicker" onchange="setDevotionDate(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     </div>
-                    <button type="button" onclick="changeDevotionDate(1)" id="btn-next-devotion" class="w-10 h-10 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition opacity-50 cursor-not-allowed shadow-sm" disabled><i class="ph ph-caret-right text-lg font-bold"></i></button>
+
+                    <button type="button" onclick="changeDevotionDate(1)" id="btn-next-devotion" class="w-10 h-10 shrink-0 rounded-full bg-vanilla border border-misty flex items-center justify-center text-rosewood hover:bg-blush transition opacity-50 cursor-not-allowed shadow-sm" disabled><i class="ph ph-caret-right text-lg font-bold"></i></button>
                 </div>
 
                 <div id="daily-devotion-card" class="bg-white py-6 rounded-2xl shadow-sm border border-misty relative"></div>
