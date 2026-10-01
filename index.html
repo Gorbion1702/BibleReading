@@ -22,7 +22,8 @@
     <!-- LIBRARY FLATPICKR (KALENDER CUSTOM) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/id.js"></script>
+    <!-- MENGGUNAKAN JSDELIVR AGAR TIDAK ERROR/DIBLOKIR -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
 
     <script>
         tailwind.config = {
@@ -226,23 +227,7 @@
             if (session) showMainApp();
         }
 
-        async function fetchUserSharedDates() {
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return;
-
-            const { data, error } = await supabase.from('sharings').select('created_at').eq('user_id', user.id);
-            if (!error && data) {
-                userSharedDates = data.map(item => {
-                    const d = new Date(item.created_at);
-                    const wibTime = d.getTime() + (7 * 60 * 60 * 1000);
-                    const wibDate = new Date(wibTime);
-                    return wibDate.toISOString().split('T')[0];
-                });
-            }
-            initCustomCalendar();
-        }
-
+        // FUNGSI INIT KALENDER DAN TARIK TANGGAL SHARING
         function initCustomCalendar() {
             const devPicker = document.getElementById('devotionDatePicker');
             if (devPicker) {
@@ -251,16 +236,22 @@
                 if (devotionCalendar) devotionCalendar.destroy();
 
                 devotionCalendar = flatpickr("#devotionDatePicker", {
-                    locale: "id", // Bahasa Indonesia
-                    dateFormat: "Y-m-d",
+                    locale: "id", // Otomatis bahasa Indonesia
+                    dateFormat: "d/m/Y", // Tampilan di kotak input menjadi DD/MM/YYYY
                     defaultDate: currentDevotionDate,
-                    maxDate: todayLocal,
-                    disableMobile: true, // WAJIB agar custom style (titik) terlihat di HP
+                    maxDate: todayLocal, // Kunci agar tidak bisa ke masa depan
+                    disableMobile: true, // Wajib agar gaya titik merah muncul di HP
                     onChange: function(selectedDates, dateStr, instance) {
-                        setDevotionDate(dateStr);
+                        if(selectedDates.length > 0) {
+                            // Konversi kembali ke YYYY-MM-DD untuk sistem
+                            const y = selectedDates[0].getFullYear();
+                            const m = String(selectedDates[0].getMonth() + 1).padStart(2, '0');
+                            const d = String(selectedDates[0].getDate()).padStart(2, '0');
+                            setDevotionDate(`${y}-${m}-${d}`);
+                        }
                     },
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
-                        // Cek apakah tanggal di elemen kalender ini ada di array userSharedDates
+                        // Pasangkan titik merah di tanggal yang cocok
                         const localY = dayElem.dateObj.getFullYear();
                         const localM = String(dayElem.dateObj.getMonth() + 1).padStart(2, '0');
                         const localD = String(dayElem.dateObj.getDate()).padStart(2, '0');
@@ -271,6 +262,25 @@
                         }
                     }
                 });
+            }
+        }
+
+        async function fetchUserSharedDates() {
+            if (!supabaseClient) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase.from('sharings').select('created_at').eq('user_id', user.id);
+            if (!error && data) {
+                userSharedDates = data.map(item => {
+                    const d = new Date(item.created_at);
+                    const wibTime = d.getTime() + (7 * 60 * 60 * 1000); // Kalibrasi UTC+7
+                    const wibDate = new Date(wibTime);
+                    return wibDate.toISOString().split('T')[0];
+                });
+                
+                // Refresh kalender agar titik merahnya tergambar
+                if (devotionCalendar) devotionCalendar.redraw();
             }
         }
 
@@ -285,7 +295,11 @@
             });
 
             navigate('home'); updateDateUI(); updateGreeting(); 
-            fetchUserSharedDates(); // Muat tanggal sharing dan inisialisasi kalender
+            
+            // Urutan Pemuatan Baru
+            initCustomCalendar(); 
+            fetchUserSharedDates(); 
+
             loadUserProfile(); loadFeelings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); loadDailyVerse();
         }
 
@@ -725,16 +739,14 @@
             const selectedDate = new Date(dateString);
             const today = new Date();
             today.setHours(0,0,0,0);
-            selectedDate.setHours(0,0,0,0); // Pastikan waktu di-reset
+            selectedDate.setHours(0,0,0,0);
             
-            // Cek jika memilih masa depan
             if (selectedDate > today) {
                 showToast("Belum bisa melihat renungan masa depan ya!");
                 if (devotionCalendar) devotionCalendar.setDate(currentDevotionDate, false);
                 return;
             }
 
-            // Hitung selisih hari dan jalankan fungsi utama
             const diffTime = selectedDate.getTime() - currentDevotionDate.getTime();
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
@@ -763,7 +775,6 @@
                 document.getElementById('devotion-date-display').innerText = currentDevotionDate.toLocaleDateString('id-ID', dateOptions);
             }
 
-            // Sinkronisasi nilai kalender flatpickr
             if (devotionCalendar) { devotionCalendar.setDate(currentDevotionDate, false); }
 
             if(formContainer) formContainer.classList.remove('hidden');
@@ -906,11 +917,10 @@
                 if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
                 document.getElementById('sharing-input').value = ''; clearMediaAttach();
                 
-                // Tambahkan tanggal yang baru disubmit ke array dan refresh kalender
                 const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
                 if (!userSharedDates.includes(dateKey)) {
                     userSharedDates.push(dateKey);
-                    if (devotionCalendar) devotionCalendar.redraw(); // Gambar ulang titik merahnya
+                    if (devotionCalendar) devotionCalendar.redraw();
                 }
 
                 loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); showToast("Sharing berhasil dibagikan!");
@@ -1181,12 +1191,10 @@
                     <!-- BAGIAN TENGAH YANG BISA DIKLIK (DATE PICKER) -->
                     <div class="flex flex-col items-center justify-center flex-grow text-center">
                         <span class="text-[10px] font-bold text-sage uppercase tracking-widest mb-1">Renungan & Sharing</span>
-                        <div class="flex flex-col sm:flex-row items-center gap-2">
-                            <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base hidden sm:inline-block">Hari Ini</span>
-                            <div class="relative bg-vanilla border border-misty rounded-md px-2 py-1 shadow-inner hover:border-rosewood transition flex items-center cursor-pointer">
-                                <!-- INPUT TEKS UNTUK FLATPICKR -->
-                                <input type="text" id="devotionDatePicker" class="bg-transparent border-none focus:ring-0 text-rosewood font-bold text-sm sm:text-base outline-none cursor-pointer p-0 m-0 text-center w-full min-w-[100px]" placeholder="Pilih Tanggal" readonly>
-                            </div>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-1.5 cursor-pointer relative bg-vanilla px-3 py-1.5 rounded-lg border border-misty hover:border-rosewood transition shadow-inner group">
+                            <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base hidden sm:inline-block pointer-events-none">Hari Ini</span>
+                            <input type="text" id="devotionDatePicker" class="bg-transparent border-none focus:ring-0 text-rosewood font-bold text-sm sm:text-base outline-none cursor-pointer p-0 m-0 w-[100px] text-center" placeholder="Tanggal" readonly>
+                            <i class="ph-bold ph-calendar-blank text-rosewood text-lg pointer-events-none group-hover:scale-110 transition-transform"></i>
                         </div>
                     </div>
 
