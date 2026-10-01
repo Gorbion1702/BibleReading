@@ -15,15 +15,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     
-    <!-- LIBRARY CROPPER -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
-    <!-- LIBRARY FLATPICKR (KALENDER CUSTOM) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <!-- MENGGUNAKAN JSDELIVR AGAR TIDAK ERROR/DIBLOKIR -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
 
     <script>
         tailwind.config = {
@@ -38,22 +31,6 @@
     </script>
     <style>
         .emoji-btn.selected { background-color: #f5e6d3; border-color: #964f4c; transform: scale(1.05); }
-        
-        /* CSS UNTUK TITIK SHARING DI KALENDER */
-        .flatpickr-day.has-sharing-dot {
-            position: relative;
-        }
-        .flatpickr-day.has-sharing-dot::after {
-            content: '';
-            position: absolute;
-            bottom: 3px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 5px;
-            height: 5px;
-            background-color: #964f4c; /* Warna rosewood */
-            border-radius: 50%;
-        }
     </style>
 </head>
 <body class="bg-vanilla text-midnight font-sans antialiased min-h-screen flex flex-col justify-between">
@@ -93,8 +70,6 @@
 
         let isLoginMode = true;
         let currentDevotionDate = new Date();
-        let userSharedDates = []; // Menyimpan tanggal-tanggal dimana user sudah sharing
-        let devotionCalendar; // Instance kalender flatpickr
 
         window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
@@ -129,6 +104,7 @@
         function extractBibleTextChunks() {
             let chunks = [];
             document.querySelectorAll('#daily-devotion-card h4').forEach(h4 => {
+                // Manipulasi judul khusus untuk audio (tampilan di layar tetap aman)
                 let titleText = h4.innerText + ". ";
                 titleText = titleText.replace(/Allah/gi, "Alah");
                 chunks.push(titleText); 
@@ -139,7 +115,10 @@
                         let span = p.querySelector('span');
                         if(span && span.innerText.trim() !== "") {
                             let text = span.innerText.trim();
+                            
+                            // Manipulasi ayat khusus untuk audio (mencegah bunyi "Auloh")
                             text = text.replace(/Allah/gi, "Alah");
+                            
                             let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
                             sentences.forEach(s => chunks.push(s.trim()));
                         }
@@ -153,12 +132,23 @@
             if (currentAudioIndex >= audioQueue.length || !isAudioPlaying) {
                 isAudioPlaying = false; isAudioPaused = false; resetAudioButton(); return;
             }
+            
             let text = audioQueue[currentAudioIndex];
             window.currentUtterance = new SpeechSynthesisUtterance(text);
             window.currentUtterance.lang = 'id-ID'; 
             window.currentUtterance.rate = 0.9; 
-            window.currentUtterance.onend = () => { currentAudioIndex++; if (isAudioPlaying) playNextChunk(); };
-            window.currentUtterance.onerror = (e) => { console.error("Audio error:", e); currentAudioIndex++; if (isAudioPlaying) playNextChunk(); };
+            
+            window.currentUtterance.onend = () => {
+                currentAudioIndex++;
+                if (isAudioPlaying) playNextChunk();
+            };
+            
+            window.currentUtterance.onerror = (e) => {
+                console.error("Audio error:", e);
+                currentAudioIndex++;
+                if (isAudioPlaying) playNextChunk(); 
+            };
+
             synth.speak(window.currentUtterance);
         }
 
@@ -168,21 +158,41 @@
 
             if (isAudioPlaying && !isAudioPaused) {
                 synth.pause(); isAudioPaused = true;
-                btn.innerHTML = '<i class="ph-bold ph-play text-sm"></i> Lanjut'; btn.classList.replace('bg-rosewood', 'bg-sage');
+                btn.innerHTML = '<i class="ph-bold ph-play text-sm"></i> Lanjut';
+                btn.classList.replace('bg-rosewood', 'bg-sage');
             } else if (isAudioPlaying && isAudioPaused) {
                 synth.resume(); isAudioPaused = false;
-                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda'; btn.classList.replace('bg-sage', 'bg-rosewood');
+                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda';
+                btn.classList.replace('bg-sage', 'bg-rosewood');
             } else {
-                synth.cancel(); audioQueue = extractBibleTextChunks(); currentAudioIndex = 0;
+                synth.cancel(); 
+                audioQueue = extractBibleTextChunks();
+                currentAudioIndex = 0;
+                
                 if (audioQueue.length === 0) { showToast("Teks belum dimuat."); return; }
+
                 isAudioPlaying = true; isAudioPaused = false;
-                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda'; btn.classList.replace('bg-sage', 'bg-rosewood');
+                btn.innerHTML = '<i class="ph-bold ph-pause text-sm"></i> Jeda';
+                btn.classList.replace('bg-sage', 'bg-rosewood');
+                
                 playNextChunk();
             }
         }
 
-        function stopAudioBible() { if (synth) { isAudioPlaying = false; isAudioPaused = false; synth.cancel(); resetAudioButton(); } }
-        function resetAudioButton() { const btn = document.getElementById('btn-audio-bible'); if(btn) { btn.innerHTML = '<i class="ph-bold ph-speaker-high text-sm"></i> Putar Audio'; btn.classList.remove('bg-sage'); btn.classList.add('bg-rosewood'); } }
+        function stopAudioBible() {
+            if (synth) {
+                isAudioPlaying = false; isAudioPaused = false;
+                synth.cancel(); resetAudioButton();
+            }
+        }
+
+        function resetAudioButton() {
+            const btn = document.getElementById('btn-audio-bible');
+            if(btn) {
+                btn.innerHTML = '<i class="ph-bold ph-speaker-high text-sm"></i> Putar Audio';
+                btn.classList.remove('bg-sage'); btn.classList.add('bg-rosewood');
+            }
+        }
 
         function navigate(sectionId) {
             stopAudioBible(); 
@@ -194,8 +204,13 @@
             if (sectionId === 'devotion') { changeDevotionDate(0); }
         }
 
-        function getLocalMidnight() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); }
-        function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+        function getLocalMidnight() {
+            const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString();
+        }
+
+        function isSameDay(d1, d2) {
+            return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+        }
 
         function updateDateUI() {
             const dateBadge = document.getElementById('current-date-badge');
@@ -227,63 +242,6 @@
             if (session) showMainApp();
         }
 
-        // FUNGSI INIT KALENDER DAN TARIK TANGGAL SHARING
-        function initCustomCalendar() {
-            const devPicker = document.getElementById('devotionDatePicker');
-            if (devPicker) {
-                const todayLocal = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                
-                if (devotionCalendar) devotionCalendar.destroy();
-
-                devotionCalendar = flatpickr("#devotionDatePicker", {
-                    locale: "id", // Otomatis bahasa Indonesia
-                    dateFormat: "d/m/Y", // Tampilan di kotak input menjadi DD/MM/YYYY
-                    defaultDate: currentDevotionDate,
-                    maxDate: todayLocal, // Kunci agar tidak bisa ke masa depan
-                    disableMobile: true, // Wajib agar gaya titik merah muncul di HP
-                    onChange: function(selectedDates, dateStr, instance) {
-                        if(selectedDates.length > 0) {
-                            // Konversi kembali ke YYYY-MM-DD untuk sistem
-                            const y = selectedDates[0].getFullYear();
-                            const m = String(selectedDates[0].getMonth() + 1).padStart(2, '0');
-                            const d = String(selectedDates[0].getDate()).padStart(2, '0');
-                            setDevotionDate(`${y}-${m}-${d}`);
-                        }
-                    },
-                    onDayCreate: function(dObj, dStr, fp, dayElem) {
-                        // Pasangkan titik merah di tanggal yang cocok
-                        const localY = dayElem.dateObj.getFullYear();
-                        const localM = String(dayElem.dateObj.getMonth() + 1).padStart(2, '0');
-                        const localD = String(dayElem.dateObj.getDate()).padStart(2, '0');
-                        const localDateStr = `${localY}-${localM}-${localD}`;
-
-                        if (userSharedDates.includes(localDateStr)) {
-                            dayElem.classList.add('has-sharing-dot');
-                        }
-                    }
-                });
-            }
-        }
-
-        async function fetchUserSharedDates() {
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return;
-
-            const { data, error } = await supabase.from('sharings').select('created_at').eq('user_id', user.id);
-            if (!error && data) {
-                userSharedDates = data.map(item => {
-                    const d = new Date(item.created_at);
-                    const wibTime = d.getTime() + (7 * 60 * 60 * 1000); // Kalibrasi UTC+7
-                    const wibDate = new Date(wibTime);
-                    return wibDate.toISOString().split('T')[0];
-                });
-                
-                // Refresh kalender agar titik merahnya tergambar
-                if (devotionCalendar) devotionCalendar.redraw();
-            }
-        }
-
         function showMainApp() {
             document.getElementById('login-view').classList.add('hidden');
             const mainView = document.getElementById('main-view'); mainView.classList.remove('hidden'); mainView.classList.add('flex');
@@ -294,12 +252,15 @@
                 }
             });
 
-            navigate('home'); updateDateUI(); updateGreeting(); 
-            
-            // Urutan Pemuatan Baru
-            initCustomCalendar(); 
-            fetchUserSharedDates(); 
+            // Set maksimal tanggal untuk Devotion Date Picker agar tidak bisa ke masa depan
+            const devPicker = document.getElementById('devotionDatePicker');
+            if (devPicker) {
+                const todayLocal = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000));
+                devPicker.max = todayLocal.toISOString().split('T')[0];
+                devPicker.value = todayLocal.toISOString().split('T')[0];
+            }
 
+            navigate('home'); updateDateUI(); updateGreeting(); 
             loadUserProfile(); loadFeelings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); loadDailyVerse();
         }
 
@@ -316,15 +277,19 @@
                 toggleText.innerHTML = 'Belum punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Daftar sekarang</button>';
                 if(forgotLink) forgotLink.classList.remove('hidden');
                 
+                // Sembunyikan field register & matikan status "required"
                 if(registerFields) registerFields.classList.add('hidden');
-                document.getElementById('auth-name').required = false; document.getElementById('auth-phone').required = false;
+                document.getElementById('auth-name').required = false;
+                document.getElementById('auth-phone').required = false;
             } else {
                 title.innerText = "Buat Akun Baru"; subtitle.innerText = "Sign up to Bible Reading Perkantas Jabar"; btn.innerText = "Register";
                 toggleText.innerHTML = 'Sudah punya akun? <button type="button" onclick="toggleAuthMode()" class="text-rosewood font-bold hover:underline ml-1">Login di sini</button>';
                 if(forgotLink) forgotLink.classList.add('hidden');
                 
+                // Tampilkan field register & nyalakan status "required"
                 if(registerFields) registerFields.classList.remove('hidden');
-                document.getElementById('auth-name').required = true; document.getElementById('auth-phone').required = true;
+                document.getElementById('auth-name').required = true;
+                document.getElementById('auth-phone').required = true;
             }
         }
 
@@ -337,16 +302,28 @@
         async function handleAuth(event) {
             if (event) event.preventDefault();
             const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
+            
+            // Ambil data nama dan wa
             const fullName = document.getElementById('auth-name') ? document.getElementById('auth-name').value : '';
             const phone = document.getElementById('auth-phone') ? document.getElementById('auth-phone').value : '';
+
             const btn = document.getElementById('auth-btn'); const errorMsg = document.getElementById('auth-error-message'); const successMsg = document.getElementById('auth-success-message');
             const originalBtnText = btn.innerText; btn.innerText = 'Mohon tunggu...'; btn.disabled = true; errorMsg.classList.add('hidden'); successMsg.classList.add('hidden');
 
             try {
                 let result;
-                if (isLoginMode) { result = await supabaseClient.auth.signInWithPassword({ email, password }); } 
-                else { result = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName, phone: phone } } }); }
+                if (isLoginMode) {
+                    result = await supabaseClient.auth.signInWithPassword({ email, password });
+                } else {
+                    // Lempar metadata phone & name saat register
+                    result = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password,
+                        options: { data: { full_name: fullName, phone: phone } }
+                    });
+                }
                 if (result.error) throw result.error;
+
                 if (!isLoginMode) { successMsg.innerText = "Pendaftaran berhasil! Segera masuk..."; successMsg.classList.remove('hidden'); setTimeout(() => showMainApp(), 1200); } 
                 else showMainApp();
             } catch (error) { errorMsg.innerText = error.message.includes("Invalid login") ? "Email atau password salah." : error.message; errorMsg.classList.remove('hidden'); } 
@@ -387,8 +364,12 @@
             if (!supabaseClient) return; const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
                 document.getElementById('profile-email').value = user.email;
-                const fullName = user.user_metadata?.full_name || ''; const phone = user.user_metadata?.phone || ''; const avatarUrl = user.user_metadata?.avatar_url || null;
-                document.getElementById('profile-name').value = fullName; document.getElementById('profile-phone').value = phone; 
+                const fullName = user.user_metadata?.full_name || ''; 
+                const phone = user.user_metadata?.phone || '';
+                const avatarUrl = user.user_metadata?.avatar_url || null;
+                
+                document.getElementById('profile-name').value = fullName; 
+                document.getElementById('profile-phone').value = phone; 
                 updateAvatarUI(user.email, fullName, avatarUrl);
             }
         }
@@ -418,6 +399,7 @@
             const file = event.target.files[0]; if (!file) return;
             if (file.size > 10 * 1024 * 1024) { showToast("Gagal: Ukuran foto maksimal 10MB."); event.target.value = ''; return; }
             if (!file.type.startsWith('image/')) { showToast("Gagal: Harus berupa file gambar."); event.target.value = ''; return; }
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageEl = document.getElementById('cropper-image'); imageEl.src = e.target.result;
@@ -432,6 +414,7 @@
         async function saveCroppedImage() {
             if (!cropper || !supabaseClient) return; const btn = document.getElementById('btn-save-crop');
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Menyimpan...'; btn.disabled = true;
+
             try {
                 const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 }); const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
                 const { data: { user } } = await supabaseClient.auth.getUser(); if (!user) throw new Error("User tidak ditemukan.");
@@ -452,7 +435,8 @@
 
         async function handleProfileUpdate(event) {
             if (event) event.preventDefault(); const btn = document.getElementById('update-profile-btn');
-            const newName = document.getElementById('profile-name').value; const newPhone = document.getElementById('profile-phone').value;
+            const newName = document.getElementById('profile-name').value;
+            const newPhone = document.getElementById('profile-phone').value;
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
                 const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name: newName, phone: newPhone } });
@@ -477,7 +461,7 @@
             try {
                 const res = await fetch(`/api/sharing/${id}?user_id=${userId}`, { method: 'DELETE' });
                 if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Gagal menghapus"); }
-                showToast("Berhasil dihapus!"); fetchUserSharedDates(); loadSharings(); loadUserJournals(); loadUserStreak();
+                showToast("Berhasil dihapus!"); loadSharings(); loadUserJournals();
             } catch(e) { showToast(e.message); }
         }
 
@@ -496,12 +480,24 @@
             let userId = null;
             if (supabaseClient) { const { data: { user } } = await supabaseClient.auth.getUser(); if (user) userId = user.id; }
             if (!userId) { showToast("Silakan login kembali untuk memberikan Like."); return; }
-            const btn = document.getElementById(`btn-like-${id}`); if (btn) btn.style.opacity = '0.5';
+            
+            const btn = document.getElementById(`btn-like-${id}`);
+            if (btn) btn.style.opacity = '0.5';
+
             try {
-                const res = await fetch(`/api/sharing/${id}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId }) });
+                const res = await fetch(`/api/sharing/${id}/like`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ user_id: userId }) 
+                });
                 if(!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-                loadSharings(); if(!document.getElementById('sec-profile').classList.contains('hidden')) loadUserJournals();
-            } catch (error) { showToast("Gagal memberikan Like: " + error.message); if(btn) btn.style.opacity = '1'; }
+                
+                loadSharings(); 
+                if(!document.getElementById('sec-profile').classList.contains('hidden')) loadUserJournals();
+            } catch (error) { 
+                showToast("Gagal memberikan Like: " + error.message); 
+                if(btn) btn.style.opacity = '1';
+            }
         }
 
         async function loadUserJournals() {
@@ -529,8 +525,11 @@
                     else if (item.media_type === 'youtube' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty aspect-video"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowfullscreen></iframe></div>`; } 
                     else if (item.media_type === 'spotify' && item.media_url) { mediaHtml = `<div class="mt-3 rounded-lg overflow-hidden border border-misty h-20"><iframe class="w-full h-full" src="${item.media_url}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>`; }
                     
-                    const likesArr = item.likes || []; const likeCount = likesArr.length; const hasLiked = likesArr.includes(user.id);
-                    const heartIcon = hasLiked ? 'ph-fill text-rosewood' : 'ph'; const likeBtnText = likeCount > 0 ? likeCount : 'Suka';
+                    const likesArr = item.likes || [];
+                    const likeCount = likesArr.length;
+                    const hasLiked = likesArr.includes(user.id);
+                    const heartIcon = hasLiked ? 'ph-fill text-rosewood' : 'ph';
+                    const likeBtnText = likeCount > 0 ? likeCount : 'Suka';
                     const likeBtnHtml = `<div class="mt-2 pt-2 flex items-center"><button type="button" id="btn-like-${item.id}" onclick="toggleLikeSharing('${item.id}')" class="flex items-center gap-1.5 text-xs text-sage hover:text-rosewood transition-colors ${hasLiked ? 'text-rosewood font-bold' : ''}"><i class="${heartIcon} ph-heart text-lg"></i> <span>${likeBtnText}</span></button></div>`;
 
                     listEl.innerHTML += `<div class="bg-vanilla p-4 rounded-xl border border-misty relative group animate-fade-in-up"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-bold text-sage block uppercase tracking-wider">${dateStr} • ${timeStr}</span>${actionBtns}</div><p class="text-sm text-midnight break-words whitespace-pre-wrap">${item.text}</p>${mediaHtml}${likeBtnHtml}</div>`;
@@ -543,16 +542,16 @@
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             const msgEl = document.getElementById('feeling-message'); msgEl.classList.remove('hidden');
             const messages = {
-                "Happy": "Puji Tuhan! Kiranya sukacita-Nya terus mengalir. (Mazmur 118:29)",
-                "Peaceful": "Damai sejahtera Allah memelihara hatimu. (Filipi 4:7)",
-                "Excited": "Luar biasa! Teruslah bersemangat. (Roma 12:11)",
-                "In Love": "Mari kita membagikan kasih Allah. (1 Yohanes 4:19)",
-                "Flat": "Tuhan selalu menyertaimu di segala musim. (Mazmur 103:2)",
-                "Sad": "Tuhan mengerti dan sudah mengalami apa yang kamu alami. (Mazmur 34:18)",
-                "Anxious": "Tarik napas panjang... ingat Tuhan pegang kendali! (1 Petrus 5:7)",
-                "Angry": "Tenangkan hatimu bersama-Nya. (Efesus 4:26)",
-                "Tired": "Yuk istirahat sejenak di dalam hadirat-Nya. (Matius 11:28)",
-                "Sleepy": "Ingat, tubuhmu perlu istirahat juga ya. (Mazmur 4:8)"
+                "Happy": "Puji Tuhan! Kiranya sukacita-Nya terus mengalir. (Mazmur 118:29 — Bersyukurlah kepada TUHAN, sebab Ia baik! Bahwasanya untuk selama-lamanya kasih setia-Nya.)",
+                "Peaceful": "Damai sejahtera Allah memelihara hatimu. (Filipi 4:7 — Damai sejahtera Allah, yang melampaui segala akal, akan memelihara hati dan pikiranmu dalam Kristus Yesus.)",
+                "Excited": "Luar biasa! Teruslah bersemangat. (Roma 12:11 — Janganlah hendaknya kerajinanmu kendor, biarlah rohmu menyala-nyala dan layanilah Tuhan.)",
+                "In Love": "Mari kita membagikan kasih Allah. (1 Yohanes 4:19 — Kita mengasihi, karena Allah lebih dahulu mengasihi kita.)",
+                "Flat": "Tuhan selalu menyertaimu di segala musim. (Mazmur 103:2 — Pujilah TUHAN, hai jiwaku, dan janganlah lupakan segala kebaikan-Nya!)",
+                "Sad": "Tuhan mengerti dan sudah mengalami apa yang kamu alami. (Mazmur 34:18 — TUHAN itu dekat kepada orang-orang yang patah hati, dan Ia menyelamatkan orang-orang yang remuk jiwanya.)",
+                "Anxious": "Tarik napas panjang... ingat Tuhan pegang kendali! (1 Petrus 5:7 — Serahkanlah segala kekuatiranmu kepada-Nya, sebab Ia yang memelihara kamu.)",
+                "Angry": "Tenangkan hatimu bersama-Nya. (Efesus 4:26 — Apabila kamu menjadi marah, janganlah kamu berbuat dosa: janganlah matahari terbenam, sebelum padam amarahmu.)",
+                "Tired": "Yuk istirahat sejenak di dalam hadirat-Nya. (Matius 11:28 — Marilah kepada-Ku, semua yang letih lesu dan berbeban berat, Aku akan memberi kelegaan kepadamu.)",
+                "Sleepy": "Ingat, tubuhmu perlu istirahat juga ya. (Mazmur 4:8 — Dengan tenteram aku mau membaringkan diri, lalu segera tidur, sebab hanya Engkaulah, ya TUHAN, yang membiarkan aku diam dalam aman.)"
             };
             msgEl.innerText = messages[feeling]; document.getElementById('selected-feeling-value').value = feeling; document.getElementById('selected-emoji-value').value = emoji;
             document.getElementById('feeling-input-area').classList.remove('hidden'); document.getElementById('feeling-reason').focus();
@@ -646,12 +645,17 @@
         ];
 
         function loadDailyVerse() {
+            // Diubah ke 14 September 2026
             const programStart = new Date(2026, 8, 14); 
             programStart.setHours(0,0,0,0);
-            const today = new Date(); today.setHours(0,0,0,0);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
             const diffTime = today.getTime() - programStart.getTime();
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
             let index = diffDays < 0 ? 0 : diffDays % dailyVerses.length;
+            
             const v = dailyVerses[index];
             const container = document.getElementById('daily-verse-container');
             if (container) { container.innerHTML = `<h3 class="text-sm font-bold text-rosewood mb-3 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-book-open-text text-lg"></i> Ayat Harian</h3><p class="text-sm italic text-midnight mb-3 leading-relaxed">"${v.text}"</p><span class="text-xs font-semibold text-sage block text-right">— ${v.reference} (TB)</span>`; }
@@ -679,11 +683,15 @@
                 if(!grouped[item.book]) grouped[item.book] = [];
                 grouped[item.book].push(item.chapter);
             });
+            
             const dayStrings = [];
             for (let book in grouped) {
                 const chaps = grouped[book];
-                if (chaps.length === 1) { dayStrings.push(`${book} ${chaps[0]}`); } 
-                else { dayStrings.push(`${book} ${chaps[0]}-${chaps[chaps.length-1]}`); }
+                if (chaps.length === 1) {
+                    dayStrings.push(`${book} ${chaps[0]}`);
+                } else {
+                    dayStrings.push(`${book} ${chaps[0]}-${chaps[chaps.length-1]}`);
+                }
             }
             biblePlanOT.push(dayStrings.join('; '));
         }
@@ -702,14 +710,18 @@
         function parseReading(str) {
             let reqs = []; let parts = str.split(';');
             parts.forEach(p => {
-                p = p.trim(); let bookName = Object.keys(bookMap).find(b => p.startsWith(b));
+                p = p.trim();
+                let bookName = Object.keys(bookMap).find(b => p.startsWith(b));
                 if (bookName) {
                     let chapStr = p.substring(bookName.length).trim();
                     if(chapStr) {
                         chapStr.split(',').forEach(c => {
                             let range = c.trim().split('-');
-                            if(range.length === 2) { for(let i=parseInt(range[0]); i<=parseInt(range[1]); i++) reqs.push({book: bookName, chapter: i}); } 
-                            else { reqs.push({book: bookName, chapter: parseInt(range[0])}); }
+                            if(range.length === 2) {
+                                for(let i=parseInt(range[0]); i<=parseInt(range[1]); i++) reqs.push({book: bookName, chapter: i});
+                            } else {
+                                reqs.push({book: bookName, chapter: parseInt(range[0])});
+                            }
                         });
                     } else { reqs.push({book: bookName, chapter: 1}); }
                 }
@@ -720,13 +732,16 @@
         async function fetchDailyDevotionData(readingString) {
             const reqs = parseReading(readingString);
             try {
-                const promises = reqs.map(req => fetch(`https://bolls.life/get-chapter/TB/${bookMap[req.book]}/${req.chapter}/`).then(res => res.json()).then(data => ({req, data})));
+                const promises = reqs.map(req => 
+                    fetch(`https://bolls.life/get-chapter/TB/${bookMap[req.book]}/${req.chapter}/`).then(res => res.json()).then(data => ({req, data}))
+                );
                 const results = await Promise.all(promises);
                 let html = '';
                 results.forEach(res => {
                     html += `<h4 class="font-bold text-rosewood mt-4 mb-2 text-lg px-4">${res.req.book} ${res.req.chapter}</h4><div class="space-y-1 text-sm text-midnight px-4 pb-4 border-b border-misty last:border-0">`;
-                    if(Array.isArray(res.data)) { res.data.forEach(v => { html += `<p><sup class="font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; }); } 
-                    else { html += `<p class="italic">Gagal memuat teks...</p>`; }
+                    if(Array.isArray(res.data)) {
+                        res.data.forEach(v => { html += `<p><sup class="font-bold text-rosewood mr-1">${v.verse}</sup><span>${v.text}</span></p>`; });
+                    } else { html += `<p class="italic">Gagal memuat teks...</p>`; }
                     html += `</div>`;
                 });
                 return html;
@@ -739,14 +754,21 @@
             const selectedDate = new Date(dateString);
             const today = new Date();
             today.setHours(0,0,0,0);
-            selectedDate.setHours(0,0,0,0);
+            selectedDate.setHours(0,0,0,0); // Pastikan waktu di-reset
             
+            // Cek jika memilih masa depan
             if (selectedDate > today) {
                 showToast("Belum bisa melihat renungan masa depan ya!");
-                if (devotionCalendar) devotionCalendar.setDate(currentDevotionDate, false);
+                // Kembalikan picker ke currentDevotionDate
+                const picker = document.getElementById('devotionDatePicker');
+                if (picker) {
+                    const localDate = new Date(currentDevotionDate.getTime() - (currentDevotionDate.getTimezoneOffset() * 60000));
+                    picker.value = localDate.toISOString().split('T')[0];
+                }
                 return;
             }
 
+            // Hitung selisih hari dan jalankan fungsi utama
             const diffTime = selectedDate.getTime() - currentDevotionDate.getTime();
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
@@ -765,6 +787,7 @@
 
             const nextBtn = document.getElementById('btn-next-devotion');
             const formContainer = document.getElementById('sharing-form-container');
+            
             const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             
             if (isSameDay(currentDevotionDate, today)) {
@@ -775,8 +798,14 @@
                 document.getElementById('devotion-date-display').innerText = currentDevotionDate.toLocaleDateString('id-ID', dateOptions);
             }
 
-            if (devotionCalendar) { devotionCalendar.setDate(currentDevotionDate, false); }
+            // Sinkronisasi nilai kalender agar selalu cocok
+            const picker = document.getElementById('devotionDatePicker');
+            if (picker) {
+                const localDate = new Date(currentDevotionDate.getTime() - (currentDevotionDate.getTimezoneOffset() * 60000));
+                picker.value = localDate.toISOString().split('T')[0];
+            }
 
+            // PASTIKAN FORM SELALU MUNCUL MESKIPUN HARI SEBELUMNYA
             if(formContainer) formContainer.classList.remove('hidden');
 
             loadDailyDevotionContent(); loadSharings(); loadAdminDashboard();
@@ -785,6 +814,7 @@
         async function loadDailyDevotionContent() {
             const container = document.getElementById('daily-devotion-card');
             if (container) {
+                // Diubah ke 14 September 2026
                 const programStart = new Date(2026, 8, 14); 
                 programStart.setHours(0,0,0,0);
                 const current = new Date(currentDevotionDate);
@@ -794,6 +824,7 @@
                 const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                 
                 if (diffDays < 0) {
+                    // Teks pengumuman juga disesuaikan menjadi 14 September 2026
                     container.innerHTML = `<div class="text-center py-10 px-4"><div class="w-16 h-16 bg-vanilla rounded-full flex items-center justify-center mx-auto mb-3 border border-misty shadow-sm"><i class="ph ph-calendar-star text-3xl text-rosewood"></i></div><h3 class="text-lg font-bold text-rosewood mb-2">Program Belum Dimulai</h3><p class="text-sm text-sage">Program Bible Reading kita  akan dimulai pada <b class="text-midnight">14 September 2026</b>.</p></div>`;
                     return;
                 }
@@ -801,9 +832,11 @@
                 container.innerHTML = '<div class="text-center py-10"><i class="ph ph-spinner animate-spin text-3xl text-sage mb-2"></i><p class="text-xs text-sage">Menarik ayat dari Alkitab...</p></div>';
                 
                 let index = diffDays % biblePlanOT.length;
+                
                 const dayOfYear = index + 1;
                 const readingString = biblePlanOT[index];
                 const dateStr = currentDevotionDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                
                 const bibleHtml = await fetchDailyDevotionData(readingString);
 
                 container.innerHTML = `
@@ -898,9 +931,14 @@
             const submitBtn = document.querySelector('#sec-devotion button[type="submit"]'); submitBtn.innerHTML = 'Membagikan...'; submitBtn.disabled = true;
 
             try {
+                // BUAT TIMESTAMP SUSULAN (Agar masuk ke hari yang sedang dibuka)
                 const targetDate = new Date(currentDevotionDate);
-                if (!isSameDay(targetDate, new Date())) { targetDate.setHours(12, 0, 0, 0); } 
-                else { targetDate.setHours(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds()); }
+                // Jika hari ini, gunakan jam saat ini. Jika hari sebelumnya, set jam 12 siang.
+                if (!isSameDay(targetDate, new Date())) {
+                    targetDate.setHours(12, 0, 0, 0); 
+                } else {
+                    targetDate.setHours(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds());
+                }
                 const createdAtStr = targetDate.toISOString();
 
                 const res = await fetch('/api/sharing', { 
@@ -910,19 +948,12 @@
                         text, user_name: userName, user_id: userId, 
                         avatar_url: avatarUrl, media_url: currentShareMediaUrl, 
                         media_type: currentShareMediaType,
-                        created_at: createdAtStr
+                        created_at: createdAtStr // Kirim tanggal susulan ke server
                     }) 
                 });
                 
                 if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
                 document.getElementById('sharing-input').value = ''; clearMediaAttach();
-                
-                const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
-                if (!userSharedDates.includes(dateKey)) {
-                    userSharedDates.push(dateKey);
-                    if (devotionCalendar) devotionCalendar.redraw();
-                }
-
                 loadSharings(); loadUserJournals(); loadUserStreak(); loadLeaderboard(); showToast("Sharing berhasil dibagikan!");
                 if(!document.getElementById('sec-admin').classList.contains('hidden')) loadAdminDashboard();
             } catch (error) { showToast("Gagal: " + error.message); } finally { submitBtn.innerHTML = 'Bagikan ke Komunitas'; submitBtn.disabled = false; }
@@ -930,36 +961,59 @@
 
         // --- ADMIN DASHBOARD SCRIPT ---
         function sendWaManual(phone, name) {
-            if (!phone || phone.trim() === '') { showToast("Pengguna ini belum mengisi nomor WhatsApp di profilnya."); return; }
+            if (!phone || phone.trim() === '') {
+                showToast("Pengguna ini belum mengisi nomor WhatsApp di profilnya.");
+                return;
+            }
+            
+            // Membersihkan dan memformat nomor HP
             let formattedPhone = phone.replace(/\D/g,'');
-            if (formattedPhone.startsWith('0')) { formattedPhone = '62' + formattedPhone.substring(1); }
+            if (formattedPhone.startsWith('0')) {
+                formattedPhone = '62' + formattedPhone.substring(1);
+            }
+            
             const message = `Shalom ${name} 👋,\n\nSudahkah kamu bible reading hari ini? Yuk, luangkan waktu sejenak bersama Tuhan dan bagikan berkatmu di Bible Reading Perkantas Jabar!\n\nKlik link ini: https://bible-reading-perkantas.vercel.app/ \n\nSelamat membaca firman-Nya! 🙏`;
+            
+            // Menerjemahkan pesan teks menjadi format tautan URL (Ini yang sebelumnya hilang)
             const encodedText = encodeURIComponent(message);
+
+            // Deteksi apakah admin menggunakan HP atau Komputer
             const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
-            if (isMobile) { window.open(`https://wa.me/${formattedPhone}?text=${encodedText}`, '_blank'); } 
-            else { window.open(`whatsapp://send?phone=${formattedPhone}&text=${encodedText}`, '_self'); }
+            // Arahkan ke aplikasi yang sesuai
+            if (isMobile) {
+                // Jika di HP: Tetap gunakan sistem lama (wa.me)
+                window.open(`https://wa.me/${formattedPhone}?text=${encodedText}`, '_blank');
+            } else {
+                // Jika di Desktop/Laptop: Paksa buka aplikasi WhatsApp Desktop (whatsapp://)
+                window.open(`whatsapp://send?phone=${formattedPhone}&text=${encodedText}`, '_self');
+            }
         }
 
-        let adminCurrentDate = new Date();
+        // --- SISTEM TANGGAL KHUSUS ADMIN ---
+        let adminCurrentDate = new Date(); // Otomatis dimulai dari hari ini
 
         function initAdminDate() {
             const dateInput = document.getElementById('adminDatePicker');
             if (dateInput) {
+                // Mencegah error zona waktu (memaksa ke waktu lokal)
                 const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
-                dateInput.value = localDate.toISOString().split('T')[0];
+                dateInput.value = localDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
             }
         }
 
         function changeAdminDate(daysToAdd) {
+            // Geser hari (Next/Prev)
             adminCurrentDate.setDate(adminCurrentDate.getDate() + daysToAdd);
-            initAdminDate(); loadAdminDashboard();
+            initAdminDate();
+            loadAdminDashboard(); // Memuat ulang data dari Supabase
         }
 
         function setAdminDate(dateString) {
+            // Lompat ke tanggal spesifik dari kalender
             if (!dateString) return;
             adminCurrentDate = new Date(dateString);
-            loadAdminDashboard();
+            loadAdminDashboard(); // Memuat ulang data dari Supabase
         }
 
         async function loadAdminDashboard() {
@@ -973,10 +1027,14 @@
             renderLoading('admin-users-list', 'Merekap data komunitas...');
             
             try {
+                // Menggunakan adminCurrentDate
                 const localDate = new Date(adminCurrentDate.getTime() - (adminCurrentDate.getTimezoneOffset() * 60000));
                 const dateParam = localDate.toISOString().split('T')[0] + "T00:00:00.000Z"; 
                 
-                const res = await fetch(`/api/admin/users-status?date=${dateParam}`, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+                const res = await fetch(`/api/admin/users-status?date=${dateParam}`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                
                 if (!res.ok) throw new Error(await res.text());
                 const data = await res.json();
                 
@@ -984,21 +1042,34 @@
                 const titleEl = document.getElementById('admin-dashboard-title');
                 if (titleEl) titleEl.innerText = `Rekapitulasi (${dateStr})`;
 
-                let alreadySharedCount = 0; let notSharedCount = 0; const totalUsers = data.length;
+                let alreadySharedCount = 0;
+                let notSharedCount = 0;
+                const totalUsers = data.length;
 
-                data.forEach(u => { if (u.hasShared) alreadySharedCount++; else notSharedCount++; });
+                // Hitung partisipasi terlebih dahulu
+                data.forEach(u => {
+                    if (u.hasShared) alreadySharedCount++; else notSharedCount++;
+                });
 
+                // Update UI Partisipasi secara langsung
                 const percentage = totalUsers > 0 ? Math.round((alreadySharedCount / totalUsers) * 100) : 0;
                 
                 const countTextEl = document.getElementById('admin-participation-text');
-                if (countTextEl) countTextEl.innerHTML = `<span class="font-bold text-amber-900 text-2xl">${alreadySharedCount}</span> dari ${totalUsers} Orang`;
+                if (countTextEl) {
+                    countTextEl.innerHTML = `<span class="font-bold text-amber-900 text-2xl">${alreadySharedCount}</span> dari ${totalUsers} Orang`;
+                }
 
                 const percentageEl = document.getElementById('admin-participation-percentage');
-                if (percentageEl) percentageEl.innerText = `${percentage}%`;
+                if (percentageEl) {
+                    percentageEl.innerText = `${percentage}%`;
+                }
 
                 const progressBarEl = document.getElementById('admin-participation-bar');
-                if (progressBarEl) progressBarEl.style.width = `${percentage}%`;
+                if (progressBarEl) {
+                    progressBarEl.style.width = `${percentage}%`;
+                }
 
+                // Render List Pengguna
                 let html = '<div class="space-y-3">';
                 data.forEach(u => {
                     const statusBadge = u.hasShared 
@@ -1010,7 +1081,9 @@
                         : `<div class="w-8 h-8 rounded-full bg-blush flex items-center justify-center font-bold text-sm border border-misty">${u.name.charAt(0).toUpperCase()}</div>`;
                     
                     let waButton = '';
-                    if (!u.hasShared) { waButton = `<button onclick="sendWaManual('${u.phone}', '${u.name}')" class="ml-auto bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Kirim WA Pengingat"><i class="ph ph-whatsapp-logo text-base"></i> <span class="hidden sm:inline">Ingatkan</span></button>`; }
+                    if (!u.hasShared) {
+                        waButton = `<button onclick="sendWaManual('${u.phone}', '${u.name}')" class="ml-auto bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Kirim WA Pengingat"><i class="ph ph-whatsapp-logo text-base"></i> <span class="hidden sm:inline">Ingatkan</span></button>`;
+                    }
 
                     html += `
                     <div class="flex items-center gap-3 bg-vanilla p-3 rounded-xl border border-misty transition hover:border-sage">
@@ -1025,46 +1098,74 @@
                         ${waButton}
                     </div>`;
                 });
-                html += '</div>'; container.innerHTML = html;
-            } catch (err) { console.error(err); container.innerHTML = `<div class="p-4 text-center text-red-600">Gagal memuat data admin: ${err.message}</div>`; }
+
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="p-4 text-center text-red-600">Gagal memuat data admin: ${err.message}</div>`;
+            }
         }
 
         async function exportToExcel() {
             const btn = document.getElementById('btn-export-excel');
-            const originalText = btn.innerHTML; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-lg"></i> Memproses...'; btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-lg"></i> Memproses...';
+            btn.disabled = true;
 
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) throw new Error("Sesi tidak valid.");
-                const res = await fetch('/api/admin/export-all', { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+
+                const res = await fetch('/api/admin/export-all', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
                 if (!res.ok) throw new Error("Gagal mengambil data dari server.");
                 const data = await res.json();
 
                 let activeUsers = 0; let inactiveUsers = 0;
+
+                // Olah Data Detail
                 const userStats = data.users.map(u => {
                     const userSharings = data.sharings.filter(s => s.user_id === u.id);
+                    // Hitung berapa HARI BERBEDA dia pernah sharing (bukan jumlah post)
                     const uniqueDays = new Set(userSharings.map(s => {
                         const d = new Date(s.created_at); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
                     })).size;
+
                     if (uniqueDays > 0) activeUsers++; else inactiveUsers++;
 
-                    return { "Display Name": u.name, "Total Hari Ikut Sharing": uniqueDays, "Status": uniqueDays > 0 ? "Aktif Partisipasi" : "Belum Pernah Ikut" };
+                    // MURNI HANYA MENAMPILKAN DISPLAY NAME DAN STATISTIK PARTISIPASI
+                    return {
+                        "Display Name": u.name,
+                        "Total Hari Ikut Sharing": uniqueDays,
+                        "Status": uniqueDays > 0 ? "Aktif Partisipasi" : "Belum Pernah Ikut"
+                    };
                 });
 
+                // Olah Data Ringkasan untuk Diagram
                 const summaryData = [
                     { "Kategori": "Aktif Partisipasi", "Jumlah Anggota": activeUsers },
                     { "Kategori": "Belum Pernah Ikut", "Jumlah Anggota": inactiveUsers },
                     { "Kategori": "TOTAL ANGGOTA", "Jumlah Anggota": data.users.length }
                 ];
 
+                // Proses file Excel
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), "Ringkasan");
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(userStats), "Detail Anggota");
+
                 const fileName = `Rekap_Bible_Reading_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.xlsx`;
                 XLSX.writeFile(wb, fileName);
+                
                 showToast("Berhasil mengunduh Excel!");
-            } catch (error) { showToast("Gagal Export: " + error.message); } 
-            finally { btn.innerHTML = originalText; btn.disabled = false; }
+            } catch (error) {
+                showToast("Gagal Export: " + error.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
     </script>
 
@@ -1191,10 +1292,11 @@
                     <!-- BAGIAN TENGAH YANG BISA DIKLIK (DATE PICKER) -->
                     <div class="flex flex-col items-center justify-center flex-grow text-center">
                         <span class="text-[10px] font-bold text-sage uppercase tracking-widest mb-1">Renungan & Sharing</span>
-                        <div class="flex flex-col sm:flex-row items-center justify-center gap-1.5 cursor-pointer relative bg-vanilla px-3 py-1.5 rounded-lg border border-misty hover:border-rosewood transition shadow-inner group">
-                            <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base hidden sm:inline-block pointer-events-none">Hari Ini</span>
-                            <input type="text" id="devotionDatePicker" class="bg-transparent border-none focus:ring-0 text-rosewood font-bold text-sm sm:text-base outline-none cursor-pointer p-0 m-0 w-[100px] text-center" placeholder="Tanggal" readonly>
-                            <i class="ph-bold ph-calendar-blank text-rosewood text-lg pointer-events-none group-hover:scale-110 transition-transform"></i>
+                        <div class="flex flex-col sm:flex-row items-center gap-2">
+                            <span id="devotion-date-display" class="font-bold text-rosewood text-sm sm:text-base hidden sm:inline-block">Hari Ini</span>
+                            <div class="relative bg-vanilla border border-misty rounded-md px-2 py-1 shadow-inner hover:border-rosewood transition flex items-center cursor-pointer">
+                                <input type="date" id="devotionDatePicker" onchange="setDevotionDate(this.value)" class="bg-transparent border-none focus:ring-0 text-rosewood font-bold text-sm sm:text-base outline-none cursor-pointer p-0 m-0 text-center w-full" style="color-scheme: light;">
+                            </div>
                         </div>
                     </div>
 
